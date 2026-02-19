@@ -1,0 +1,11 @@
+## Interface: 11302
+## Title: Death Counter
+## Author: derpierre65
+## Notes: A death counter addon that counts all deaths.
+## Notes-deDE: Ein Addon das die Tode alle Charaktere zählt.
+## Version: 1.0.0
+## SavedVariablesPerCharacter: DeathCounterCharDB
+## SavedVariables: DeathCounterDB
+## OptionalDeps: ElvUI
+
+DeathCounter.xml

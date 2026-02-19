@@ -1,0 +1,29 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/..\FrameXML\UI.xsd">
+	<Script file="Locale.lua"/>
+	<Script file="DeathCounter.lua"/>
+	<Frame name="DeathCounter_Overlay" frameStrata="DIALOG" parent="UIParent" movable="true" enableMouse="true">
+		<Scripts>
+			<OnLoad>DeathCounter_OnLoad(self)</OnLoad>
+			<OnEvent>DeathCounter_Event(self, event, ...)</OnEvent>
+		</Scripts>
+		<Size>
+			<AbsDimension x="600" y="15"/>
+		</Size>
+		<Anchors>
+			<Anchor point="BOTTOMRIGHT"/>
+		</Anchors>
+		<Layers>
+			<Layer level="OVERLAY">
+				<FontString name="$parent_DeathText" inherits="GameFontNormalSmall">
+					<Anchors>
+						<Anchor point="BOTTOMRIGHT">
+							<Offset>
+								<AbsDimension x="-20" y="5"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+	</Frame>
+</Ui>
