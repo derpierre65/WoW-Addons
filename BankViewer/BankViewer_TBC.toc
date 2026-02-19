@@ -1,0 +1,10 @@
+## Interface: 20505
+## Title: BankViewer
+## Author: derpierre65
+## Notes: Saves information about the bank and displays it everywhere.
+## Version: 1.0.0
+## SavedVariables: BankViewerDB
+
+BankViewer.lua
+BankViewer_UI.lua
+BankViewer_Minimap.lua
