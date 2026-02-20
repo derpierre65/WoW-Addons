@@ -1,5 +1,5 @@
 BankViewer = {}
-BankViewer.version = "1.0.1"
+BankViewer.version = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)("BankViewer", "Version")
 
 local BANK_CONTAINER = Enum.BagIndex.Bank
 local BANK_SLOTS = 28
