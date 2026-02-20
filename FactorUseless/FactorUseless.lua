@@ -384,7 +384,7 @@ local FACTS = {
             "King Henry I of England allegedly died from eating an excessive amount of lampreys, despite being warned by his doctor.",
             "During World War I, Germany printed so much currency that wheelbarrows of banknotes were needed to buy a single loaf of bread.",
             "Sleep deprivation for 17 consecutive hours impairs your reaction time to a level equivalent to having a blood alcohol level of 0.05 percent.",
-            "Galileo was a licensed medical doctor who never practiced medicine and instead spent his salary on wine and lute strings.",
+            "Galileo was a licensed medical doctor who never practiced medicine and instead spent his salary on wine and lute L.",
             "A festival in Gloucestershire, England, involves competitors chasing a rolling wheel of cheese down a steep hill every spring.",
             "The ancient Spice Route once made black pepper so valuable in Rome that Alaric demanded 3,000 pounds of pepper as ransom during his siege.",
             "The fastest time to eat a 12-inch pizza is 23.62 seconds.",
@@ -1650,24 +1650,58 @@ local CATEGORY_NAMES = {
 
 local AVAILABLE_LANGUAGES = { "enUS", "deDE" }
 
-local HELP_TEXT = {
+local LOCALES = {
     enUS = {
-        "|cff00ccffFactorUseless|r - Commands:",
-        "  |cffffff00/fact|r - Show this help",
-        "  |cffffff00/fact print|generate [category]|r - Post a random fact to chat (optionally from a category)",
-        "  |cffffff00/fact language [enUS|deDE]|r - Set the language for facts",
-        "  |cffffff00/fact setup|r - Open the setup window",
-        "  |cffffff00/fact reset|r - Reset the posted facts history",
+        helpLines = {
+            "|cff00ccffFactorUseless|r - Commands:",
+            "  |cffffff00/fact|r - Show this help",
+            "  |cffffff00/fact print|generate [category]|r - Post a random fact to chat (optionally from a category)",
+            "  |cffffff00/fact language [enUS|deDE]|r - Set the language for facts",
+            "  |cffffff00/fact setup|r - Open the setup window",
+            "  |cffffff00/fact reset|r - Reset the posted facts history",
+        },
+        currentLanguage = "  Current language: |cff00ff00%s|r",
+        categories = "  Categories: |cffffff00%s|r",
+        unknownLanguage = "|cff00ccffFactorUseless|r: Unknown language: |cffff0000%s|r",
+        availableLanguages = "Available languages: |cffffff00%s|r",
+        languageSet = "|cff00ccffFactorUseless|r: Language set to |cff00ff00%s|r.",
+        unknownCategory = "|cff00ccffFactorUseless|r: Unknown category: |cffff0000%s|r",
+        allFactsPosted = "|cff00ccffFactorUseless|r: All facts have already been posted. Use |cffffff00/fact reset|r to reset the history.",
+        setupComplete = "|cff00ccffFactorUseless|r: Setup complete!",
+        historyReset = "|cff00ccffFactorUseless|r: Posted facts history has been reset.",
+        setupTitle = "FactorUseless",
+        setupDescription = "FactorUseless posts random useless facts to your guild chat. You can also use |cffffff00/fact print|r to post a new fact to your current chat at any time. Use |cffffff00/fact setup|r to reopen this window. Configure your preferences below.",
+        postOnLoginLabel = "Post a random fact to guild chat on login",
+        noDuplicatesLabel = "Don't post the same fact twice",
+        saveButton = "Save",
     },
     deDE = {
-        "|cff00ccffFactorUseless|r - Befehle:",
-        "  |cffffff00/fact|r - Zeigt diese Hilfe an",
-        "  |cffffff00/fact print|generate [Kategorie]|r - Postet einen zufälligen Fakt in den Chat (optional aus einer Kategorie)",
-        "  |cffffff00/fact language [enUS|deDE]|r - Stellt die Sprache für Fakten ein",
-        "  |cffffff00/fact setup|r - Öffnet das Setup-Fenster",
-        "  |cffffff00/fact reset|r - Setzt die Historie der geposteten Fakten zurück",
+        helpLines = {
+            "|cff00ccffFactorUseless|r - Befehle:",
+            "  |cffffff00/fact|r - Zeigt diese Hilfe an",
+            "  |cffffff00/fact print|generate [Kategorie]|r - Postet einen zufälligen Fakt in den Chat (optional aus einer Kategorie)",
+            "  |cffffff00/fact language [enUS|deDE]|r - Stellt die Sprache für Fakten ein",
+            "  |cffffff00/fact setup|r - Öffnet das Setup-Fenster",
+            "  |cffffff00/fact reset|r - Setzt die Historie der geposteten Fakten zurück",
+        },
+        currentLanguage = "  Aktuelle Sprache: |cff00ff00%s|r",
+        categories = "  Kategorien: |cffffff00%s|r",
+        unknownLanguage = "|cff00ccffFactorUseless|r: Unbekannte Sprache: |cffff0000%s|r",
+        availableLanguages = "Verfügbare Sprachen: |cffffff00%s|r",
+        languageSet = "|cff00ccffFactorUseless|r: Sprache auf |cff00ff00%s|r gesetzt.",
+        unknownCategory = "|cff00ccffFactorUseless|r: Unbekannte Kategorie: |cffff0000%s|r",
+        allFactsPosted = "|cff00ccffFactorUseless|r: Alle Fakten wurden bereits gepostet. Nutze |cffffff00/fact reset|r um die Historie zurückzusetzen.",
+        setupComplete = "|cff00ccffFactorUseless|r: Setup abgeschlossen!",
+        historyReset = "|cff00ccffFactorUseless|r: Historie der geposteten Fakten wurde zurückgesetzt.",
+        setupTitle = "FactorUseless",
+        setupDescription = "FactorUseless postet zufällige nutzlose Fakten in deinen Gildenchat. Du kannst auch jederzeit |cffffff00/fact print|r verwenden, um einen neuen Fakt in deinen aktuellen Chat zu posten. Mit |cffffff00/fact setup|r kannst du dieses Fenster jederzeit erneut öffnen. Konfiguriere deine Einstellungen unten.",
+        postOnLoginLabel = "Beim Einloggen einen zufälligen Fakt im Gildenchat posten",
+        noDuplicatesLabel = "Keinen Fakt doppelt posten",
+        saveButton = "Speichern",
     },
 }
+
+local L = LOCALES[GetLocale()] or LOCALES["enUS"]
 
 local function GetRandomFact(category)
     local locale = FactorUselessDB and FactorUselessDB.language or GetLocale()
@@ -1693,11 +1727,7 @@ local function GetRandomFact(category)
         end
 
         if #available == 0 then
-            if GetLocale() == "deDE" then
-                print("|cff00ccffFactorUseless|r: Alle Fakten wurden bereits gepostet. Nutze |cffffff00/fact reset|r um die Historie zurückzusetzen.")
-            else
-                print("|cff00ccffFactorUseless|r: All facts have already been posted. Use |cffffff00/fact reset|r to reset the history.")
-            end
+            print(L.allFactsPosted)
             return nil
         end
 
@@ -1746,58 +1776,39 @@ local function PostFact(category)
 end
 
 local function ShowHelp()
-    local locale = GetLocale()
-    local help = HELP_TEXT[locale] or HELP_TEXT["enUS"]
-    for _, line in ipairs(help) do
+    for _, line in ipairs(L.helpLines) do
         print(line)
     end
 
-    local lang = FactorUselessDB and FactorUselessDB.language or GetLocale()
+    local language = FactorUselessDB and FactorUselessDB.language or GetLocale()
     local categories = {}
     for key in pairs(FACTS["enUS"]) do
         categories[#categories + 1] = key
     end
     table.sort(categories)
-    if locale == "deDE" then
-        print("  Aktuelle Sprache: |cff00ff00" .. lang .. "|r")
-        print("  Kategorien: |cffffff00" .. table.concat(categories, ", ") .. "|r")
-    else
-        print("  Current language: |cff00ff00" .. lang .. "|r")
-        print("  Categories: |cffffff00" .. table.concat(categories, ", ") .. "|r")
-    end
+    print(L.currentLanguage:format(language))
+    print(L.categories:format(table.concat(categories, ", ")))
 end
 
-local function SetLanguage(lang)
-    local locale = GetLocale()
-
-    if not lang or lang == "" then
+local function SetLanguage(language)
+    if not language or language == "" then
         ShowHelp()
         return
     end
 
-    lang = lang:match("^%s*(.-)%s*$")
+    language = language:match("^%s*(.-)%s*$")
 
     local SHORT_CODES = { en = "enUS", de = "deDE" }
-    lang = SHORT_CODES[lang:lower()] or lang
+    language = SHORT_CODES[language:lower()] or language
 
-    if not FACTS[lang] then
-        if locale == "deDE" then
-            print("|cff00ccffFactorUseless|r: Unbekannte Sprache: |cffff0000" .. lang .. "|r")
-            print("Verfügbare Sprachen: |cffffff00" .. table.concat(AVAILABLE_LANGUAGES, ", ") .. "|r")
-        else
-            print("|cff00ccffFactorUseless|r: Unknown language: |cffff0000" .. lang .. "|r")
-            print("Available languages: |cffffff00" .. table.concat(AVAILABLE_LANGUAGES, ", ") .. "|r")
-        end
+    if not FACTS[language] then
+        print(L.unknownLanguage:format(language))
+        print(L.availableLanguages:format(table.concat(AVAILABLE_LANGUAGES, ", ")))
         return
     end
 
-    FactorUselessDB.language = lang
-
-    if locale == "deDE" then
-        print("|cff00ccffFactorUseless|r: Sprache auf |cff00ff00" .. lang .. "|r gesetzt.")
-    else
-        print("|cff00ccffFactorUseless|r: Language set to |cff00ff00" .. lang .. "|r.")
-    end
+    FactorUselessDB.language = language
+    print(L.languageSet:format(language))
 end
 
 -- Setup Frame
@@ -1807,27 +1818,6 @@ local function CreateSetupFrame()
     if setupFrame then
         return setupFrame
     end
-
-    local locale = GetLocale()
-
-    local L = {
-        enUS = {
-            title = "FactorUseless",
-            description = "FactorUseless posts random useless facts to your guild chat. You can also use |cffffff00/fact print|r to post a new fact to your current chat at any time. Use |cffffff00/fact setup|r to reopen this window. Configure your preferences below.",
-            checkboxLabel = "Post a random fact to guild chat on login",
-            noDuplicatesLabel = "Don't post the same fact twice",
-            saveButton = "Save",
-        },
-        deDE = {
-            title = "FactorUseless",
-            description = "FactorUseless postet zufällige nutzlose Fakten in deinen Gildenchat. Du kannst auch jederzeit |cffffff00/fact print|r verwenden, um einen neuen Fakt in deinen aktuellen Chat zu posten. Mit |cffffff00/fact setup|r kannst du dieses Fenster jederzeit erneut öffnen. Konfiguriere deine Einstellungen unten.",
-            checkboxLabel = "Beim Einloggen einen zufälligen Fakt im Gildenchat posten",
-            noDuplicatesLabel = "Keinen Fakt doppelt posten",
-            saveButton = "Speichern",
-        },
-    }
-
-    local strings = L[locale] or L["enUS"]
 
     local f = CreateFrame("Frame", "FactorUselessSetupFrame", UIParent, "BackdropTemplate")
     f:SetSize(400, 510)
@@ -1862,14 +1852,14 @@ local function CreateSetupFrame()
     -- Title
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOP", logo, "BOTTOM", 0, -10)
-    title:SetText(strings.title)
+    title:SetText(L.setupTitle)
 
     -- Description
     local description = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     description:SetPoint("TOP", title, "BOTTOM", 0, -15)
     description:SetWidth(350)
     description:SetJustifyH("CENTER")
-    description:SetText(strings.description)
+    description:SetText(L.setupDescription)
 
     -- Post on login checkbox
     local postOnLoginCheckbox = CreateFrame("CheckButton", "FactorUselessPostOnLoginCheckbox", f, "UICheckButtonTemplate")
@@ -1878,7 +1868,7 @@ local function CreateSetupFrame()
 
     local postOnLoginLabel = postOnLoginCheckbox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     postOnLoginLabel:SetPoint("LEFT", postOnLoginCheckbox, "RIGHT", 5, 0)
-    postOnLoginLabel:SetText(strings.checkboxLabel)
+    postOnLoginLabel:SetText(L.postOnLoginLabel)
 
     -- No duplicates checkbox
     local noDuplicatesCheckbox = CreateFrame("CheckButton", "FactorUselessNoDuplicatesCheckbox", f, "UICheckButtonTemplate")
@@ -1887,23 +1877,19 @@ local function CreateSetupFrame()
 
     local noDuplicatesLabel = noDuplicatesCheckbox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     noDuplicatesLabel:SetPoint("LEFT", noDuplicatesCheckbox, "RIGHT", 5, 0)
-    noDuplicatesLabel:SetText(strings.noDuplicatesLabel)
+    noDuplicatesLabel:SetText(L.noDuplicatesLabel)
 
     -- Save button
     local saveButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     saveButton:SetSize(120, 30)
     saveButton:SetPoint("BOTTOM", 0, 20)
-    saveButton:SetText(strings.saveButton)
+    saveButton:SetText(L.saveButton)
     saveButton:SetScript("OnClick", function()
         FactorUselessDB.postOnLogin = postOnLoginCheckbox:GetChecked()
         FactorUselessDB.noDuplicates = noDuplicatesCheckbox:GetChecked()
         FactorUselessDB.setupDone = true
         f:Hide()
-        if GetLocale() == "deDE" then
-            print("|cff00ccffFactorUseless|r: Setup abgeschlossen!")
-        else
-            print("|cff00ccffFactorUseless|r: Setup complete!")
-        end
+        print(L.setupComplete)
     end)
 
     f:Hide()
@@ -1977,18 +1963,13 @@ SlashCmdList["FACTORUSELESS"] = function(msg)
     if command == "print" or command == "generate" then
         local category = rest ~= "" and rest:lower() or nil
         if category and not FACTS["enUS"][category] then
-            local locale = GetLocale()
-            local available = {}
+            local availableCategories = {}
             for key in pairs(FACTS["enUS"]) do
-                available[#available + 1] = key
+                availableCategories[#availableCategories + 1] = key
             end
-            table.sort(available)
-            if locale == "deDE" then
-                print("|cff00ccffFactorUseless|r: Unbekannte Kategorie: |cffff0000" .. rest .. "|r")
-            else
-                print("|cff00ccffFactorUseless|r: Unknown category: |cffff0000" .. rest .. "|r")
-            end
-            print("  |cffffff00" .. table.concat(available, ", ") .. "|r")
+            table.sort(availableCategories)
+            print(L.unknownCategory:format(rest))
+            print("  |cffffff00" .. table.concat(availableCategories, ", ") .. "|r")
             return
         end
         PostFact(category)
@@ -2000,11 +1981,7 @@ SlashCmdList["FACTORUSELESS"] = function(msg)
         if FactorUselessCharDB then
             FactorUselessCharDB.postedFacts = {}
         end
-        if GetLocale() == "deDE" then
-            print("|cff00ccffFactorUseless|r: Historie der geposteten Fakten wurde zurückgesetzt.")
-        else
-            print("|cff00ccffFactorUseless|r: Posted facts history has been reset.")
-        end
+        print(L.historyReset)
     else
         ShowHelp()
     end
