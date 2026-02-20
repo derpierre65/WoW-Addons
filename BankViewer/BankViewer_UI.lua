@@ -16,11 +16,12 @@ local QUALITY_COLORS = {
 local selectedRealm, selectedName
 local selectedType = "character" -- "character" or "guild"
 local selectedGuildRealm, selectedGuildName
+local selectedSort = "none"
 local slotButtons = {}
 
 -- Main Frame
 local mainFrame = CreateFrame("Frame", "BankViewerMainFrame", UIParent, "BackdropTemplate")
-mainFrame:SetSize(345, 500)
+mainFrame:SetSize(450, 500)
 mainFrame:SetPoint("CENTER")
 mainFrame:SetMovable(true)
 mainFrame:EnableMouse(true)
@@ -37,7 +38,7 @@ mainFrame:SetBackdrop({
 	insets = { left = 11, right = 12, top = 12, bottom = 11 },
 })
 mainFrame:SetResizable(true)
-mainFrame:SetResizeBounds(300, 250)
+mainFrame:SetResizeBounds(450, 250)
 mainFrame:SetFrameStrata("MEDIUM")
 mainFrame:Hide()
 
@@ -234,6 +235,94 @@ end
 
 UIDropDownMenu_Initialize(dropdown, InitDropdown)
 
+-- Sort function
+local SORT_OPTIONS = {
+	{ value = "none", label = "None" },
+	{ value = "name_asc", label = "Name (A-Z)" },
+	{ value = "name_desc", label = "Name (Z-A)" },
+	{ value = "count_asc", label = "Stack (Low-High)" },
+	{ value = "count_desc", label = "Stack (High-Low)" },
+	{ value = "ilvl_asc", label = "Item Level (Low-High)" },
+	{ value = "ilvl_desc", label = "Item Level (High-Low)" },
+}
+
+local function GetSortLabel(value)
+	for _, opt in ipairs(SORT_OPTIONS) do
+		if opt.value == value then return opt.label end
+	end
+	return "None"
+end
+
+local function SortItems(items)
+	if selectedSort == "none" then return end
+
+	table.sort(items, function(a, b)
+		-- Empty slots (false/nil) always sort to the end
+		local aEmpty = not a or a == false
+		local bEmpty = not b or b == false
+		if aEmpty and bEmpty then return false end
+		if aEmpty then return false end
+		if bEmpty then return true end
+
+		-- For visibleSlots entries (tables with .itemData), unwrap
+		local aData = a.itemData or a
+		local bData = b.itemData or b
+
+		-- If itemData is nil/false inside wrapper, treat as empty
+		if not aData or aData == false then return false end
+		if not bData or bData == false then return true end
+
+		if selectedSort == "count_asc" then
+			return (aData.count or 1) < (bData.count or 1)
+		elseif selectedSort == "count_desc" then
+			return (aData.count or 1) > (bData.count or 1)
+		end
+
+		-- Name and ilvl need GetItemInfo
+		local aName, _, _, aIlvl = C_Item.GetItemInfo(aData.itemLink or "")
+		local bName, _, _, bIlvl = C_Item.GetItemInfo(bData.itemLink or "")
+		aName = aName or ""
+		bName = bName or ""
+		aIlvl = aIlvl or 0
+		bIlvl = bIlvl or 0
+
+		if selectedSort == "name_asc" then
+			return aName < bName
+		elseif selectedSort == "name_desc" then
+			return aName > bName
+		elseif selectedSort == "ilvl_asc" then
+			return aIlvl < bIlvl
+		elseif selectedSort == "ilvl_desc" then
+			return aIlvl > bIlvl
+		end
+
+		return false
+	end)
+end
+
+-- Sort Dropdown
+local sortDropdown = CreateFrame("Frame", "BankViewerSortDropdown", mainFrame, "UIDropDownMenuTemplate")
+sortDropdown:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", 5, -35)
+UIDropDownMenu_SetText(sortDropdown, "None")
+UIDropDownMenu_SetWidth(sortDropdown, 120)
+
+local function InitSortDropdown(self, level)
+	for _, opt in ipairs(SORT_OPTIONS) do
+		local info = UIDropDownMenu_CreateInfo()
+		info.text = opt.label
+		info.func = function()
+			selectedSort = opt.value
+			UIDropDownMenu_SetText(sortDropdown, opt.label)
+			CloseDropDownMenus()
+			BankViewer.UpdateUI()
+		end
+		info.checked = (selectedSort == opt.value)
+		UIDropDownMenu_AddButton(info)
+	end
+end
+
+UIDropDownMenu_Initialize(sortDropdown, InitSortDropdown)
+
 local function CreateSlotButton(parent, index)
 	local btn = CreateFrame("Button", nil, parent)
 	btn:SetSize(SLOT_SIZE, SLOT_SIZE)
@@ -374,6 +463,8 @@ function BankViewer.UpdateUI()
 				end
 			end
 
+			SortItems(allItems)
+
 			for i, itemData in ipairs(allItems) do
 				if itemData == false then itemData = nil end
 				local btn = CreateSlotButton(scrollChild, i)
@@ -433,6 +524,8 @@ function BankViewer.UpdateUI()
 							end
 						end
 
+						SortItems(visibleSlots)
+
 						for i, slotInfo in ipairs(visibleSlots) do
 							local btn = CreateSlotButton(scrollChild, slotInfo.slot)
 							local col = (i - 1) % columns
@@ -476,6 +569,8 @@ function BankViewer.UpdateUI()
 					end
 				end
 			end
+
+			SortItems(allItems)
 
 			for i, itemData in ipairs(allItems) do
 				if itemData == false then itemData = nil end
@@ -543,6 +638,8 @@ function BankViewer.UpdateUI()
 							table.insert(visibleSlots, { slot = slot, itemData = itemData })
 						end
 					end
+
+					SortItems(visibleSlots)
 
 					for i, slotInfo in ipairs(visibleSlots) do
 						local btn = CreateSlotButton(scrollChild, slotInfo.slot)
@@ -638,13 +735,37 @@ local function ApplyElvUISkin()
 		ddText:SetPoint("RIGHT", dropdown, "RIGHT", -20, 0)
 	end
 
+	-- Sort dropdown
+	S:HandleDropDownBox(sortDropdown)
+	sortDropdown:ClearAllPoints()
+	sortDropdown:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -10, -30)
+
+	local sdLeft = _G["BankViewerSortDropdownLeft"]
+	if sdLeft then
+		sdLeft:ClearAllPoints()
+		sdLeft:SetPoint("LEFT", sortDropdown, "LEFT", 0, 0)
+	end
+
+	local sdButton = _G["BankViewerSortDropdownButton"]
+	if sdButton then
+		sdButton:ClearAllPoints()
+		sdButton:SetPoint("TOPLEFT", sortDropdown, "TOPLEFT", 0, 0)
+		sdButton:SetPoint("BOTTOMRIGHT", sortDropdown, "BOTTOMRIGHT", 0, 0)
+	end
+
+	local sdText = _G["BankViewerSortDropdownText"]
+	if sdText then
+		sdText:ClearAllPoints()
+		sdText:SetPoint("RIGHT", sortDropdown, "RIGHT", -20, 0)
+	end
+
 	-- Fix dropdown menu position to align left with the dropdown box
 	hooksecurefunc("ToggleDropDownMenu", function(level, _, dropdownFrame)
-		if dropdownFrame ~= dropdown then return end
+		if dropdownFrame ~= dropdown and dropdownFrame ~= sortDropdown then return end
 		local listFrame = _G["DropDownList1"]
 		if listFrame and listFrame:IsShown() then
 			listFrame:ClearAllPoints()
-			listFrame:SetPoint("TOPLEFT", dropdown, "BOTTOMLEFT", 0, -2)
+			listFrame:SetPoint("TOPLEFT", dropdownFrame, "BOTTOMLEFT", 0, -2)
 		end
 	end)
 
