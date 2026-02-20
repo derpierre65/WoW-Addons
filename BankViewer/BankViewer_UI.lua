@@ -139,8 +139,36 @@ scrollFrame:SetScrollChild(scrollChild)
 -- Dropdown
 local dropdown = CreateFrame("Frame", "BankViewerCharDropdown", mainFrame, "UIDropDownMenuTemplate")
 dropdown:SetPoint("TOPLEFT", -5, -35)
-UIDropDownMenu_SetWidth(dropdown, 200)
 UIDropDownMenu_SetText(dropdown, "Select Character")
+
+local function UpdateDropdownWidth()
+	local measureFont = dropdown:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	local maxWidth = 0
+
+	local chars = BankViewer.GetCharacters and BankViewer.GetCharacters() or {}
+	local guilds = BankViewer.GetGuilds and BankViewer.GetGuilds() or {}
+
+	for _, char in ipairs(chars) do
+		measureFont:SetText(char.name .. " - " .. char.realm)
+		local w = measureFont:GetStringWidth()
+		if w > maxWidth then maxWidth = w end
+	end
+
+	for _, guild in ipairs(guilds) do
+		measureFont:SetText(guild.name .. " (Gildenbank)")
+		local w = measureFont:GetStringWidth()
+		if w > maxWidth then maxWidth = w end
+	end
+
+	if maxWidth == 0 then
+		measureFont:SetText("Select Character")
+		maxWidth = measureFont:GetStringWidth()
+	end
+
+	measureFont:Hide()
+	UIDropDownMenu_SetWidth(dropdown, maxWidth + 25)
+end
+UIDropDownMenu_SetWidth(dropdown, 120)
 
 local function InitDropdown(self, level)
 	local chars = BankViewer.GetCharacters()
@@ -280,6 +308,8 @@ local function SetSlotItem(btn, itemData)
 end
 
 function BankViewer.UpdateUI()
+	UpdateDropdownWidth()
+
 	-- Clear existing buttons
 	for _, btn in ipairs(slotButtons) do
 		btn:Hide()
@@ -585,6 +615,7 @@ local function ApplyElvUISkin()
 	S:HandleDropDownBox(dropdown)
 	dropdown:ClearAllPoints()
 	dropdown:SetPoint("TOPLEFT", 15, -30)
+	UpdateDropdownWidth()
 
 	-- Fix the left frame inside the dropdown so the menu opens aligned
 	local ddLeft = _G["BankViewerCharDropdownLeft"]
