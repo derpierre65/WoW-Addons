@@ -1656,12 +1656,14 @@ local HELP_TEXT = {
         "  |cffffff00/fact|r - Show this help",
         "  |cffffff00/fact print|generate [category]|r - Post a random fact to chat (optionally from a category)",
         "  |cffffff00/fact language [enUS|deDE]|r - Set the language for facts",
+        "  |cffffff00/fact setup|r - Open the setup window",
     },
     deDE = {
         "|cff00ccffFactorUseless|r - Befehle:",
         "  |cffffff00/fact|r - Zeigt diese Hilfe an",
         "  |cffffff00/fact print|generate [Kategorie]|r - Postet einen zufälligen Fakt in den Chat (optional aus einer Kategorie)",
         "  |cffffff00/fact language [enUS|deDE]|r - Stellt die Sprache für Fakten ein",
+        "  |cffffff00/fact setup|r - Öffnet das Setup-Fenster",
     },
 }
 
@@ -1768,6 +1770,116 @@ local function SetLanguage(lang)
     end
 end
 
+-- Setup Frame
+local setupFrame = nil
+
+local function CreateSetupFrame()
+    if setupFrame then
+        return setupFrame
+    end
+
+    local locale = GetLocale()
+
+    local L = {
+        enUS = {
+            title = "FactorUseless",
+            description = "FactorUseless posts random useless facts to your guild chat. You can also use |cffffff00/fact print|r to post a new fact to your current chat at any time. Use |cffffff00/fact setup|r to reopen this window. Configure your preferences below.",
+            checkboxLabel = "Post a random fact to guild chat on login",
+            saveButton = "Save",
+        },
+        deDE = {
+            title = "FactorUseless",
+            description = "FactorUseless postet zufällige nutzlose Fakten in deinen Gildenchat. Du kannst auch jederzeit |cffffff00/fact print|r verwenden, um einen neuen Fakt in deinen aktuellen Chat zu posten. Mit |cffffff00/fact setup|r kannst du dieses Fenster jederzeit erneut öffnen. Konfiguriere deine Einstellungen unten.",
+            checkboxLabel = "Beim Einloggen einen zufälligen Fakt im Gildenchat posten",
+            saveButton = "Speichern",
+        },
+    }
+
+    local strings = L[locale] or L["enUS"]
+
+    local f = CreateFrame("Frame", "FactorUselessSetupFrame", UIParent, "BackdropTemplate")
+    f:SetSize(400, 480)
+    f:SetPoint("CENTER")
+    f:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true,
+        tileSize = 32,
+        edgeSize = 32,
+        insets = { left = 11, right = 12, top = 12, bottom = 11 },
+    })
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    f:SetFrameStrata("DIALOG")
+
+    tinsert(UISpecialFrames, "FactorUselessSetupFrame")
+
+    -- Close button
+    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", -5, -5)
+
+    -- Logo
+    local logo = f:CreateTexture(nil, "ARTWORK")
+    logo:SetSize(256, 256)
+    logo:SetPoint("TOP", 0, -25)
+    logo:SetTexture("Interface\\AddOns\\FactorUseless\\logo")
+
+    -- Title
+    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("TOP", logo, "BOTTOM", 0, -10)
+    title:SetText(strings.title)
+
+    -- Description
+    local desc = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    desc:SetPoint("TOP", title, "BOTTOM", 0, -15)
+    desc:SetWidth(350)
+    desc:SetJustifyH("CENTER")
+    desc:SetText(strings.description)
+
+    -- Checkbox
+    local checkbox = CreateFrame("CheckButton", "FactorUselessPostOnLoginCheckbox", f, "UICheckButtonTemplate")
+    checkbox:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", -10, -20)
+    checkbox:SetChecked(true)
+
+    local cbLabel = checkbox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    cbLabel:SetPoint("LEFT", checkbox, "RIGHT", 5, 0)
+    cbLabel:SetText(strings.checkboxLabel)
+
+    -- Save button
+    local saveBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    saveBtn:SetSize(120, 30)
+    saveBtn:SetPoint("BOTTOM", 0, 20)
+    saveBtn:SetText(strings.saveButton)
+    saveBtn:SetScript("OnClick", function()
+        FactorUselessDB.postOnLogin = checkbox:GetChecked()
+        FactorUselessDB.setupDone = true
+        f:Hide()
+        if GetLocale() == "deDE" then
+            print("|cff00ccffFactorUseless|r: Setup abgeschlossen!")
+        else
+            print("|cff00ccffFactorUseless|r: Setup complete!")
+        end
+    end)
+
+    f:Hide()
+    setupFrame = f
+    return f
+end
+
+local function ShowSetupFrame()
+    local f = CreateSetupFrame()
+    -- Sync checkbox with current setting
+    local cb = FactorUselessPostOnLoginCheckbox
+    if cb then
+        local val = FactorUselessDB.postOnLogin
+        cb:SetChecked(val == nil or val == true)
+    end
+    f:Show()
+end
+
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("ADDON_LOADED")
@@ -1780,6 +1892,12 @@ frame:SetScript("OnEvent", function(self, event, arg1)
         if not FactorUselessDB.language then
             FactorUselessDB.language = GetLocale()
         end
+
+        if not FactorUselessDB.setupDone then
+            C_Timer.After(2, function()
+                ShowSetupFrame()
+            end)
+        end
     end
 
     if event == "PLAYER_ENTERING_WORLD" then
@@ -1789,12 +1907,13 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 
         hasPosted = true
 
-        -- Delay slightly to make sure guild chat is ready
-        C_Timer.After(5, function()
-            if IsInGuild() then
-                --SendChatMessage(GetRandomFact(), "GUILD")
-            end
-        end)
+        if FactorUselessDB and FactorUselessDB.postOnLogin then
+            C_Timer.After(5, function()
+                if IsInGuild() then
+                    SendChatMessage(GetRandomFact(), "GUILD")
+                end
+            end)
+        end
     end
 end)
 
@@ -1823,6 +1942,8 @@ SlashCmdList["FACTORUSELESS"] = function(msg)
         PostFact(category)
     elseif command == "language" or command == "lang" then
         SetLanguage(rest)
+    elseif command == "setup" then
+        ShowSetupFrame()
     else
         ShowHelp()
     end
