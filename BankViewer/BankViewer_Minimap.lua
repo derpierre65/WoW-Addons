@@ -1,11 +1,24 @@
 local BUTTON_RADIUS = 80
 local DEFAULT_ANGLE = 220
 
+local function IsSquareMinimap()
+	return GetMinimapShape and GetMinimapShape() == "SQUARE"
+end
+
 local function GetMinimapButtonPosition(angle)
 	local rad = math.rad(angle)
-	local x = math.cos(rad) * BUTTON_RADIUS
-	local y = math.sin(rad) * BUTTON_RADIUS
-	return x, y
+	local cos, sin = math.cos(rad), math.sin(rad)
+
+	if IsSquareMinimap() then
+		-- position along the edge of a square
+		local halfWidth = Minimap:GetWidth() / 2 + 6
+		local halfHeight = Minimap:GetHeight() / 2 + 6
+		local scale = math.min(halfWidth / math.max(math.abs(cos), 0.001), halfHeight / math.max(math.abs(sin), 0.001))
+		return cos * scale, sin * scale
+	end
+
+	local radius = Minimap:GetWidth() / 2 + 6
+	return cos * radius, sin * radius
 end
 
 local minimapButton = CreateFrame("Button", "BankViewerMinimapButton", Minimap)
