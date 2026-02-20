@@ -17,6 +17,7 @@ local selectedRealm, selectedName
 local selectedType = "character" -- "character" or "guild"
 local selectedGuildRealm, selectedGuildName
 local selectedSort = "none"
+local searchText = ""
 local slotButtons = {}
 
 -- Main Frame
@@ -303,6 +304,38 @@ end
 -- Sort Dropdown
 local sortDropdown = CreateFrame("Frame", "BankViewerSortDropdown", mainFrame, "UIDropDownMenuTemplate")
 sortDropdown:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", 5, -35)
+
+-- Search Box
+local searchBox = CreateFrame("EditBox", "BankViewerSearchBox", mainFrame, "InputBoxTemplate")
+searchBox:SetSize(120, 20)
+searchBox:SetPoint("RIGHT", sortDropdown, "LEFT", 10, 2)
+searchBox:SetAutoFocus(false)
+searchBox:SetFontObject("GameFontHighlightSmall")
+
+local searchPlaceholder = searchBox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+searchPlaceholder:SetPoint("LEFT", 5, 0)
+searchPlaceholder:SetText("Search...")
+searchBox.placeholder = searchPlaceholder
+
+searchBox:SetScript("OnTextChanged", function(self)
+	searchText = strlower(strtrim(self:GetText()))
+	self.placeholder:SetShown(searchText == "")
+	BankViewer.ApplySearchHighlight()
+end)
+searchBox:SetScript("OnEditFocusGained", function(self)
+	self.placeholder:Hide()
+end)
+searchBox:SetScript("OnEditFocusLost", function(self)
+	if strtrim(self:GetText()) == "" then
+		self.placeholder:Show()
+	end
+end)
+searchBox:SetScript("OnEscapePressed", function(self)
+	self:ClearFocus()
+end)
+searchBox:SetScript("OnEnterPressed", function(self)
+	self:ClearFocus()
+end)
 UIDropDownMenu_SetText(sortDropdown, "None")
 UIDropDownMenu_SetWidth(sortDropdown, 120)
 
@@ -393,6 +426,62 @@ local function SetSlotItem(btn, itemData)
 		btn.itemLink = nil
 		btn.countText:Hide()
 		btn.border:Hide()
+	end
+end
+
+-- Hidden tooltip for scanning item text
+local scanTooltip = CreateFrame("GameTooltip", "BankViewerScanTooltip", nil, "GameTooltipTemplate")
+scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+
+local function ItemMatchesSearch(itemLink)
+	-- Check item name first
+	local itemName = C_Item.GetItemInfo(itemLink)
+	if itemName and strfind(strlower(itemName), searchText, 1, true) then
+		return true
+	end
+
+	-- Scan tooltip text
+	scanTooltip:ClearLines()
+	scanTooltip:SetHyperlink(itemLink)
+
+	for i = 2, scanTooltip:NumLines() do
+		local left = _G["BankViewerScanTooltipTextLeft" .. i]
+		local right = _G["BankViewerScanTooltipTextRight" .. i]
+		if left then
+			local text = left:GetText()
+			if text and strfind(strlower(text), searchText, 1, true) then
+				return true
+			end
+		end
+		if right then
+			local text = right:GetText()
+			if text and strfind(strlower(text), searchText, 1, true) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+function BankViewer.ApplySearchHighlight()
+	if searchText == "" then
+		for _, btn in ipairs(slotButtons) do
+			btn:SetAlpha(1)
+		end
+		return
+	end
+
+	for _, btn in ipairs(slotButtons) do
+		if btn.itemLink then
+			if ItemMatchesSearch(btn.itemLink) then
+				btn:SetAlpha(1)
+			else
+				btn:SetAlpha(0.3)
+			end
+		else
+			btn:SetAlpha(0.3)
+		end
 	end
 end
 
@@ -660,6 +749,7 @@ function BankViewer.UpdateUI()
 	end
 
 	scrollChild:SetHeight(yOffset + 10)
+	BankViewer.ApplySearchHighlight()
 end
 
 mainFrame:SetScript("OnShow", function()
@@ -734,6 +824,22 @@ local function ApplyElvUISkin()
 		ddText:ClearAllPoints()
 		ddText:SetPoint("RIGHT", dropdown, "RIGHT", -20, 0)
 	end
+
+	-- Search box
+	S:HandleEditBox(searchBox)
+	searchBox:ClearAllPoints()
+	searchBox:SetSize(120, 20)
+	searchBox:SetPoint("TOPRIGHT", sortDropdown, "TOPLEFT", -10, -2)
+
+	local searchIcon = searchBox:CreateTexture(nil, "OVERLAY")
+	searchIcon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+	searchIcon:SetSize(14, 14)
+	searchIcon:SetPoint("LEFT", searchBox, "LEFT", 4, -1)
+	searchIcon:SetVertexColor(1, 1, 1, 0.8)
+
+	searchBox:SetTextInsets(18, 0, 0, 0)
+	searchBox.placeholder:ClearAllPoints()
+	searchBox.placeholder:SetPoint("LEFT", 18, 0)
 
 	-- Sort dropdown
 	S:HandleDropDownBox(sortDropdown)
