@@ -1,0 +1,8 @@
+## Interface: 20505
+## Title: FactorUseless
+## Author: derpierre65
+## Notes: Posts a random useless fact in guild chat when you log in.
+## Version: 1.0.0
+## SavedVariables: FactorUselessDB
+
+FactorUseless.lua
