@@ -2,7 +2,7 @@
 ## Title: BankViewer
 ## Author: derpierre65
 ## Notes: Saves information about the bank and displays it everywhere.
-## Version: 1.0.2
+## Version: 1.1.0
 ## SavedVariables: BankViewerDB
 
 BankViewer.lua
