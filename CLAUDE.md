@@ -15,10 +15,14 @@ Remove-Item -Recurse -Force "<WoW-Path>\Interface\AddOns\<AddonName>"
 Copy-Item -Recurse "<AddonName>" "<WoW-Path>\Interface\AddOns\<AddonName>"
 ```
 
-## After bumping the version
+## When the user asks to bump the version
 
-When the version is bumped in a `.toc` file, run the build script to create a release zip:
-
-```powershell
-.\build.ps1 <AddonName>
-```
+1. Determine the version increment based on the changes since the last version bump:
+   - **Patch version** (e.g. 1.1.0 → 1.1.1): Only bug fixes, no new features.
+   - **Minor version** (e.g. 1.1.1 → 1.2.0): New features are included (regardless of whether bug fixes are also included).
+2. Bump the version in all `.toc` files of the addon.
+3. Run the build script to create a release zip:
+   ```powershell
+   .\build.ps1 <AddonName>
+   ```
+4. Output a changelog in English as text, summarizing all changes included in this version.
