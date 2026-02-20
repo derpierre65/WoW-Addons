@@ -1,5 +1,5 @@
 BankViewer = {}
-BankViewer.version = "1.0.0"
+BankViewer.version = "1.0.1"
 
 local BANK_CONTAINER = Enum.BagIndex.Bank
 local BANK_SLOTS = 28
