@@ -1657,6 +1657,7 @@ local HELP_TEXT = {
         "  |cffffff00/fact print|generate [category]|r - Post a random fact to chat (optionally from a category)",
         "  |cffffff00/fact language [enUS|deDE]|r - Set the language for facts",
         "  |cffffff00/fact setup|r - Open the setup window",
+        "  |cffffff00/fact reset|r - Reset the posted facts history",
     },
     deDE = {
         "|cff00ccffFactorUseless|r - Befehle:",
@@ -1664,6 +1665,7 @@ local HELP_TEXT = {
         "  |cffffff00/fact print|generate [Kategorie]|r - Postet einen zufälligen Fakt in den Chat (optional aus einer Kategorie)",
         "  |cffffff00/fact language [enUS|deDE]|r - Stellt die Sprache für Fakten ein",
         "  |cffffff00/fact setup|r - Öffnet das Setup-Fenster",
+        "  |cffffff00/fact reset|r - Setzt die Historie der geposteten Fakten zurück",
     },
 }
 
@@ -1679,6 +1681,30 @@ local function GetRandomFact(category)
                 allFacts[#allFacts + 1] = name .. ": " .. fact
             end
         end
+    end
+
+    if FactorUselessDB and FactorUselessDB.noDuplicates then
+        local postedFacts = FactorUselessCharDB and FactorUselessCharDB.postedFacts or {}
+        local available = {}
+        for _, fact in ipairs(allFacts) do
+            if not postedFacts[fact] then
+                available[#available + 1] = fact
+            end
+        end
+
+        if #available == 0 then
+            if GetLocale() == "deDE" then
+                print("|cff00ccffFactorUseless|r: Alle Fakten wurden bereits gepostet. Nutze |cffffff00/fact reset|r um die Historie zurückzusetzen.")
+            else
+                print("|cff00ccffFactorUseless|r: All facts have already been posted. Use |cffffff00/fact reset|r to reset the history.")
+            end
+            return nil
+        end
+
+        local chosen = available[math.random(#available)]
+        postedFacts[chosen] = true
+        FactorUselessCharDB.postedFacts = postedFacts
+        return chosen
     end
 
     return allFacts[math.random(#allFacts)]
@@ -1711,8 +1737,12 @@ local function GetChatTarget()
 end
 
 local function PostFact(category)
+    local fact = GetRandomFact(category)
+    if not fact then
+        return
+    end
     local chatType, target = GetChatTarget()
-    SendChatMessage(GetRandomFact(category), chatType, nil, target)
+    SendChatMessage(fact, chatType, nil, target)
 end
 
 local function ShowHelp()
@@ -1785,12 +1815,14 @@ local function CreateSetupFrame()
             title = "FactorUseless",
             description = "FactorUseless posts random useless facts to your guild chat. You can also use |cffffff00/fact print|r to post a new fact to your current chat at any time. Use |cffffff00/fact setup|r to reopen this window. Configure your preferences below.",
             checkboxLabel = "Post a random fact to guild chat on login",
+            noDuplicatesLabel = "Don't post the same fact twice",
             saveButton = "Save",
         },
         deDE = {
             title = "FactorUseless",
             description = "FactorUseless postet zufällige nutzlose Fakten in deinen Gildenchat. Du kannst auch jederzeit |cffffff00/fact print|r verwenden, um einen neuen Fakt in deinen aktuellen Chat zu posten. Mit |cffffff00/fact setup|r kannst du dieses Fenster jederzeit erneut öffnen. Konfiguriere deine Einstellungen unten.",
             checkboxLabel = "Beim Einloggen einen zufälligen Fakt im Gildenchat posten",
+            noDuplicatesLabel = "Keinen Fakt doppelt posten",
             saveButton = "Speichern",
         },
     }
@@ -1798,7 +1830,7 @@ local function CreateSetupFrame()
     local strings = L[locale] or L["enUS"]
 
     local f = CreateFrame("Frame", "FactorUselessSetupFrame", UIParent, "BackdropTemplate")
-    f:SetSize(400, 480)
+    f:SetSize(400, 510)
     f:SetPoint("CENTER")
     f:SetBackdrop({
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -1818,8 +1850,8 @@ local function CreateSetupFrame()
     tinsert(UISpecialFrames, "FactorUselessSetupFrame")
 
     -- Close button
-    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", -5, -5)
+    local closeButton = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+    closeButton:SetPoint("TOPRIGHT", -5, -5)
 
     -- Logo
     local logo = f:CreateTexture(nil, "ARTWORK")
@@ -1833,28 +1865,38 @@ local function CreateSetupFrame()
     title:SetText(strings.title)
 
     -- Description
-    local desc = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    desc:SetPoint("TOP", title, "BOTTOM", 0, -15)
-    desc:SetWidth(350)
-    desc:SetJustifyH("CENTER")
-    desc:SetText(strings.description)
+    local description = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    description:SetPoint("TOP", title, "BOTTOM", 0, -15)
+    description:SetWidth(350)
+    description:SetJustifyH("CENTER")
+    description:SetText(strings.description)
 
-    -- Checkbox
-    local checkbox = CreateFrame("CheckButton", "FactorUselessPostOnLoginCheckbox", f, "UICheckButtonTemplate")
-    checkbox:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", -10, -20)
-    checkbox:SetChecked(true)
+    -- Post on login checkbox
+    local postOnLoginCheckbox = CreateFrame("CheckButton", "FactorUselessPostOnLoginCheckbox", f, "UICheckButtonTemplate")
+    postOnLoginCheckbox:SetPoint("TOPLEFT", description, "BOTTOMLEFT", -10, -20)
+    postOnLoginCheckbox:SetChecked(true)
 
-    local cbLabel = checkbox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    cbLabel:SetPoint("LEFT", checkbox, "RIGHT", 5, 0)
-    cbLabel:SetText(strings.checkboxLabel)
+    local postOnLoginLabel = postOnLoginCheckbox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    postOnLoginLabel:SetPoint("LEFT", postOnLoginCheckbox, "RIGHT", 5, 0)
+    postOnLoginLabel:SetText(strings.checkboxLabel)
+
+    -- No duplicates checkbox
+    local noDuplicatesCheckbox = CreateFrame("CheckButton", "FactorUselessNoDuplicatesCheckbox", f, "UICheckButtonTemplate")
+    noDuplicatesCheckbox:SetPoint("TOPLEFT", postOnLoginCheckbox, "BOTTOMLEFT", 0, -5)
+    noDuplicatesCheckbox:SetChecked(true)
+
+    local noDuplicatesLabel = noDuplicatesCheckbox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    noDuplicatesLabel:SetPoint("LEFT", noDuplicatesCheckbox, "RIGHT", 5, 0)
+    noDuplicatesLabel:SetText(strings.noDuplicatesLabel)
 
     -- Save button
-    local saveBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    saveBtn:SetSize(120, 30)
-    saveBtn:SetPoint("BOTTOM", 0, 20)
-    saveBtn:SetText(strings.saveButton)
-    saveBtn:SetScript("OnClick", function()
-        FactorUselessDB.postOnLogin = checkbox:GetChecked()
+    local saveButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    saveButton:SetSize(120, 30)
+    saveButton:SetPoint("BOTTOM", 0, 20)
+    saveButton:SetText(strings.saveButton)
+    saveButton:SetScript("OnClick", function()
+        FactorUselessDB.postOnLogin = postOnLoginCheckbox:GetChecked()
+        FactorUselessDB.noDuplicates = noDuplicatesCheckbox:GetChecked()
         FactorUselessDB.setupDone = true
         f:Hide()
         if GetLocale() == "deDE" then
@@ -1871,11 +1913,16 @@ end
 
 local function ShowSetupFrame()
     local f = CreateSetupFrame()
-    -- Sync checkbox with current setting
-    local cb = FactorUselessPostOnLoginCheckbox
-    if cb then
-        local val = FactorUselessDB.postOnLogin
-        cb:SetChecked(val == nil or val == true)
+    -- Sync checkboxes with current settings
+    local postOnLogin = FactorUselessPostOnLoginCheckbox
+    if postOnLogin then
+        local value = FactorUselessDB.postOnLogin
+        postOnLogin:SetChecked(value == nil or value == true)
+    end
+    local noDuplicates = FactorUselessNoDuplicatesCheckbox
+    if noDuplicates then
+        local value = FactorUselessDB.noDuplicates
+        noDuplicates:SetChecked(value == nil or value == true)
     end
     f:Show()
 end
@@ -1889,6 +1936,8 @@ local hasPosted = false
 frame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "FactorUseless" then
         FactorUselessDB = FactorUselessDB or {}
+        FactorUselessCharDB = FactorUselessCharDB or {}
+        FactorUselessCharDB.postedFacts = FactorUselessCharDB.postedFacts or {}
         if not FactorUselessDB.language then
             FactorUselessDB.language = GetLocale()
         end
@@ -1910,7 +1959,10 @@ frame:SetScript("OnEvent", function(self, event, arg1)
         if FactorUselessDB and FactorUselessDB.postOnLogin then
             C_Timer.After(5, function()
                 if IsInGuild() then
-                    SendChatMessage(GetRandomFact(), "GUILD")
+                    local fact = GetRandomFact()
+                    if fact then
+                        SendChatMessage(fact, "GUILD")
+                    end
                 end
             end)
         end
@@ -1944,6 +1996,15 @@ SlashCmdList["FACTORUSELESS"] = function(msg)
         SetLanguage(rest)
     elseif command == "setup" then
         ShowSetupFrame()
+    elseif command == "reset" then
+        if FactorUselessCharDB then
+            FactorUselessCharDB.postedFacts = {}
+        end
+        if GetLocale() == "deDE" then
+            print("|cff00ccffFactorUseless|r: Historie der geposteten Fakten wurde zurückgesetzt.")
+        else
+            print("|cff00ccffFactorUseless|r: Posted facts history has been reset.")
+        end
     else
         ShowHelp()
     end

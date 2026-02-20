@@ -26,3 +26,7 @@ Copy-Item -Recurse "<AddonName>" "<WoW-Path>\Interface\AddOns\<AddonName>"
    .\build.ps1 <AddonName>
    ```
 4. Output a changelog in English as text, summarizing all changes included in this version.
+
+## Code style
+
+- Never abbreviate variable names. Always write out full words (e.g. `checkbox` instead of `cb`, `button` instead of `btn`, `description` instead of `desc`, `label` instead of `lbl`).

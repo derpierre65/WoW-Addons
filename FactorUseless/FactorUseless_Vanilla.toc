@@ -4,5 +4,6 @@
 ## Notes: Posts a random useless fact in guild chat when you log in.
 ## Version: 1.0.0
 ## SavedVariables: FactorUselessDB
+## SavedVariablesPerCharacter: FactorUselessCharDB
 
 FactorUseless.lua
