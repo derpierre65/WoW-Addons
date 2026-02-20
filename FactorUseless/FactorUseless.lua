@@ -1659,32 +1659,70 @@ local FACTS = {
     },
 }
 
+local CATEGORY_NAMES = {
+    enUS = {
+        animals = "Animals",
+        history = "History",
+        science = "Science",
+        body = "Body",
+        food = "Food & Drinks",
+        language = "Language",
+        laws = "Laws",
+        technology = "Technology",
+        geography = "Geography",
+        gaming = "Gaming",
+        culture = "Culture",
+        records = "Records",
+        misc = "Miscellaneous",
+    },
+    deDE = {
+        animals = "Tiere",
+        history = "Geschichte",
+        science = "Wissenschaft",
+        body = "Körper",
+        food = "Essen & Trinken",
+        language = "Sprache",
+        laws = "Gesetze",
+        technology = "Technologie",
+        geography = "Geografie",
+        gaming = "Gaming",
+        culture = "Kultur",
+        records = "Rekorde",
+        misc = "Sonstiges",
+    },
+}
+
 local AVAILABLE_LANGUAGES = { "enUS", "deDE" }
 
 local HELP_TEXT = {
     enUS = {
         "|cff00ccffFactorUseless|r - Commands:",
         "  |cffffff00/fact|r - Show this help",
-        "  |cffffff00/fact print|r - Post a random fact to chat",
+        "  |cffffff00/fact print|generate [category]|r - Post a random fact to chat (optionally from a category)",
         "  |cffffff00/fact language [enUS|deDE]|r - Set the language for facts",
     },
     deDE = {
         "|cff00ccffFactorUseless|r - Befehle:",
         "  |cffffff00/fact|r - Zeigt diese Hilfe an",
-        "  |cffffff00/fact print|r - Postet einen zufälligen Fakt in den Chat",
+        "  |cffffff00/fact print|generate [Kategorie]|r - Postet einen zufälligen Fakt in den Chat (optional aus einer Kategorie)",
         "  |cffffff00/fact language [enUS|deDE]|r - Stellt die Sprache für Fakten ein",
     },
 }
 
-local function GetRandomFact()
+local function GetRandomFact(category)
     local locale = FactorUselessDB and FactorUselessDB.language or GetLocale()
     local localeFacts = FACTS[locale] or FACTS["enUS"]
+    local categoryNames = CATEGORY_NAMES[locale] or CATEGORY_NAMES["enUS"]
     local allFacts = {}
-    for _, categoryFacts in pairs(localeFacts) do
-        for _, fact in ipairs(categoryFacts) do
-            allFacts[#allFacts + 1] = fact
+    for cat, categoryFacts in pairs(localeFacts) do
+        if not category or cat == category then
+            local name = categoryNames[cat] or cat
+            for _, fact in ipairs(categoryFacts) do
+                allFacts[#allFacts + 1] = name .. ": " .. fact
+            end
         end
     end
+
     return allFacts[math.random(#allFacts)]
 end
 
@@ -1714,9 +1752,9 @@ local function GetChatTarget()
     return "SAY", nil
 end
 
-local function PostFact()
+local function PostFact(category)
     local chatType, target = GetChatTarget()
-    SendChatMessage(GetRandomFact(), chatType, nil, target)
+    SendChatMessage(GetRandomFact(category), chatType, nil, target)
 end
 
 local function ShowHelp()
@@ -1727,10 +1765,17 @@ local function ShowHelp()
     end
 
     local lang = FactorUselessDB and FactorUselessDB.language or GetLocale()
+    local categories = {}
+    for key in pairs(FACTS["enUS"]) do
+        categories[#categories + 1] = key
+    end
+    table.sort(categories)
     if locale == "deDE" then
         print("  Aktuelle Sprache: |cff00ff00" .. lang .. "|r")
+        print("  Kategorien: |cffffff00" .. table.concat(categories, ", ") .. "|r")
     else
         print("  Current language: |cff00ff00" .. lang .. "|r")
+        print("  Categories: |cffffff00" .. table.concat(categories, ", ") .. "|r")
     end
 end
 
@@ -1791,7 +1836,7 @@ frame:SetScript("OnEvent", function(self, event, arg1)
         -- Delay slightly to make sure guild chat is ready
         C_Timer.After(5, function()
             if IsInGuild() then
-                SendChatMessage(GetRandomFact(), "GUILD")
+                --SendChatMessage(GetRandomFact(), "GUILD")
             end
         end)
     end
@@ -1802,8 +1847,24 @@ SlashCmdList["FACTORUSELESS"] = function(msg)
     local command, rest = msg:match("^(%S+)%s*(.*)$")
     command = command and command:lower() or ""
 
-    if command == "print" then
-        PostFact()
+    if command == "print" or command == "generate" then
+        local category = rest ~= "" and rest:lower() or nil
+        if category and not FACTS["enUS"][category] then
+            local locale = GetLocale()
+            local available = {}
+            for key in pairs(FACTS["enUS"]) do
+                available[#available + 1] = key
+            end
+            table.sort(available)
+            if locale == "deDE" then
+                print("|cff00ccffFactorUseless|r: Unbekannte Kategorie: |cffff0000" .. rest .. "|r")
+            else
+                print("|cff00ccffFactorUseless|r: Unknown category: |cffff0000" .. rest .. "|r")
+            end
+            print("  |cffffff00" .. table.concat(available, ", ") .. "|r")
+            return
+        end
+        PostFact(category)
     elseif command == "language" or command == "lang" then
         SetLanguage(rest)
     else
