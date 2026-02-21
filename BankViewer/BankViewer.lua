@@ -17,8 +17,12 @@ local GetContainerItemInfo = C_Container.GetContainerItemInfo
 local GetContainerItemLink = C_Container.GetContainerItemLink
 local ContainerIDToInventoryID = C_Container.ContainerIDToInventoryID
 
+local SCAN_DEBOUNCE_DELAY = 0.15
+
 local bankOpen = false
 local guildBankOpen = false
+local bankScanTimer = nil
+local warbandScanTimer = nil
 
 -- Guild bank API (may be under C_ namespace in Anniversary Edition)
 local GetGuildBankNumTabs = GetNumGuildBankTabs or (C_GuildBank and C_GuildBank.GetNumTabs)
@@ -68,6 +72,9 @@ local function ScanContainerItems(bagID)
 end
 
 local function ScanBank()
+	-- Bank container data is not accessible when the bank frame is closed
+	if not bankOpen then return end
+
 	local realm, name = GetCharKey()
 
 	BankViewerDB[realm] = BankViewerDB[realm] or {}
@@ -129,7 +136,8 @@ local function ScanBank()
 end
 
 local function ScanWarbandBank()
-	if not isWarbandBankAvailable then return end
+	-- Bank container data is not accessible when the bank frame is closed
+	if not isWarbandBankAvailable or not bankOpen then return end
 
 	local warbandData = {
 		tabs = {},
@@ -255,9 +263,17 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "BANKFRAME_CLOSED" then
 		bankOpen = false
 	elseif event == "BAG_UPDATE" and bankOpen then
-		ScanBank()
+		if bankScanTimer then bankScanTimer:Cancel() end
+		bankScanTimer = C_Timer.NewTimer(SCAN_DEBOUNCE_DELAY, function()
+			bankScanTimer = nil
+			ScanBank()
+		end)
 	elseif event == "PLAYER_ACCOUNT_BANK_TAB_SLOTS_CHANGED" and bankOpen then
-		ScanWarbandBank()
+		if warbandScanTimer then warbandScanTimer:Cancel() end
+		warbandScanTimer = C_Timer.NewTimer(SCAN_DEBOUNCE_DELAY, function()
+			warbandScanTimer = nil
+			ScanWarbandBank()
+		end)
 	elseif event == "GUILDBANKBAGSLOTS_CHANGED" and guildBankOpen then
 		ScanGuildBank()
 	end
