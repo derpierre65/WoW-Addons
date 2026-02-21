@@ -2,7 +2,7 @@
 ## Title: FactorUseless
 ## Author: derpierre65
 ## Notes: Posts a random useless fact in guild chat when you log in.
-## Version: 1.1.0
+## Version: 1.2.0
 ## SavedVariables: FactorUselessDB
 ## SavedVariablesPerCharacter: FactorUselessCharDB
 
