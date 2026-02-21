@@ -1,4 +1,4 @@
-## Interface: 20505
+## Interface: 11307, 20505, 50503, 120001
 ## Title: FactorUseless
 ## Author: derpierre65
 ## Notes: Posts a random useless fact in guild chat when you log in.
