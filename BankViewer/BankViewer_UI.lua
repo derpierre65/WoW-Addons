@@ -393,7 +393,9 @@ end
 
 UIDropDownMenu_Initialize(sortDropdown, InitSortDropdown)
 
-local function CreateSlotButton(parent, index)
+local slotButtonPool = {}
+
+local function CreateSlotButton(parent)
 	local btn = CreateFrame("Button", nil, parent)
 	btn:SetSize(SLOT_SIZE, SLOT_SIZE)
 
@@ -433,6 +435,18 @@ local function CreateSlotButton(parent, index)
 		GameTooltip:Hide()
 	end)
 
+	return btn
+end
+
+local function AcquireSlotButton()
+	local btn = table.remove(slotButtonPool)
+	if not btn then
+		btn = CreateSlotButton(scrollChild)
+	end
+	btn:SetParent(scrollChild)
+	btn:ClearAllPoints()
+	btn:SetAlpha(1)
+	btn:Show()
 	return btn
 end
 
@@ -542,28 +556,42 @@ local function ContainerHasItems(itemsTable, slotCount)
 	return false
 end
 
-local function CreateSectionHeader(contentWidth, yOffset, label, icon)
-	if not icon then
-		local header = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		header:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
-		header:SetText(label)
-		return yOffset + 18
+local headerPool = {}
+local activeHeaders = {}
+
+local function AcquireHeaderFrame()
+	local frame = table.remove(headerPool)
+	if not frame then
+		frame = CreateFrame("Frame", nil, scrollChild)
+		frame.icon = frame:CreateTexture(nil, "ARTWORK")
+		frame.icon:SetSize(18, 18)
+		frame.icon:SetPoint("LEFT", 0, 0)
+		frame.label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	end
+	frame:SetParent(scrollChild)
+	frame:ClearAllPoints()
+	frame:Show()
+	return frame
+end
 
-	local headerFrame = CreateFrame("Frame", nil, scrollChild)
-	headerFrame:SetSize(contentWidth, 20)
-	headerFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
+local function CreateSectionHeader(contentWidth, yOffset, label, icon)
+	local frame = AcquireHeaderFrame()
+	frame:SetSize(contentWidth, 20)
+	frame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
 
-	local headerIcon = headerFrame:CreateTexture(nil, "ARTWORK")
-	headerIcon:SetSize(18, 18)
-	headerIcon:SetPoint("LEFT", 0, 0)
-	headerIcon:SetTexture(icon)
+	if icon then
+		frame.icon:SetTexture(icon)
+		frame.icon:Show()
+		frame.label:ClearAllPoints()
+		frame.label:SetPoint("LEFT", frame.icon, "RIGHT", 5, 0)
+	else
+		frame.icon:Hide()
+		frame.label:ClearAllPoints()
+		frame.label:SetPoint("LEFT", 0, 0)
+	end
+	frame.label:SetText(label)
 
-	local headerLabel = headerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	headerLabel:SetPoint("LEFT", headerIcon, "RIGHT", 5, 0)
-	headerLabel:SetText(label)
-
-	headerFrame:Show()
+	table.insert(activeHeaders, frame)
 	return yOffset + 22
 end
 
@@ -575,7 +603,7 @@ local function RenderItemGrid(items, columns, yOffset)
 
 	for i, itemData in ipairs(items) do
 		if itemData == false then itemData = nil end
-		local btn = CreateSlotButton(scrollChild, i)
+		local btn = AcquireSlotButton()
 		local col = (i - 1) % columns
 		local row = math.floor((i - 1) / columns)
 		btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
@@ -597,7 +625,7 @@ local function RenderGuildBankVerticalGrid(items, yOffset)
 	if selectedSort ~= "none" then
 		for i, itemData in ipairs(items) do
 			if itemData == false then itemData = nil end
-			local btn = CreateSlotButton(scrollChild, i)
+			local btn = AcquireSlotButton()
 			local col = (i - 1) % GUILD_BANK_COLUMNS
 			local row = math.floor((i - 1) / GUILD_BANK_COLUMNS)
 			btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
@@ -616,7 +644,7 @@ local function RenderGuildBankVerticalGrid(items, yOffset)
 			if slotIndex <= #items then
 				local itemData = items[slotIndex]
 				if itemData == false then itemData = nil end
-				local btn = CreateSlotButton(scrollChild, slotIndex)
+				local btn = AcquireSlotButton()
 				btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
 				SetSlotItem(btn, itemData)
 				btn:Show()
@@ -631,22 +659,19 @@ end
 function BankViewer.UpdateUI()
 	UpdateDropdownWidth()
 
-	-- Clear existing buttons
+	-- Return slot buttons to pool
 	for _, btn in ipairs(slotButtons) do
 		btn:Hide()
-		btn:SetParent(nil)
+		table.insert(slotButtonPool, btn)
 	end
 	wipe(slotButtons)
 
-	-- Hide extra children (section headers) and regions (font strings)
-	for _, child in ipairs({ scrollChild:GetChildren() }) do
-		child:Hide()
-		child:SetParent(nil)
+	-- Return section headers to pool
+	for _, header in ipairs(activeHeaders) do
+		header:Hide()
+		table.insert(headerPool, header)
 	end
-	for _, region in ipairs({ scrollChild:GetRegions() }) do
-		region:Hide()
-		region:SetParent(nil)
-	end
+	wipe(activeHeaders)
 
 	-- Auto-select current char if nothing selected
 	if selectedType == "character" and (not selectedRealm or not selectedName) then
@@ -927,10 +952,10 @@ local function ApplyElvUISkin()
 	resizeButton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
 	resizeButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
 
-	-- Skin slot buttons when created
+	-- Skin slot buttons when created and reskin existing pooled buttons
 	local origCreateSlotButton = CreateSlotButton
-	CreateSlotButton = function(parent, index)
-		local btn = origCreateSlotButton(parent, index)
+	CreateSlotButton = function(parent)
+		local btn = origCreateSlotButton(parent)
 		btn:SetTemplate("Default")
 		btn.icon:SetInside()
 		btn.icon:SetTexCoord(unpack(E.TexCoords))
@@ -938,6 +963,16 @@ local function ApplyElvUISkin()
 		btn.normalTex:SetTexCoord(unpack(E.TexCoords))
 		btn.border:SetAlpha(0)
 		return btn
+	end
+
+	-- Reskin any buttons already in the pool
+	for _, btn in ipairs(slotButtonPool) do
+		btn:SetTemplate("Default")
+		btn.icon:SetInside()
+		btn.icon:SetTexCoord(unpack(E.TexCoords))
+		btn.normalTex:SetInside()
+		btn.normalTex:SetTexCoord(unpack(E.TexCoords))
+		btn.border:SetAlpha(0)
 	end
 end
 
