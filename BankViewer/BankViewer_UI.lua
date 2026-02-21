@@ -681,7 +681,17 @@ function BankViewer.UpdateUI()
 		end
 		table.sort(tabOrder)
 
-		if mergeBags then
+		if guildBankVertical then
+			-- Vertical layout: always show all 98 slots per tab (mergeBags and showEmpty have no effect)
+			for _, tabIndex in ipairs(tabOrder) do
+				local tabData = guildData.tabs[tabIndex]
+				if tabData then
+					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or ("Tab " .. tabIndex), tabData.icon)
+					local items = CollectItems(tabData.items, tabData.slots or 98, true)
+					yOffset = RenderGuildBankVerticalGrid(items, yOffset)
+				end
+			end
+		elseif mergeBags then
 			local allItems = {}
 			for _, tabIndex in ipairs(tabOrder) do
 				local tabData = guildData.tabs[tabIndex]
@@ -691,22 +701,14 @@ function BankViewer.UpdateUI()
 					end
 				end
 			end
-			if guildBankVertical then
-				yOffset = RenderGuildBankVerticalGrid(allItems, yOffset)
-			else
-				yOffset = RenderItemGrid(allItems, columns, yOffset)
-			end
+			yOffset = RenderItemGrid(allItems, columns, yOffset)
 		else
 			for _, tabIndex in ipairs(tabOrder) do
 				local tabData = guildData.tabs[tabIndex]
 				if tabData and (ContainerHasItems(tabData.items, tabData.slots or 98) or showEmpty) then
 					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or ("Tab " .. tabIndex), tabData.icon)
 					local items = CollectItems(tabData.items, tabData.slots or 98, showEmpty)
-					if guildBankVertical then
-						yOffset = RenderGuildBankVerticalGrid(items, yOffset)
-					else
-						yOffset = RenderItemGrid(items, columns, yOffset)
-					end
+					yOffset = RenderItemGrid(items, columns, yOffset)
 				end
 			end
 		end
