@@ -109,6 +109,8 @@ showEmptyCheck:SetScript("OnClick", function(self)
 	BankViewer.UpdateUI()
 end)
 
+-- Guild bank vertical layout option (only available in TBC+, interface >= 20000)
+local hasGuildBank = select(4, GetBuildInfo()) >= 20000
 local guildBankVerticalCheck = CreateFrame("CheckButton", "BankViewerGuildBankVerticalCheck", settingsPanel, "UICheckButtonTemplate")
 guildBankVerticalCheck:SetSize(26, 26)
 guildBankVerticalCheck:SetPoint("TOPLEFT", showEmptyCheck, "BOTTOMLEFT", 0, -2)
@@ -120,6 +122,10 @@ guildBankVerticalCheck:SetScript("OnClick", function(self)
 	BankViewerDB._settings.guildBankVertical = self:GetChecked()
 	BankViewer.UpdateUI()
 end)
+if not hasGuildBank then
+	guildBankVerticalCheck:Hide()
+	settingsPanel:SetSize(200, 105)
+end
 
 -- Settings button (gear icon)
 local settingsBtn = CreateFrame("Button", nil, mainFrame)
