@@ -600,6 +600,7 @@ end
 
 local headerPool = {}
 local activeHeaders = {}
+local layoutSections = {}
 
 local function AcquireHeaderFrame()
 	local frame = table.remove(headerPool)
@@ -617,23 +618,24 @@ local function AcquireHeaderFrame()
 end
 
 local function CreateSectionHeader(contentWidth, yOffset, label, icon)
-	local frame = AcquireHeaderFrame()
-	frame:SetSize(contentWidth, 20)
-	frame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
+	local header = AcquireHeaderFrame()
+	header:SetSize(contentWidth, 20)
+	header:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
 
 	if icon then
-		frame.icon:SetTexture(icon)
-		frame.icon:Show()
-		frame.label:ClearAllPoints()
-		frame.label:SetPoint("LEFT", frame.icon, "RIGHT", 5, 0)
+		header.icon:SetTexture(icon)
+		header.icon:Show()
+		header.label:ClearAllPoints()
+		header.label:SetPoint("LEFT", header.icon, "RIGHT", 5, 0)
 	else
-		frame.icon:Hide()
-		frame.label:ClearAllPoints()
-		frame.label:SetPoint("LEFT", 0, 0)
+		header.icon:Hide()
+		header.label:ClearAllPoints()
+		header.label:SetPoint("LEFT", 0, 0)
 	end
-	frame.label:SetText(label)
+	header.label:SetText(label)
 
-	table.insert(activeHeaders, frame)
+	table.insert(activeHeaders, header)
+	table.insert(layoutSections, { header = header })
 	return yOffset + 22
 end
 
@@ -643,6 +645,7 @@ local GUILD_BANK_ROWS = 7
 local function RenderItemGrid(items, columns, yOffset)
 	SortItems(items)
 
+	local startIndex = #slotButtons + 1
 	for i, itemData in ipairs(items) do
 		if itemData == false then itemData = nil end
 		local btn = AcquireSlotButton()
@@ -654,6 +657,8 @@ local function RenderItemGrid(items, columns, yOffset)
 		table.insert(slotButtons, btn)
 	end
 
+	table.insert(layoutSections, { startIndex = startIndex, count = #items, isVerticalGuild = false })
+
 	local rows = math.ceil(#items / columns)
 	return yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
 end
@@ -662,6 +667,8 @@ end
 -- In the API, slots 1-14 fill column 1 top-to-bottom, slots 15-28 fill column 2, etc.
 local function RenderGuildBankVerticalGrid(items, yOffset)
 	SortItems(items)
+
+	local startIndex = #slotButtons + 1
 
 	-- When sorted, items are reordered so column-major transposition no longer applies
 	if selectedSort ~= "none" then
@@ -675,6 +682,7 @@ local function RenderGuildBankVerticalGrid(items, yOffset)
 			btn:Show()
 			table.insert(slotButtons, btn)
 		end
+		table.insert(layoutSections, { startIndex = startIndex, count = #items, isVerticalGuild = true })
 		local rows = math.ceil(#items / GUILD_BANK_COLUMNS)
 		return yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
 	end
@@ -695,6 +703,7 @@ local function RenderGuildBankVerticalGrid(items, yOffset)
 		end
 	end
 
+	table.insert(layoutSections, { startIndex = startIndex, count = #slotButtons - startIndex + 1, isVerticalGuild = true })
 	return yOffset + GUILD_BANK_ROWS * (SLOT_SIZE + SLOT_SPACING) + 10
 end
 
@@ -717,6 +726,7 @@ function BankViewer.UpdateUI()
 		table.insert(headerPool, header)
 	end
 	wipe(activeHeaders)
+	wipe(layoutSections)
 
 	-- Auto-select current char if nothing selected
 	if selectedType == "character" and (not selectedRealm or not selectedName) then
@@ -878,9 +888,61 @@ mainFrame:SetScript("OnShow", function()
 	BankViewer.UpdateUI()
 end)
 
+local lastColumnCount = 0
+
+local function RelayoutGrid()
+	local contentWidth = scrollFrame:GetWidth() - 5
+	local columns = math.max(1, math.floor((contentWidth + SLOT_SPACING) / (SLOT_SIZE + SLOT_SPACING)))
+	local yOffset = 0
+
+	for _, section in ipairs(layoutSections) do
+		if section.header then
+			-- Reposition header
+			section.header:SetSize(contentWidth, 20)
+			section.header:ClearAllPoints()
+			section.header:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
+			yOffset = yOffset + 22
+		elseif section.isVerticalGuild then
+			-- Guild bank vertical: fixed 14-column layout, just update yOffset
+			local sectionColumns = GUILD_BANK_COLUMNS
+			local sectionRows = math.ceil(section.count / sectionColumns)
+			for i = 0, section.count - 1 do
+				local btn = slotButtons[section.startIndex + i]
+				if btn then
+					local col = i % sectionColumns
+					local row = math.floor(i / sectionColumns)
+					btn:ClearAllPoints()
+					btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
+				end
+			end
+			yOffset = yOffset + sectionRows * (SLOT_SIZE + SLOT_SPACING) + 10
+		else
+			-- Normal grid: reposition with new column count
+			for i = 0, section.count - 1 do
+				local btn = slotButtons[section.startIndex + i]
+				if btn then
+					local col = i % columns
+					local row = math.floor(i / columns)
+					btn:ClearAllPoints()
+					btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
+				end
+			end
+			local rows = math.ceil(section.count / columns)
+			yOffset = yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
+		end
+	end
+
+	scrollChild:SetHeight(yOffset + 10)
+	lastColumnCount = columns
+end
+
 mainFrame:SetScript("OnSizeChanged", function()
 	if mainFrame:IsShown() then
-		BankViewer.UpdateUI()
+		local contentWidth = scrollFrame:GetWidth() - 5
+		local columns = math.max(1, math.floor((contentWidth + SLOT_SPACING) / (SLOT_SIZE + SLOT_SPACING)))
+		if columns ~= lastColumnCount then
+			RelayoutGrid()
+		end
 	end
 end)
 
