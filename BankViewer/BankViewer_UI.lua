@@ -247,13 +247,6 @@ local SORT_OPTIONS = {
 	{ value = "ilvl_desc", label = "Item Level (High-Low)" },
 }
 
-local function GetSortLabel(value)
-	for _, opt in ipairs(SORT_OPTIONS) do
-		if opt.value == value then return opt.label end
-	end
-	return "None"
-end
-
 local function SortItems(items)
 	if selectedSort == "none" then return end
 
@@ -485,6 +478,69 @@ function BankViewer.ApplySearchHighlight()
 	end
 end
 
+local function CollectItems(itemsTable, slotCount, showEmpty)
+	local items = {}
+	for slot = 1, slotCount do
+		local itemData = itemsTable[tostring(slot)] or itemsTable[slot]
+		if itemData or showEmpty then
+			table.insert(items, itemData or false)
+		end
+	end
+	return items
+end
+
+local function ContainerHasItems(itemsTable, slotCount)
+	for slot = 1, slotCount do
+		if itemsTable[tostring(slot)] or itemsTable[slot] then
+			return true
+		end
+	end
+	return false
+end
+
+local function CreateSectionHeader(contentWidth, yOffset, label, icon)
+	if not icon then
+		local header = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		header:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
+		header:SetText(label)
+		return yOffset + 18
+	end
+
+	local headerFrame = CreateFrame("Frame", nil, scrollChild)
+	headerFrame:SetSize(contentWidth, 20)
+	headerFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
+
+	local headerIcon = headerFrame:CreateTexture(nil, "ARTWORK")
+	headerIcon:SetSize(18, 18)
+	headerIcon:SetPoint("LEFT", 0, 0)
+	headerIcon:SetTexture(icon)
+
+	local headerLabel = headerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	headerLabel:SetPoint("LEFT", headerIcon, "RIGHT", 5, 0)
+	headerLabel:SetText(label)
+
+	headerFrame:Show()
+	return yOffset + 22
+end
+
+local function RenderItemGrid(items, columns, yOffset)
+	SortItems(items)
+
+	for i, itemData in ipairs(items) do
+		if itemData == false then itemData = nil end
+		local btn = CreateSlotButton(scrollChild, i)
+		local col = (i - 1) % columns
+		local row = math.floor((i - 1) / columns)
+		btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
+		SetSlotItem(btn, itemData)
+		btn:Show()
+		table.insert(slotButtons, btn)
+	end
+
+	local rows = math.ceil(#items / columns)
+	return yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
+end
+
 function BankViewer.UpdateUI()
 	UpdateDropdownWidth()
 
@@ -538,96 +594,23 @@ function BankViewer.UpdateUI()
 		table.sort(tabOrder)
 
 		if mergeBags then
-			-- Merged mode: all tab items in one continuous grid
 			local allItems = {}
 			for _, tabIndex in ipairs(tabOrder) do
 				local tabData = guildData.tabs[tabIndex]
 				if tabData then
-					for slot = 1, (tabData.slots or 98) do
-						local itemData = tabData.items[tostring(slot)] or tabData.items[slot]
-						if itemData or showEmpty then
-							table.insert(allItems, itemData or false)
-						end
+					for _, item in ipairs(CollectItems(tabData.items, tabData.slots or 98, showEmpty)) do
+						table.insert(allItems, item)
 					end
 				end
 			end
-
-			SortItems(allItems)
-
-			for i, itemData in ipairs(allItems) do
-				if itemData == false then itemData = nil end
-				local btn = CreateSlotButton(scrollChild, i)
-				local col = (i - 1) % columns
-				local row = math.floor((i - 1) / columns)
-				btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
-				SetSlotItem(btn, itemData)
-				btn:Show()
-				table.insert(slotButtons, btn)
-			end
-
-			local rows = math.ceil(#allItems / columns)
-			yOffset = yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
+			yOffset = RenderItemGrid(allItems, columns, yOffset)
 		else
-			-- Per-tab mode
 			for _, tabIndex in ipairs(tabOrder) do
 				local tabData = guildData.tabs[tabIndex]
-				if tabData then
-					-- Check if tab has any items
-					local hasItems = false
-					for slot = 1, (tabData.slots or 98) do
-						if tabData.items[tostring(slot)] or tabData.items[slot] then
-							hasItems = true
-							break
-						end
-					end
-
-					if hasItems or showEmpty then
-						-- Tab header with icon and name
-						local headerFrame = CreateFrame("Frame", nil, scrollChild)
-						headerFrame:SetSize(contentWidth, 20)
-						headerFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
-
-						if tabData.icon then
-							local tabIcon = headerFrame:CreateTexture(nil, "ARTWORK")
-							tabIcon:SetSize(18, 18)
-							tabIcon:SetPoint("LEFT", 0, 0)
-							tabIcon:SetTexture(tabData.icon)
-
-							local tabLabel = headerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-							tabLabel:SetPoint("LEFT", tabIcon, "RIGHT", 5, 0)
-							tabLabel:SetText(tabData.name or ("Tab " .. tabIndex))
-						else
-							local tabLabel = headerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-							tabLabel:SetPoint("LEFT", 0, 0)
-							tabLabel:SetText(tabData.name or ("Tab " .. tabIndex))
-						end
-
-						headerFrame:Show()
-						yOffset = yOffset + 22
-
-						local visibleSlots = {}
-						for slot = 1, (tabData.slots or 98) do
-							local itemData = tabData.items[tostring(slot)] or tabData.items[slot]
-							if itemData or showEmpty then
-								table.insert(visibleSlots, { slot = slot, itemData = itemData })
-							end
-						end
-
-						SortItems(visibleSlots)
-
-						for i, slotInfo in ipairs(visibleSlots) do
-							local btn = CreateSlotButton(scrollChild, slotInfo.slot)
-							local col = (i - 1) % columns
-							local row = math.floor((i - 1) / columns)
-							btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
-							SetSlotItem(btn, slotInfo.itemData)
-							btn:Show()
-							table.insert(slotButtons, btn)
-						end
-
-						local rows = math.ceil(#visibleSlots / columns)
-						yOffset = yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
-					end
+				if tabData and (ContainerHasItems(tabData.items, tabData.slots or 98) or showEmpty) then
+					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or ("Tab " .. tabIndex), tabData.icon)
+					local items = CollectItems(tabData.items, tabData.slots or 98, showEmpty)
+					yOffset = RenderItemGrid(items, columns, yOffset)
 				end
 			end
 		end
@@ -638,111 +621,31 @@ function BankViewer.UpdateUI()
 		local data = BankViewerDB and BankViewerDB[selectedRealm] and BankViewerDB[selectedRealm][selectedName]
 		if not data or not data.bags then return end
 
-		-- Collect all bag IDs in order
 		local bagOrder = { BANK_CONTAINER }
 		for bagID = BANK_BAG_FIRST, BANK_BAG_LAST do
 			table.insert(bagOrder, bagID)
 		end
 
 		if mergeBags then
-			-- Merged mode: all items in one continuous grid
 			local allItems = {}
 			for _, bagID in ipairs(bagOrder) do
 				local bagData = data.bags[tostring(bagID)] or data.bags[bagID]
 				if bagData and bagData.slots and bagData.slots > 0 then
-					for slot = 1, bagData.slots do
-						local itemData = bagData.items[tostring(slot)] or bagData.items[slot]
-						if itemData or showEmpty then
-							table.insert(allItems, itemData or false)
-						end
+					for _, item in ipairs(CollectItems(bagData.items, bagData.slots, showEmpty)) do
+						table.insert(allItems, item)
 					end
 				end
 			end
-
-			SortItems(allItems)
-
-			for i, itemData in ipairs(allItems) do
-				if itemData == false then itemData = nil end
-				local btn = CreateSlotButton(scrollChild, i)
-				local col = (i - 1) % columns
-				local row = math.floor((i - 1) / columns)
-				btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
-				SetSlotItem(btn, itemData)
-				btn:Show()
-				table.insert(slotButtons, btn)
-			end
-
-			local rows = math.ceil(#allItems / columns)
-			yOffset = yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
+			yOffset = RenderItemGrid(allItems, columns, yOffset)
 		else
-			-- Per-bag mode
 			for _, bagID in ipairs(bagOrder) do
 				local bagData = data.bags[tostring(bagID)] or data.bags[bagID]
-				if bagData and bagData.slots and bagData.slots > 0 then
-					-- Check if bag has any items
-					local hasItems = false
-					for slot = 1, bagData.slots do
-						if bagData.items[tostring(slot)] or bagData.items[slot] then
-							hasItems = true
-							break
-						end
-					end
-
-					-- Skip completely empty bags when showEmpty is off
-					if hasItems or showEmpty then
-					-- Bag header
-					if bagID == BANK_CONTAINER then
-						local header = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-						header:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
-						header:SetText("Main Bank")
-						yOffset = yOffset + 18
-					else
-						local headerFrame = CreateFrame("Frame", nil, scrollChild)
-						headerFrame:SetSize(contentWidth, 20)
-						headerFrame:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
-
-						if bagData.bagIcon then
-							local bagIcon = headerFrame:CreateTexture(nil, "ARTWORK")
-							bagIcon:SetSize(18, 18)
-							bagIcon:SetPoint("LEFT", 0, 0)
-							bagIcon:SetTexture(bagData.bagIcon)
-
-							local bagLabel = headerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-							bagLabel:SetPoint("LEFT", bagIcon, "RIGHT", 5, 0)
-							bagLabel:SetText("Bag " .. (bagID - NUM_BAG_SLOTS))
-						else
-							local bagLabel = headerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-							bagLabel:SetPoint("LEFT", 0, 0)
-							bagLabel:SetText("Bag " .. (bagID - NUM_BAG_SLOTS))
-						end
-
-						headerFrame:Show()
-						yOffset = yOffset + 22
-					end
-
-					local visibleSlots = {}
-					for slot = 1, bagData.slots do
-						local itemData = bagData.items[tostring(slot)] or bagData.items[slot]
-						if itemData or showEmpty then
-							table.insert(visibleSlots, { slot = slot, itemData = itemData })
-						end
-					end
-
-					SortItems(visibleSlots)
-
-					for i, slotInfo in ipairs(visibleSlots) do
-						local btn = CreateSlotButton(scrollChild, slotInfo.slot)
-						local col = (i - 1) % columns
-						local row = math.floor((i - 1) / columns)
-						btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
-						SetSlotItem(btn, slotInfo.itemData)
-						btn:Show()
-						table.insert(slotButtons, btn)
-					end
-
-					local rows = math.ceil(#visibleSlots / columns)
-					yOffset = yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
-					end -- hasItems or showEmpty
+				if bagData and bagData.slots and bagData.slots > 0 and (ContainerHasItems(bagData.items, bagData.slots) or showEmpty) then
+					local label = bagID == BANK_CONTAINER and "Main Bank" or ("Bag " .. (bagID - NUM_BAG_SLOTS))
+					local icon = bagID ~= BANK_CONTAINER and bagData.bagIcon or nil
+					yOffset = CreateSectionHeader(contentWidth, yOffset, label, icon)
+					local items = CollectItems(bagData.items, bagData.slots, showEmpty)
+					yOffset = RenderItemGrid(items, columns, yOffset)
 				end
 			end
 		end
@@ -798,32 +701,35 @@ local function ApplyElvUISkin()
 	-- Scroll bar
 	S:HandleScrollBar(BankViewerScrollFrameScrollBar)
 
+	-- Skin a dropdown: fix Left, Button, and Text elements
+	local function SkinDropdown(dropdownFrame, name)
+		S:HandleDropDownBox(dropdownFrame)
+
+		local left = _G[name .. "Left"]
+		if left then
+			left:ClearAllPoints()
+			left:SetPoint("LEFT", dropdownFrame, "LEFT", 0, 0)
+		end
+
+		local button = _G[name .. "Button"]
+		if button then
+			button:ClearAllPoints()
+			button:SetPoint("TOPLEFT", dropdownFrame, "TOPLEFT", 0, 0)
+			button:SetPoint("BOTTOMRIGHT", dropdownFrame, "BOTTOMRIGHT", 0, 0)
+		end
+
+		local text = _G[name .. "Text"]
+		if text then
+			text:ClearAllPoints()
+			text:SetPoint("RIGHT", dropdownFrame, "RIGHT", -20, 0)
+		end
+	end
+
 	-- Dropdown
-	S:HandleDropDownBox(dropdown)
+	SkinDropdown(dropdown, "BankViewerCharDropdown")
 	dropdown:ClearAllPoints()
 	dropdown:SetPoint("TOPLEFT", 15, -30)
 	UpdateDropdownWidth()
-
-	-- Fix the left frame inside the dropdown so the menu opens aligned
-	local ddLeft = _G["BankViewerCharDropdownLeft"]
-	if ddLeft then
-		ddLeft:ClearAllPoints()
-		ddLeft:SetPoint("LEFT", dropdown, "LEFT", 0, 0)
-	end
-
-	-- Make the entire dropdown clickable
-	local ddButton = _G["BankViewerCharDropdownButton"]
-	if ddButton then
-		ddButton:ClearAllPoints()
-		ddButton:SetPoint("TOPLEFT", dropdown, "TOPLEFT", 0, 0)
-		ddButton:SetPoint("BOTTOMRIGHT", dropdown, "BOTTOMRIGHT", 0, 0)
-	end
-
-	local ddText = _G["BankViewerCharDropdownText"]
-	if ddText then
-		ddText:ClearAllPoints()
-		ddText:SetPoint("RIGHT", dropdown, "RIGHT", -20, 0)
-	end
 
 	-- Search box
 	S:HandleEditBox(searchBox)
@@ -842,28 +748,9 @@ local function ApplyElvUISkin()
 	searchBox.placeholder:SetPoint("LEFT", 18, 0)
 
 	-- Sort dropdown
-	S:HandleDropDownBox(sortDropdown)
+	SkinDropdown(sortDropdown, "BankViewerSortDropdown")
 	sortDropdown:ClearAllPoints()
 	sortDropdown:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -10, -30)
-
-	local sdLeft = _G["BankViewerSortDropdownLeft"]
-	if sdLeft then
-		sdLeft:ClearAllPoints()
-		sdLeft:SetPoint("LEFT", sortDropdown, "LEFT", 0, 0)
-	end
-
-	local sdButton = _G["BankViewerSortDropdownButton"]
-	if sdButton then
-		sdButton:ClearAllPoints()
-		sdButton:SetPoint("TOPLEFT", sortDropdown, "TOPLEFT", 0, 0)
-		sdButton:SetPoint("BOTTOMRIGHT", sortDropdown, "BOTTOMRIGHT", 0, 0)
-	end
-
-	local sdText = _G["BankViewerSortDropdownText"]
-	if sdText then
-		sdText:ClearAllPoints()
-		sdText:SetPoint("RIGHT", sortDropdown, "RIGHT", -20, 0)
-	end
 
 	-- Fix dropdown menu position to align left with the dropdown box
 	hooksecurefunc("ToggleDropDownMenu", function(level, _, dropdownFrame)
