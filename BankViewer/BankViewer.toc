@@ -1,4 +1,4 @@
-## Interface: 20505
+## Interface: 11307, 20505, 50503, 120001
 ## Title: BankViewer
 ## Author: derpierre65
 ## Notes: Saves information about the bank and displays it everywhere.
