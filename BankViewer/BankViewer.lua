@@ -36,9 +36,7 @@ frame:RegisterEvent("BANKFRAME_OPENED")
 frame:RegisterEvent("BANKFRAME_CLOSED")
 frame:RegisterEvent("BAG_UPDATE")
 if isWarbandBankAvailable then
-	pcall(function()
-		frame:RegisterEvent("PLAYER_ACCOUNT_BANK_TAB_SLOTS_CHANGED")
-	end)
+	pcall(frame.RegisterEvent, frame, "PLAYER_ACCOUNT_BANK_TAB_SLOTS_CHANGED")
 end
 
 local function GetCharKey()
@@ -72,9 +70,7 @@ end
 local function ScanBank()
 	local realm, name = GetCharKey()
 
-	if not BankViewerDB[realm] then
-		BankViewerDB[realm] = {}
-	end
+	BankViewerDB[realm] = BankViewerDB[realm] or {}
 
 	local charData = {
 		bags = {},
@@ -135,10 +131,6 @@ end
 local function ScanWarbandBank()
 	if not isWarbandBankAvailable then return end
 
-	if not BankViewerDB._warband then
-		BankViewerDB._warband = {}
-	end
-
 	local warbandData = {
 		tabs = {},
 		lastScan = time(),
@@ -177,12 +169,8 @@ local function ScanGuildBank()
 
 	local realm = GetRealmName()
 
-	if not BankViewerDB._guilds then
-		BankViewerDB._guilds = {}
-	end
-	if not BankViewerDB._guilds[realm] then
-		BankViewerDB._guilds[realm] = {}
-	end
+	BankViewerDB._guilds = BankViewerDB._guilds or {}
+	BankViewerDB._guilds[realm] = BankViewerDB._guilds[realm] or {}
 
 	local numTabs = GetGuildBankNumTabs()
 	local guildData = {
@@ -229,8 +217,7 @@ local function ScanGuildBank()
 end
 
 local function HookGuildBankFrame()
-	if guildBankHooked then return end
-	if not GuildBankFrame then return end
+	if guildBankHooked or not GuildBankFrame then return end
 
 	guildBankHooked = true
 
@@ -248,27 +235,16 @@ local function HookGuildBankFrame()
 		guildBankOpen = false
 	end)
 
-	-- Try to register content update events via pcall
-	pcall(function()
-		frame:RegisterEvent("GUILDBANKBAGSLOTS_CHANGED")
-	end)
+	pcall(frame.RegisterEvent, frame, "GUILDBANKBAGSLOTS_CHANGED")
 end
 
 frame:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" then
 		if arg1 == "BankViewer" then
-			if not BankViewerDB then
-				BankViewerDB = {}
-			end
-			if not BankViewerDB._settings then
-				BankViewerDB._settings = { showEmpty = true }
-			end
-			if not BankViewerDB._guilds then
-				BankViewerDB._guilds = {}
-			end
-			if not BankViewerDB._warband then
-				BankViewerDB._warband = {}
-			end
+			BankViewerDB = BankViewerDB or {}
+			BankViewerDB._settings = BankViewerDB._settings or { showEmpty = true }
+			BankViewerDB._guilds = BankViewerDB._guilds or {}
+			BankViewerDB._warband = BankViewerDB._warband or {}
 		elseif arg1 == "Blizzard_GuildBankUI" then
 			HookGuildBankFrame()
 		end
@@ -289,11 +265,7 @@ end)
 
 function BankViewer.Toggle()
 	if BankViewerMainFrame then
-		if BankViewerMainFrame:IsShown() then
-			BankViewerMainFrame:Hide()
-		else
-			BankViewerMainFrame:Show()
-		end
+		BankViewerMainFrame:SetShown(not BankViewerMainFrame:IsShown())
 	end
 end
 
@@ -336,19 +308,11 @@ function BankViewer.GetGuilds()
 end
 
 function BankViewer.GetWarbandBank()
-	if not BankViewerDB or not BankViewerDB._warband then
-		return nil
-	end
-	return BankViewerDB._warband
+	return BankViewerDB and BankViewerDB._warband
 end
 
-function BankViewer.GetCurrentCharKey()
-	local realm, name = GetCharKey()
-	return realm, name
-end
+BankViewer.GetCurrentCharKey = GetCharKey
 
 SLASH_BANKVIEWER1 = "/bv"
 SLASH_BANKVIEWER2 = "/bankviewer"
-SlashCmdList["BANKVIEWER"] = function()
-	BankViewer.Toggle()
-end
+SlashCmdList["BANKVIEWER"] = BankViewer.Toggle
