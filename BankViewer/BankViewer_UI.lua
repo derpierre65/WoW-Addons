@@ -85,9 +85,31 @@ local settingsTitle = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHi
 settingsTitle:SetPoint("TOP", 0, -15)
 settingsTitle:SetText("Settings")
 
+-- Guild bank vertical layout option (only available in TBC+, interface >= 20000)
+local hasGuildBank = select(4, GetBuildInfo()) >= 20000
+local guildBankVerticalCheck = CreateFrame("CheckButton", "BankViewerGuildBankVerticalCheck", settingsPanel, "UICheckButtonTemplate")
+guildBankVerticalCheck:SetSize(26, 26)
+guildBankVerticalCheck:SetPoint("TOPLEFT", 15, -32)
+guildBankVerticalCheck.text = _G["BankViewerGuildBankVerticalCheckText"]
+guildBankVerticalCheck.text:SetText("Guild bank vertical layout")
+guildBankVerticalCheck.text:SetFontObject("GameFontNormalSmall")
+guildBankVerticalCheck:SetScript("OnClick", function(self)
+	BankViewerDB._settings = BankViewerDB._settings or {}
+	BankViewerDB._settings.guildBankVertical = self:GetChecked()
+	BankViewer.UpdateUI()
+end)
+if not hasGuildBank then
+	guildBankVerticalCheck:Hide()
+	settingsPanel:SetSize(200, 105)
+end
+
 local mergeBagsCheck = CreateFrame("CheckButton", "BankViewerMergeBagsCheck", settingsPanel, "UICheckButtonTemplate")
 mergeBagsCheck:SetSize(26, 26)
-mergeBagsCheck:SetPoint("TOPLEFT", 15, -32)
+if hasGuildBank then
+	mergeBagsCheck:SetPoint("TOPLEFT", guildBankVerticalCheck, "BOTTOMLEFT", 0, -2)
+else
+	mergeBagsCheck:SetPoint("TOPLEFT", 15, -32)
+end
 mergeBagsCheck.text = _G["BankViewerMergeBagsCheckText"]
 mergeBagsCheck.text:SetText("Merge all bags")
 mergeBagsCheck.text:SetFontObject("GameFontNormalSmall")
@@ -108,24 +130,6 @@ showEmptyCheck:SetScript("OnClick", function(self)
 	BankViewerDB._settings.showEmpty = self:GetChecked()
 	BankViewer.UpdateUI()
 end)
-
--- Guild bank vertical layout option (only available in TBC+, interface >= 20000)
-local hasGuildBank = select(4, GetBuildInfo()) >= 20000
-local guildBankVerticalCheck = CreateFrame("CheckButton", "BankViewerGuildBankVerticalCheck", settingsPanel, "UICheckButtonTemplate")
-guildBankVerticalCheck:SetSize(26, 26)
-guildBankVerticalCheck:SetPoint("TOPLEFT", showEmptyCheck, "BOTTOMLEFT", 0, -2)
-guildBankVerticalCheck.text = _G["BankViewerGuildBankVerticalCheckText"]
-guildBankVerticalCheck.text:SetText("Guild bank vertical layout")
-guildBankVerticalCheck.text:SetFontObject("GameFontNormalSmall")
-guildBankVerticalCheck:SetScript("OnClick", function(self)
-	BankViewerDB._settings = BankViewerDB._settings or {}
-	BankViewerDB._settings.guildBankVertical = self:GetChecked()
-	BankViewer.UpdateUI()
-end)
-if not hasGuildBank then
-	guildBankVerticalCheck:Hide()
-	settingsPanel:SetSize(200, 105)
-end
 
 -- Settings button (gear icon)
 local settingsBtn = CreateFrame("Button", nil, mainFrame)
