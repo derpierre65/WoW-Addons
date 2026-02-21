@@ -1707,37 +1707,41 @@ local function GetRandomFact(category)
     local locale = FactorUselessDB and FactorUselessDB.language or GetLocale()
     local localeFacts = FACTS[locale] or FACTS["enUS"]
     local categoryNames = CATEGORY_NAMES[locale] or CATEGORY_NAMES["enUS"]
-    local allFacts = {}
-    for cat, categoryFacts in pairs(localeFacts) do
-        if not category or cat == category then
-            local name = categoryNames[cat] or cat
-            for _, fact in ipairs(categoryFacts) do
-                allFacts[#allFacts + 1] = name .. ": " .. fact
+    local available = {}
+    local postedFacts = FactorUselessCharDB and FactorUselessCharDB.postedFacts or {}
+    local noDuplicates = FactorUselessDB and FactorUselessDB.noDuplicates
+
+    for categoryName, categoryFacts in pairs(localeFacts) do
+        if not category or categoryName == category then
+            for index, fact in ipairs(categoryFacts) do
+                local key = categoryName .. ":" .. index
+                if not noDuplicates or not postedFacts[key] then
+                    available[#available + 1] = {
+                        key = key,
+                        categoryName = categoryName,
+                        fact = fact,
+                    }
+                end
             end
         end
     end
 
-    if FactorUselessDB and FactorUselessDB.noDuplicates then
-        local postedFacts = FactorUselessCharDB and FactorUselessCharDB.postedFacts or {}
-        local available = {}
-        for _, fact in ipairs(allFacts) do
-            if not postedFacts[fact] then
-                available[#available + 1] = fact
-            end
-        end
-
-        if #available == 0 then
+    if #available == 0 then
+        if noDuplicates then
             print(L.allFactsPosted)
-            return nil
         end
-
-        local chosen = available[math.random(#available)]
-        postedFacts[chosen] = true
-        FactorUselessCharDB.postedFacts = postedFacts
-        return chosen
+        return nil
     end
 
-    return allFacts[math.random(#allFacts)]
+    local chosen = available[math.random(#available)]
+    local displayName = categoryNames[chosen.categoryName] or chosen.categoryName
+
+    if noDuplicates then
+        postedFacts[chosen.key] = true
+        FactorUselessCharDB.postedFacts = postedFacts
+    end
+
+    return displayName .. ": " .. chosen.fact
 end
 
 local function GetChatTarget()
