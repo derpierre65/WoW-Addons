@@ -740,7 +740,7 @@ mainFrame:SetScript("OnSizeChanged", function()
 		if resizeTimer then
 			resizeTimer:Cancel()
 		end
-		resizeTimer = C_Timer.NewTimer(0.01, function()
+		resizeTimer = C_Timer.NewTimer(0.15, function()
 			BankViewer.UpdateUI()
 			resizeTimer = nil
 		end)
