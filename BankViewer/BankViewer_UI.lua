@@ -93,11 +93,6 @@ guildBankVerticalCheck:SetPoint("TOPLEFT", 15, -32)
 guildBankVerticalCheck.text = _G["BankViewerGuildBankVerticalCheckText"]
 guildBankVerticalCheck.text:SetText("Guild bank vertical layout")
 guildBankVerticalCheck.text:SetFontObject("GameFontNormalSmall")
-guildBankVerticalCheck:SetScript("OnClick", function(self)
-	BankViewerDB._settings = BankViewerDB._settings or {}
-	BankViewerDB._settings.guildBankVertical = self:GetChecked()
-	BankViewer.UpdateUI()
-end)
 if not hasGuildBank then
 	guildBankVerticalCheck:Hide()
 	settingsPanel:SetSize(200, 105)
@@ -131,6 +126,46 @@ showEmptyCheck:SetScript("OnClick", function(self)
 	BankViewer.UpdateUI()
 end)
 
+local function SetCheckboxEnabled(checkbox, enabled, tooltip)
+	checkbox:SetMouseClickEnabled(enabled)
+	checkbox:SetAlpha(enabled and 1 or 0.4)
+	checkbox.disabledTooltip = not enabled and tooltip or nil
+end
+
+local function SetupCheckboxTooltip(checkbox)
+	checkbox:SetScript("OnEnter", function(self)
+		if self.disabledTooltip then
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText(self.disabledTooltip, 1, 0.82, 0, true)
+			GameTooltip:Show()
+		end
+	end)
+	checkbox:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+	end)
+end
+
+SetupCheckboxTooltip(guildBankVerticalCheck)
+SetupCheckboxTooltip(mergeBagsCheck)
+SetupCheckboxTooltip(showEmptyCheck)
+
+local function UpdateSettingsState()
+	local isGuildSelected = selectedType == "guild"
+	local verticalEnabled = isGuildSelected and (BankViewerDB._settings.guildBankVertical ~= false)
+
+	-- Guild vertical is always clickable, but shows a hint when not viewing a guild bank
+	guildBankVerticalCheck.disabledTooltip = not isGuildSelected and "This option only affects guild bank views." or nil
+	SetCheckboxEnabled(mergeBagsCheck, not verticalEnabled, "Disabled while guild bank vertical layout is active.")
+	SetCheckboxEnabled(showEmptyCheck, not verticalEnabled, "Disabled while guild bank vertical layout is active.")
+end
+
+guildBankVerticalCheck:SetScript("OnClick", function(self)
+	BankViewerDB._settings = BankViewerDB._settings or {}
+	BankViewerDB._settings.guildBankVertical = self:GetChecked()
+	UpdateSettingsState()
+	BankViewer.UpdateUI()
+end)
+
 -- Settings button (gear icon)
 local settingsBtn = CreateFrame("Button", nil, mainFrame)
 settingsBtn:SetSize(20, 20)
@@ -146,6 +181,7 @@ settingsBtn:SetScript("OnClick", function()
 		mergeBagsCheck:SetChecked(BankViewerDB._settings.mergeBags)
 		showEmptyCheck:SetChecked(BankViewerDB._settings.showEmpty)
 		guildBankVerticalCheck:SetChecked(BankViewerDB._settings.guildBankVertical ~= false)
+		UpdateSettingsState()
 		settingsPanel:Show()
 	end
 end)
@@ -662,6 +698,9 @@ end
 
 function BankViewer.UpdateUI()
 	UpdateDropdownWidth()
+	if settingsPanel:IsShown() then
+		UpdateSettingsState()
+	end
 
 	-- Return slot buttons to pool
 	for _, btn in ipairs(slotButtons) do
