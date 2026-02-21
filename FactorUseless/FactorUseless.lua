@@ -1673,6 +1673,7 @@ local LOCALES = {
         setupDescription = "FactorUseless posts random useless facts to your guild chat. You can also use |cffffff00/fact print|r to post a new fact to your current chat at any time. Use |cffffff00/fact setup|r to reopen this window. Configure your preferences below.",
         postOnLoginLabel = "Post a random fact to guild chat on login",
         noDuplicatesLabel = "Don't post the same fact twice",
+        languageLabel = "Language for facts:",
         saveButton = "Save",
     },
     deDE = {
@@ -1697,6 +1698,7 @@ local LOCALES = {
         setupDescription = "FactorUseless postet zufällige nutzlose Fakten in deinen Gildenchat. Du kannst auch jederzeit |cffffff00/fact print|r verwenden, um einen neuen Fakt in deinen aktuellen Chat zu posten. Mit |cffffff00/fact setup|r kannst du dieses Fenster jederzeit erneut öffnen. Konfiguriere deine Einstellungen unten.",
         postOnLoginLabel = "Beim Einloggen einen zufälligen Fakt im Gildenchat posten",
         noDuplicatesLabel = "Keinen Fakt doppelt posten",
+        languageLabel = "Sprache für Fakten:",
         saveButton = "Speichern",
     },
 }
@@ -1824,7 +1826,7 @@ local function CreateSetupFrame()
     end
 
     local f = CreateFrame("Frame", "FactorUselessSetupFrame", UIParent, "BackdropTemplate")
-    f:SetSize(400, 510)
+    f:SetSize(400, 550)
     f:SetPoint("CENTER")
     f:SetBackdrop({
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -1883,6 +1885,39 @@ local function CreateSetupFrame()
     noDuplicatesLabel:SetPoint("LEFT", noDuplicatesCheckbox, "RIGHT", 5, 0)
     noDuplicatesLabel:SetText(L.noDuplicatesLabel)
 
+    -- Language dropdown
+    local languageLabel = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    languageLabel:SetPoint("TOPLEFT", noDuplicatesCheckbox, "BOTTOMLEFT", 10, -15)
+    languageLabel:SetText(L.languageLabel)
+
+    local LANGUAGE_DISPLAY_NAMES = {
+        enUS = "English",
+        deDE = "Deutsch",
+    }
+
+    local languageDropdown = CreateFrame("Frame", "FactorUselessLanguageDropdown", f, "UIDropDownMenuTemplate")
+    languageDropdown:SetPoint("LEFT", languageLabel, "RIGHT", -5, -3)
+
+    local selectedLanguage = FactorUselessDB and FactorUselessDB.language or GetLocale()
+
+    local function InitializeLanguageDropdown(self, level)
+        for _, languageCode in ipairs(AVAILABLE_LANGUAGES) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = LANGUAGE_DISPLAY_NAMES[languageCode] or languageCode
+            info.value = languageCode
+            info.checked = (languageCode == selectedLanguage)
+            info.func = function(button)
+                selectedLanguage = button.value
+                UIDropDownMenu_SetText(languageDropdown, LANGUAGE_DISPLAY_NAMES[button.value] or button.value)
+            end
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end
+
+    UIDropDownMenu_SetWidth(languageDropdown, 120)
+    UIDropDownMenu_SetText(languageDropdown, LANGUAGE_DISPLAY_NAMES[selectedLanguage] or selectedLanguage)
+    UIDropDownMenu_Initialize(languageDropdown, InitializeLanguageDropdown)
+
     -- Save button
     local saveButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     saveButton:SetSize(120, 30)
@@ -1891,6 +1926,7 @@ local function CreateSetupFrame()
     saveButton:SetScript("OnClick", function()
         FactorUselessDB.postOnLogin = postOnLoginCheckbox:GetChecked()
         FactorUselessDB.noDuplicates = noDuplicatesCheckbox:GetChecked()
+        FactorUselessDB.language = selectedLanguage
         FactorUselessDB.setupDone = true
         f:Hide()
         print(L.setupComplete)
@@ -1898,11 +1934,19 @@ local function CreateSetupFrame()
 
     f:Hide()
     setupFrame = f
-    return f
+    return f, function(language)
+        selectedLanguage = language
+    end
 end
 
+local setDropdownLanguage = nil
+
 local function ShowSetupFrame()
-    local f = CreateSetupFrame()
+    local f, setLanguage = CreateSetupFrame()
+    if setLanguage then
+        setDropdownLanguage = setLanguage
+    end
+
     -- Sync checkboxes with current settings
     local postOnLogin = FactorUselessPostOnLoginCheckbox
     if postOnLogin then
@@ -1914,6 +1958,18 @@ local function ShowSetupFrame()
         local value = FactorUselessDB.noDuplicates
         noDuplicates:SetChecked(value == nil or value == true)
     end
+
+    -- Sync language dropdown
+    local currentLanguage = FactorUselessDB.language or GetLocale()
+    if setDropdownLanguage then
+        setDropdownLanguage(currentLanguage)
+    end
+    local dropdown = FactorUselessLanguageDropdown
+    if dropdown then
+        local LANGUAGE_DISPLAY_NAMES = { enUS = "English", deDE = "Deutsch" }
+        UIDropDownMenu_SetText(dropdown, LANGUAGE_DISPLAY_NAMES[currentLanguage] or currentLanguage)
+    end
+
     f:Show()
 end
 
@@ -1946,7 +2002,7 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 
         hasPosted = true
 
-        if FactorUselessDB and FactorUselessDB.postOnLogin then
+        if FactorUselessDB and FactorUselessDB.setupDone and FactorUselessDB.postOnLogin then
             C_Timer.After(5, function()
                 if IsInGuild() then
                     local fact = GetRandomFact()
