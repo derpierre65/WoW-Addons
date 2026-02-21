@@ -37,7 +37,7 @@ mainFrame:SetBackdrop({
 	insets = { left = 11, right = 12, top = 12, bottom = 11 },
 })
 mainFrame:SetResizable(true)
-mainFrame:SetResizeBounds(450, 250)
+mainFrame:SetResizeBounds(500, 250)
 mainFrame:SetFrameStrata("MEDIUM")
 mainFrame:Hide()
 
@@ -322,10 +322,11 @@ end
 local sortDropdown = CreateFrame("Frame", "BankViewerSortDropdown", mainFrame, "UIDropDownMenuTemplate")
 sortDropdown:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", 5, -35)
 
--- Search Box
+-- Search Box (stretches between the two dropdowns)
 local searchBox = CreateFrame("EditBox", "BankViewerSearchBox", mainFrame, "InputBoxTemplate")
-searchBox:SetSize(120, 20)
-searchBox:SetPoint("RIGHT", sortDropdown, "LEFT", 10, 2)
+searchBox:SetHeight(20)
+searchBox:SetPoint("LEFT", dropdown, "RIGHT", -4, 2)
+searchBox:SetPoint("RIGHT", sortDropdown, "LEFT", 4, 2)
 searchBox:SetAutoFocus(false)
 searchBox:SetFontObject("GameFontHighlightSmall")
 
@@ -806,11 +807,12 @@ local function ApplyElvUISkin()
 	dropdown:SetPoint("TOPLEFT", 15, -30)
 	UpdateDropdownWidth()
 
-	-- Search box
+	-- Search box (stretches between the two dropdowns)
 	S:HandleEditBox(searchBox)
 	searchBox:ClearAllPoints()
-	searchBox:SetSize(120, 20)
-	searchBox:SetPoint("TOPRIGHT", sortDropdown, "TOPLEFT", -10, -2)
+	searchBox:SetHeight(28)
+	searchBox:SetPoint("LEFT", dropdown, "RIGHT", 8, 0)
+	searchBox:SetPoint("RIGHT", sortDropdown, "LEFT", -8, 0)
 
 	local searchIcon = searchBox:CreateTexture(nil, "OVERLAY")
 	searchIcon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
