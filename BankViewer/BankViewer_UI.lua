@@ -20,7 +20,7 @@ local slotButtons = {}
 
 -- Main Frame
 local mainFrame = CreateFrame("Frame", "BankViewerMainFrame", UIParent, "BackdropTemplate")
-mainFrame:SetSize(450, 500)
+mainFrame:SetSize(600, 500)
 mainFrame:SetPoint("CENTER")
 mainFrame:SetMovable(true)
 mainFrame:EnableMouse(true)
@@ -37,7 +37,7 @@ mainFrame:SetBackdrop({
 	insets = { left = 11, right = 12, top = 12, bottom = 11 },
 })
 mainFrame:SetResizable(true)
-mainFrame:SetResizeBounds(500, 250)
+mainFrame:SetResizeBounds(600, 250)
 mainFrame:SetFrameStrata("MEDIUM")
 mainFrame:Hide()
 
@@ -69,7 +69,7 @@ closeBtn:SetPoint("TOPRIGHT", -5, -5)
 -- Settings panel
 local settingsPanel = CreateFrame("Frame", nil, mainFrame, "BackdropTemplate")
 settingsPanel:SetPoint("TOPLEFT", mainFrame, "TOPRIGHT", 2, 0)
-settingsPanel:SetSize(200, 105)
+settingsPanel:SetSize(200, 135)
 settingsPanel:SetBackdrop({
 	bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
 	edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -109,6 +109,18 @@ showEmptyCheck:SetScript("OnClick", function(self)
 	BankViewer.UpdateUI()
 end)
 
+local guildBankVerticalCheck = CreateFrame("CheckButton", "BankViewerGuildBankVerticalCheck", settingsPanel, "UICheckButtonTemplate")
+guildBankVerticalCheck:SetSize(26, 26)
+guildBankVerticalCheck:SetPoint("TOPLEFT", showEmptyCheck, "BOTTOMLEFT", 0, -2)
+guildBankVerticalCheck.text = _G["BankViewerGuildBankVerticalCheckText"]
+guildBankVerticalCheck.text:SetText("Guild bank vertical layout")
+guildBankVerticalCheck.text:SetFontObject("GameFontNormalSmall")
+guildBankVerticalCheck:SetScript("OnClick", function(self)
+	BankViewerDB._settings = BankViewerDB._settings or {}
+	BankViewerDB._settings.guildBankVertical = self:GetChecked()
+	BankViewer.UpdateUI()
+end)
+
 -- Settings button (gear icon)
 local settingsBtn = CreateFrame("Button", nil, mainFrame)
 settingsBtn:SetSize(20, 20)
@@ -123,6 +135,7 @@ settingsBtn:SetScript("OnClick", function()
 		BankViewerDB._settings = BankViewerDB._settings or {}
 		mergeBagsCheck:SetChecked(BankViewerDB._settings.mergeBags)
 		showEmptyCheck:SetChecked(BankViewerDB._settings.showEmpty)
+		guildBankVerticalCheck:SetChecked(BankViewerDB._settings.guildBankVertical ~= false)
 		settingsPanel:Show()
 	end
 end)
@@ -548,6 +561,9 @@ local function CreateSectionHeader(contentWidth, yOffset, label, icon)
 	return yOffset + 22
 end
 
+local GUILD_BANK_COLUMNS = 14
+local GUILD_BANK_ROWS = 7
+
 local function RenderItemGrid(items, columns, yOffset)
 	SortItems(items)
 
@@ -564,6 +580,46 @@ local function RenderItemGrid(items, columns, yOffset)
 
 	local rows = math.ceil(#items / columns)
 	return yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
+end
+
+-- Render guild bank items in vertical (column-major) layout matching the WoW guild bank UI.
+-- In the API, slots 1-14 fill column 1 top-to-bottom, slots 15-28 fill column 2, etc.
+local function RenderGuildBankVerticalGrid(items, yOffset)
+	SortItems(items)
+
+	-- When sorted, items are reordered so column-major transposition no longer applies
+	if selectedSort ~= "none" then
+		for i, itemData in ipairs(items) do
+			if itemData == false then itemData = nil end
+			local btn = CreateSlotButton(scrollChild, i)
+			local col = (i - 1) % GUILD_BANK_COLUMNS
+			local row = math.floor((i - 1) / GUILD_BANK_COLUMNS)
+			btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
+			SetSlotItem(btn, itemData)
+			btn:Show()
+			table.insert(slotButtons, btn)
+		end
+		local rows = math.ceil(#items / GUILD_BANK_COLUMNS)
+		return yOffset + rows * (SLOT_SIZE + SLOT_SPACING) + 10
+	end
+
+	-- Column-major: grid position (row, col) maps to item index col * GUILD_BANK_ROWS + row + 1
+	for row = 0, GUILD_BANK_ROWS - 1 do
+		for col = 0, GUILD_BANK_COLUMNS - 1 do
+			local slotIndex = col * GUILD_BANK_ROWS + row + 1
+			if slotIndex <= #items then
+				local itemData = items[slotIndex]
+				if itemData == false then itemData = nil end
+				local btn = CreateSlotButton(scrollChild, slotIndex)
+				btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", col * (SLOT_SIZE + SLOT_SPACING), -(yOffset + row * (SLOT_SIZE + SLOT_SPACING)))
+				SetSlotItem(btn, itemData)
+				btn:Show()
+				table.insert(slotButtons, btn)
+			end
+		end
+	end
+
+	return yOffset + GUILD_BANK_ROWS * (SLOT_SIZE + SLOT_SPACING) + 10
 end
 
 function BankViewer.UpdateUI()
@@ -603,6 +659,7 @@ function BankViewer.UpdateUI()
 	BankViewerDB._settings = BankViewerDB._settings or {}
 	local mergeBags = BankViewerDB._settings.mergeBags
 	local showEmpty = BankViewerDB._settings.showEmpty
+	local guildBankVertical = BankViewerDB._settings.guildBankVertical ~= false
 
 	if selectedType == "guild" then
 		-- Guild bank display
@@ -628,14 +685,22 @@ function BankViewer.UpdateUI()
 					end
 				end
 			end
-			yOffset = RenderItemGrid(allItems, columns, yOffset)
+			if guildBankVertical then
+				yOffset = RenderGuildBankVerticalGrid(allItems, yOffset)
+			else
+				yOffset = RenderItemGrid(allItems, columns, yOffset)
+			end
 		else
 			for _, tabIndex in ipairs(tabOrder) do
 				local tabData = guildData.tabs[tabIndex]
 				if tabData and (ContainerHasItems(tabData.items, tabData.slots or 98) or showEmpty) then
 					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or ("Tab " .. tabIndex), tabData.icon)
 					local items = CollectItems(tabData.items, tabData.slots or 98, showEmpty)
-					yOffset = RenderItemGrid(items, columns, yOffset)
+					if guildBankVertical then
+						yOffset = RenderGuildBankVerticalGrid(items, yOffset)
+					else
+						yOffset = RenderItemGrid(items, columns, yOffset)
+					end
 				end
 			end
 		end
@@ -773,6 +838,7 @@ local function ApplyElvUISkin()
 	-- Checkboxes
 	S:HandleCheckBox(mergeBagsCheck)
 	S:HandleCheckBox(showEmptyCheck)
+	S:HandleCheckBox(guildBankVerticalCheck)
 
 	-- Scroll bar
 	S:HandleScrollBar(BankViewerScrollFrameScrollBar)
