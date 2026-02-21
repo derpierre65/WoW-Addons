@@ -1,8 +1,6 @@
 local SLOT_SIZE = 37
 local SLOT_SPACING = 2
-local BANK_CONTAINER = Enum.BagIndex.Bank
-local BANK_BAG_FIRST = NUM_BAG_SLOTS + 1
-local BANK_BAG_LAST = NUM_BAG_SLOTS + NUM_BANKBAGSLOTS
+local BANK_CONTAINER = (Enum.BagIndex and Enum.BagIndex.Bank) or -1
 
 local QUALITY_COLORS = {
 	[0] = { r = 0.62, g = 0.62, b = 0.62 }, -- Poor
@@ -14,7 +12,7 @@ local QUALITY_COLORS = {
 }
 
 local selectedRealm, selectedName
-local selectedType = "character" -- "character" or "guild"
+local selectedType = "character" -- "character", "guild", or "warband"
 local selectedGuildRealm, selectedGuildName
 local selectedSort = "none"
 local searchText = ""
@@ -175,8 +173,10 @@ UIDropDownMenu_SetWidth(dropdown, 120)
 local function InitDropdown(self, level)
 	local chars = BankViewer.GetCharacters()
 	local guilds = BankViewer.GetGuilds()
+	local warbandData = BankViewer.GetWarbandBank()
+	local hasWarband = warbandData and warbandData.tabs and next(warbandData.tabs)
 
-	if #chars == 0 and #guilds == 0 then
+	if #chars == 0 and #guilds == 0 and not hasWarband then
 		local info = UIDropDownMenu_CreateInfo()
 		info.text = "No data yet"
 		info.disabled = true
@@ -202,8 +202,32 @@ local function InitDropdown(self, level)
 		UIDropDownMenu_AddButton(info)
 	end
 
+	if hasWarband then
+		local sep = UIDropDownMenu_CreateInfo()
+		sep.disabled = true
+		sep.notCheckable = true
+		sep.isTitle = true
+		sep.text = " "
+		UIDropDownMenu_AddButton(sep)
+
+		local displayName = "Warband Bank"
+		local info = UIDropDownMenu_CreateInfo()
+		info.text = displayName
+		info.func = function()
+			selectedType = "warband"
+			selectedRealm = nil
+			selectedName = nil
+			selectedGuildRealm = nil
+			selectedGuildName = nil
+			UIDropDownMenu_SetText(dropdown, displayName)
+			CloseDropDownMenus()
+			BankViewer.UpdateUI()
+		end
+		info.checked = (selectedType == "warband")
+		UIDropDownMenu_AddButton(info)
+	end
+
 	if #guilds > 0 then
-		-- Separator
 		local sep = UIDropDownMenu_CreateInfo()
 		sep.disabled = true
 		sep.notCheckable = true
@@ -614,6 +638,38 @@ function BankViewer.UpdateUI()
 				end
 			end
 		end
+	elseif selectedType == "warband" then
+		-- Warband bank display
+		local warbandData = BankViewer.GetWarbandBank()
+		if not warbandData or not warbandData.tabs then return end
+
+		local tabOrder = {}
+		for tabIndex in pairs(warbandData.tabs) do
+			table.insert(tabOrder, tabIndex)
+		end
+		table.sort(tabOrder)
+
+		if mergeBags then
+			local allItems = {}
+			for _, tabIndex in ipairs(tabOrder) do
+				local tabData = warbandData.tabs[tabIndex]
+				if tabData then
+					for _, item in ipairs(CollectItems(tabData.items, tabData.slots or 98, showEmpty)) do
+						table.insert(allItems, item)
+					end
+				end
+			end
+			yOffset = RenderItemGrid(allItems, columns, yOffset)
+		else
+			for _, tabIndex in ipairs(tabOrder) do
+				local tabData = warbandData.tabs[tabIndex]
+				if tabData and (ContainerHasItems(tabData.items, tabData.slots or 98) or showEmpty) then
+					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or ("Tab " .. tabIndex), tabData.icon)
+					local items = CollectItems(tabData.items, tabData.slots or 98, showEmpty)
+					yOffset = RenderItemGrid(items, columns, yOffset)
+				end
+			end
+		end
 	else
 		-- Character bank display
 		if not selectedRealm or not selectedName then return end
@@ -621,9 +677,22 @@ function BankViewer.UpdateUI()
 		local data = BankViewerDB and BankViewerDB[selectedRealm] and BankViewerDB[selectedRealm][selectedName]
 		if not data or not data.bags then return end
 
-		local bagOrder = { BANK_CONTAINER }
-		for bagID = BANK_BAG_FIRST, BANK_BAG_LAST do
-			table.insert(bagOrder, bagID)
+		-- Build bag order depending on classic vs retail bank system
+		local bagOrder = {}
+		if BankViewer.isRetailBankTabs then
+			for tabIndex = 1, 6 do
+				local bagID = Enum.BagIndex["CharacterBankTab_" .. tabIndex]
+				if bagID then
+					table.insert(bagOrder, bagID)
+				end
+			end
+		else
+			table.insert(bagOrder, BANK_CONTAINER)
+			local bankBagFirst = NUM_BAG_SLOTS + 1
+			local bankBagLast = NUM_BAG_SLOTS + (NUM_BANKBAGSLOTS or 0)
+			for bagID = bankBagFirst, bankBagLast do
+				table.insert(bagOrder, bagID)
+			end
 		end
 
 		if mergeBags then
@@ -641,8 +710,14 @@ function BankViewer.UpdateUI()
 			for _, bagID in ipairs(bagOrder) do
 				local bagData = data.bags[tostring(bagID)] or data.bags[bagID]
 				if bagData and bagData.slots and bagData.slots > 0 and (ContainerHasItems(bagData.items, bagData.slots) or showEmpty) then
-					local label = bagID == BANK_CONTAINER and "Main Bank" or ("Bag " .. (bagID - NUM_BAG_SLOTS))
-					local icon = bagID ~= BANK_CONTAINER and bagData.bagIcon or nil
+					local label, icon
+					if BankViewer.isRetailBankTabs then
+						label = bagData.tabName or ("Tab " .. bagID)
+						icon = bagData.tabIcon
+					else
+						label = bagID == BANK_CONTAINER and "Main Bank" or ("Bag " .. (bagID - NUM_BAG_SLOTS))
+						icon = bagID ~= BANK_CONTAINER and bagData.bagIcon or nil
+					end
 					yOffset = CreateSectionHeader(contentWidth, yOffset, label, icon)
 					local items = CollectItems(bagData.items, bagData.slots, showEmpty)
 					yOffset = RenderItemGrid(items, columns, yOffset)

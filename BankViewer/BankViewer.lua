@@ -1,10 +1,15 @@
 BankViewer = {}
 BankViewer.version = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)("BankViewer", "Version")
 
-local BANK_CONTAINER = Enum.BagIndex.Bank
-local BANK_SLOTS = 28
-local BANK_BAG_FIRST = NUM_BAG_SLOTS + 1 -- 5
-local BANK_BAG_LAST = NUM_BAG_SLOTS + NUM_BANKBAGSLOTS -- 11
+-- Detect retail 11.2+ tab-based bank system
+local isRetailBankTabs = Enum.BagIndex and Enum.BagIndex.CharacterBankTab_1 ~= nil
+BankViewer.isRetailBankTabs = isRetailBankTabs
+
+-- Detect Warband (account) bank support (retail 11.0+)
+local isWarbandBankAvailable = Enum.BagIndex and Enum.BagIndex.AccountBankTab_1 ~= nil and C_Bank ~= nil
+BankViewer.isWarbandBankAvailable = isWarbandBankAvailable
+
+local BANK_CONTAINER = (Enum.BagIndex and Enum.BagIndex.Bank) or -1
 
 -- C_Container API (Anniversary / modern Classic clients)
 local GetContainerNumSlots = C_Container.GetContainerNumSlots
@@ -30,11 +35,38 @@ frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("BANKFRAME_OPENED")
 frame:RegisterEvent("BANKFRAME_CLOSED")
 frame:RegisterEvent("BAG_UPDATE")
+if isWarbandBankAvailable then
+	pcall(function()
+		frame:RegisterEvent("PLAYER_ACCOUNT_BANK_TAB_SLOTS_CHANGED")
+	end)
+end
 
 local function GetCharKey()
 	local name = UnitName("player")
 	local realm = GetRealmName()
 	return realm, name
+end
+
+local function ScanContainerItems(bagID)
+	local items = {}
+	local numSlots = GetContainerNumSlots(bagID)
+	if not numSlots or numSlots == 0 then
+		return items, 0
+	end
+
+	for slot = 1, numSlots do
+		local info = GetContainerItemInfo(bagID, slot)
+		if info then
+			items[slot] = {
+				itemLink = info.hyperlink or GetContainerItemLink(bagID, slot),
+				count = info.stackCount or 1,
+				icon = info.iconFileID,
+				quality = info.quality or 0,
+			}
+		end
+	end
+
+	return items, numSlots
 end
 
 local function ScanBank()
@@ -49,57 +81,88 @@ local function ScanBank()
 		lastScan = time(),
 	}
 
-	-- Scan main bank container (-1, 28 slots)
-	local mainSlots = GetContainerNumSlots(BANK_CONTAINER)
-	charData.bags[BANK_CONTAINER] = {
-		slots = mainSlots,
-		items = {},
-	}
-
-	for slot = 1, mainSlots do
-		local info = GetContainerItemInfo(BANK_CONTAINER, slot)
-		if info then
-			charData.bags[BANK_CONTAINER].items[slot] = {
-				itemLink = info.hyperlink or GetContainerItemLink(BANK_CONTAINER, slot),
-				count = info.stackCount or 1,
-				icon = info.iconFileID,
-				quality = info.quality or 0,
-			}
-		end
-	end
-
-	-- Scan bank bags (5-11)
-	for bagID = BANK_BAG_FIRST, BANK_BAG_LAST do
-		local numSlots = GetContainerNumSlots(bagID)
-		if numSlots and numSlots > 0 then
-			charData.bags[bagID] = {
-				slots = numSlots,
-				items = {},
-				bagIcon = GetInventoryItemTexture("player", ContainerIDToInventoryID(bagID)),
-			}
-
-			for slot = 1, numSlots do
-				local info = GetContainerItemInfo(bagID, slot)
-				if info then
-					charData.bags[bagID].items[slot] = {
-						itemLink = info.hyperlink or GetContainerItemLink(bagID, slot),
-						count = info.stackCount or 1,
-						icon = info.iconFileID,
-						quality = info.quality or 0,
-					}
-				end
+	if isRetailBankTabs then
+		-- Retail 11.2+: Tab-based bank (CharacterBankTab_1 through CharacterBankTab_6)
+		local purchasedTabs = C_Bank.FetchPurchasedBankTabData(Enum.BankType.Character)
+		for tabIndex = 1, 6 do
+			local bagID = Enum.BagIndex["CharacterBankTab_" .. tabIndex]
+			if bagID then
+				local items, numSlots = ScanContainerItems(bagID)
+				local tabData = purchasedTabs and purchasedTabs[tabIndex]
+				charData.bags[bagID] = {
+					slots = numSlots,
+					items = items,
+					tabName = tabData and tabData.name or ("Tab " .. tabIndex),
+					tabIcon = tabData and tabData.icon,
+				}
 			end
-		else
-			-- Empty bag slot
-			charData.bags[bagID] = {
-				slots = 0,
-				items = {},
-			}
+		end
+	else
+		-- Classic: Main bank container (-1) + bank bags (5-11)
+		local mainItems, mainSlots = ScanContainerItems(BANK_CONTAINER)
+		charData.bags[BANK_CONTAINER] = {
+			slots = mainSlots,
+			items = mainItems,
+		}
+
+		local bankBagFirst = NUM_BAG_SLOTS + 1
+		local bankBagLast = NUM_BAG_SLOTS + (NUM_BANKBAGSLOTS or 0)
+		for bagID = bankBagFirst, bankBagLast do
+			local items, numSlots = ScanContainerItems(bagID)
+			if numSlots > 0 then
+				charData.bags[bagID] = {
+					slots = numSlots,
+					items = items,
+					bagIcon = GetInventoryItemTexture("player", ContainerIDToInventoryID(bagID)),
+				}
+			else
+				charData.bags[bagID] = {
+					slots = 0,
+					items = {},
+				}
+			end
 		end
 	end
 
 	BankViewerDB[realm][name] = charData
 	print("|cff00ccffBankViewer:|r Bank data saved for " .. name .. ".")
+
+	if BankViewer.UpdateUI then
+		BankViewer.UpdateUI()
+	end
+end
+
+local function ScanWarbandBank()
+	if not isWarbandBankAvailable then return end
+
+	if not BankViewerDB._warband then
+		BankViewerDB._warband = {}
+	end
+
+	local warbandData = {
+		tabs = {},
+		lastScan = time(),
+	}
+
+	local purchasedTabs = C_Bank.FetchPurchasedBankTabData(Enum.BankType.Account)
+	for tabIndex = 1, 5 do
+		local bagID = Enum.BagIndex["AccountBankTab_" .. tabIndex]
+		if bagID then
+			local items, numSlots = ScanContainerItems(bagID)
+			if numSlots > 0 then
+				local tabData = purchasedTabs and purchasedTabs[tabIndex]
+				warbandData.tabs[tabIndex] = {
+					slots = numSlots,
+					items = items,
+					name = tabData and tabData.name or ("Tab " .. tabIndex),
+					icon = tabData and tabData.icon,
+				}
+			end
+		end
+	end
+
+	BankViewerDB._warband = warbandData
+	print("|cff00ccffBankViewer:|r Warband bank data saved.")
 
 	if BankViewer.UpdateUI then
 		BankViewer.UpdateUI()
@@ -203,16 +266,22 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 			if not BankViewerDB._guilds then
 				BankViewerDB._guilds = {}
 			end
+			if not BankViewerDB._warband then
+				BankViewerDB._warband = {}
+			end
 		elseif arg1 == "Blizzard_GuildBankUI" then
 			HookGuildBankFrame()
 		end
 	elseif event == "BANKFRAME_OPENED" then
 		bankOpen = true
 		ScanBank()
+		ScanWarbandBank()
 	elseif event == "BANKFRAME_CLOSED" then
 		bankOpen = false
 	elseif event == "BAG_UPDATE" and bankOpen then
 		ScanBank()
+	elseif event == "PLAYER_ACCOUNT_BANK_TAB_SLOTS_CHANGED" and bankOpen then
+		ScanWarbandBank()
 	elseif event == "GUILDBANKBAGSLOTS_CHANGED" and guildBankOpen then
 		ScanGuildBank()
 	end
@@ -264,6 +333,13 @@ function BankViewer.GetGuilds()
 	end
 
 	return guilds
+end
+
+function BankViewer.GetWarbandBank()
+	if not BankViewerDB or not BankViewerDB._warband then
+		return nil
+	end
+	return BankViewerDB._warband
 end
 
 function BankViewer.GetCurrentCharKey()
