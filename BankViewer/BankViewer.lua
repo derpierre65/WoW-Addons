@@ -21,8 +21,15 @@ local SCAN_DEBOUNCE_DELAY = 0.15
 
 local bankOpen = false
 local guildBankOpen = false
-local bankScanTimer = nil
-local warbandScanTimer = nil
+
+local debounceTimers = {}
+local function Debounce(key, callback)
+	if debounceTimers[key] then debounceTimers[key]:Cancel() end
+	debounceTimers[key] = C_Timer.NewTimer(SCAN_DEBOUNCE_DELAY, function()
+		debounceTimers[key] = nil
+		callback()
+	end)
+end
 
 -- Guild bank API (may be under C_ namespace in Anniversary Edition)
 local GetGuildBankNumTabs = GetNumGuildBankTabs or (C_GuildBank and C_GuildBank.GetNumTabs)
@@ -263,19 +270,11 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "BANKFRAME_CLOSED" then
 		bankOpen = false
 	elseif event == "BAG_UPDATE" and bankOpen then
-		if bankScanTimer then bankScanTimer:Cancel() end
-		bankScanTimer = C_Timer.NewTimer(SCAN_DEBOUNCE_DELAY, function()
-			bankScanTimer = nil
-			ScanBank()
-		end)
+		Debounce("bank", ScanBank)
 	elseif event == "PLAYER_ACCOUNT_BANK_TAB_SLOTS_CHANGED" and bankOpen then
-		if warbandScanTimer then warbandScanTimer:Cancel() end
-		warbandScanTimer = C_Timer.NewTimer(SCAN_DEBOUNCE_DELAY, function()
-			warbandScanTimer = nil
-			ScanWarbandBank()
-		end)
+		Debounce("warband", ScanWarbandBank)
 	elseif event == "GUILDBANKBAGSLOTS_CHANGED" and guildBankOpen then
-		ScanGuildBank()
+		Debounce("guildBank", ScanGuildBank)
 	end
 end)
 
