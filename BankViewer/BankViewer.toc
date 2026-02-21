@@ -5,6 +5,7 @@
 ## Version: 1.2.0
 ## SavedVariables: BankViewerDB
 
+Localization.lua
 BankViewer.lua
 BankViewer_UI.lua
 BankViewer_Minimap.lua

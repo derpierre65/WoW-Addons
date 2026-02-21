@@ -1,3 +1,5 @@
+local L = BankViewer.L
+
 local SLOT_SIZE = 37
 local SLOT_SPACING = 2
 local BANK_CONTAINER = (Enum.BagIndex and Enum.BagIndex.Bank) or -1
@@ -60,7 +62,7 @@ end)
 -- Title
 local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 title:SetPoint("TOP", 0, -20)
-title:SetText("BankViewer")
+title:SetText(L.addonTitle)
 
 -- Close button
 local closeBtn = CreateFrame("Button", nil, mainFrame, "UIPanelCloseButton")
@@ -83,7 +85,7 @@ settingsPanel:Hide()
 
 local settingsTitle = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 settingsTitle:SetPoint("TOP", 0, -15)
-settingsTitle:SetText("Settings")
+settingsTitle:SetText(L.settings)
 
 -- Guild bank vertical layout option (only available in TBC+, interface >= 20000)
 local hasGuildBank = select(4, GetBuildInfo()) >= 20000
@@ -91,7 +93,7 @@ local guildBankVerticalCheck = CreateFrame("CheckButton", "BankViewerGuildBankVe
 guildBankVerticalCheck:SetSize(26, 26)
 guildBankVerticalCheck:SetPoint("TOPLEFT", 15, -32)
 guildBankVerticalCheck.text = _G["BankViewerGuildBankVerticalCheckText"]
-guildBankVerticalCheck.text:SetText("Guild bank vertical layout")
+guildBankVerticalCheck.text:SetText(L.settingGuildBankVertical)
 guildBankVerticalCheck.text:SetFontObject("GameFontNormalSmall")
 if not hasGuildBank then
 	guildBankVerticalCheck:Hide()
@@ -106,7 +108,7 @@ else
 	mergeBagsCheck:SetPoint("TOPLEFT", 15, -32)
 end
 mergeBagsCheck.text = _G["BankViewerMergeBagsCheckText"]
-mergeBagsCheck.text:SetText("Merge all bags")
+mergeBagsCheck.text:SetText(L.settingMergeBags)
 mergeBagsCheck.text:SetFontObject("GameFontNormalSmall")
 mergeBagsCheck:SetScript("OnClick", function(self)
 	BankViewerDB._settings = BankViewerDB._settings or {}
@@ -118,7 +120,7 @@ local showEmptyCheck = CreateFrame("CheckButton", "BankViewerShowEmptyCheck", se
 showEmptyCheck:SetSize(26, 26)
 showEmptyCheck:SetPoint("TOPLEFT", mergeBagsCheck, "BOTTOMLEFT", 0, -2)
 showEmptyCheck.text = _G["BankViewerShowEmptyCheckText"]
-showEmptyCheck.text:SetText("Show empty slots")
+showEmptyCheck.text:SetText(L.settingShowEmptySlots)
 showEmptyCheck.text:SetFontObject("GameFontNormalSmall")
 showEmptyCheck:SetScript("OnClick", function(self)
 	BankViewerDB._settings = BankViewerDB._settings or {}
@@ -154,9 +156,9 @@ local function UpdateSettingsState()
 	local verticalEnabled = isGuildSelected and (BankViewerDB._settings.guildBankVertical ~= false)
 
 	-- Guild vertical is always clickable, but shows a hint when not viewing a guild bank
-	guildBankVerticalCheck.disabledTooltip = not isGuildSelected and "This option only affects guild bank views." or nil
-	SetCheckboxEnabled(mergeBagsCheck, not verticalEnabled, "Disabled while guild bank vertical layout is active.")
-	SetCheckboxEnabled(showEmptyCheck, not verticalEnabled, "Disabled while guild bank vertical layout is active.")
+	guildBankVerticalCheck.disabledTooltip = not isGuildSelected and L.tooltipGuildOnly or nil
+	SetCheckboxEnabled(mergeBagsCheck, not verticalEnabled, L.tooltipVerticalLayoutActive)
+	SetCheckboxEnabled(showEmptyCheck, not verticalEnabled, L.tooltipVerticalLayoutActive)
 end
 
 guildBankVerticalCheck:SetScript("OnClick", function(self)
@@ -198,7 +200,7 @@ scrollFrame:SetScrollChild(scrollChild)
 -- Dropdown
 local dropdown = CreateFrame("Frame", "BankViewerCharDropdown", mainFrame, "UIDropDownMenuTemplate")
 dropdown:SetPoint("TOPLEFT", -5, -35)
-UIDropDownMenu_SetText(dropdown, "Select Character")
+UIDropDownMenu_SetText(dropdown, L.selectCharacter)
 
 local function UpdateDropdownWidth()
 	local measureFont = dropdown:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -214,13 +216,13 @@ local function UpdateDropdownWidth()
 	end
 
 	for _, guild in ipairs(guilds) do
-		measureFont:SetText(guild.name .. " (Gildenbank)")
+		measureFont:SetText(guild.name .. " " .. L.guildBankSuffix)
 		local w = measureFont:GetStringWidth()
 		if w > maxWidth then maxWidth = w end
 	end
 
 	if maxWidth == 0 then
-		measureFont:SetText("Select Character")
+		measureFont:SetText(L.selectCharacter)
 		maxWidth = measureFont:GetStringWidth()
 	end
 
@@ -237,7 +239,7 @@ local function InitDropdown(self, level)
 
 	if #chars == 0 and #guilds == 0 and not hasWarband then
 		local info = UIDropDownMenu_CreateInfo()
-		info.text = "No data yet"
+		info.text = L.noDataYet
 		info.disabled = true
 		info.notCheckable = true
 		UIDropDownMenu_AddButton(info)
@@ -269,7 +271,7 @@ local function InitDropdown(self, level)
 		sep.text = " "
 		UIDropDownMenu_AddButton(sep)
 
-		local displayName = "Warband Bank"
+		local displayName = L.warbandBankName
 		local info = UIDropDownMenu_CreateInfo()
 		info.text = displayName
 		info.func = function()
@@ -295,7 +297,7 @@ local function InitDropdown(self, level)
 		UIDropDownMenu_AddButton(sep)
 
 		for _, guild in ipairs(guilds) do
-			local displayName = guild.name .. " (Gildenbank)"
+			local displayName = guild.name .. " " .. L.guildBankSuffix
 			local info = UIDropDownMenu_CreateInfo()
 			info.text = displayName
 			info.disabled = false
@@ -321,13 +323,13 @@ UIDropDownMenu_Initialize(dropdown, InitDropdown)
 
 -- Sort function
 local SORT_OPTIONS = {
-	{ value = "none", label = "None" },
-	{ value = "name_asc", label = "Name (A-Z)" },
-	{ value = "name_desc", label = "Name (Z-A)" },
-	{ value = "count_asc", label = "Stack (Low-High)" },
-	{ value = "count_desc", label = "Stack (High-Low)" },
-	{ value = "ilvl_asc", label = "Item Level (Low-High)" },
-	{ value = "ilvl_desc", label = "Item Level (High-Low)" },
+	{ value = "none", label = L.sortNone },
+	{ value = "name_asc", label = L.sortNameAsc },
+	{ value = "name_desc", label = L.sortNameDesc },
+	{ value = "count_asc", label = L.sortCountAsc },
+	{ value = "count_desc", label = L.sortCountDesc },
+	{ value = "ilvl_asc", label = L.sortItemLevelAsc },
+	{ value = "ilvl_desc", label = L.sortItemLevelDesc },
 }
 
 local function SortItems(items)
@@ -391,7 +393,7 @@ searchBox:SetFontObject("GameFontHighlightSmall")
 
 local searchPlaceholder = searchBox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 searchPlaceholder:SetPoint("LEFT", 5, 0)
-searchPlaceholder:SetText("Search...")
+searchPlaceholder:SetText(L.searchPlaceholder)
 searchBox.placeholder = searchPlaceholder
 
 searchBox:SetScript("OnTextChanged", function(self)
@@ -413,7 +415,7 @@ end)
 searchBox:SetScript("OnEnterPressed", function(self)
 	self:ClearFocus()
 end)
-UIDropDownMenu_SetText(sortDropdown, "None")
+UIDropDownMenu_SetText(sortDropdown, L.sortNone)
 UIDropDownMenu_SetWidth(sortDropdown, 120)
 
 local function InitSortDropdown(self, level)
@@ -754,7 +756,7 @@ function BankViewer.UpdateUI()
 			for _, tabIndex in ipairs(tabOrder) do
 				local tabData = guildData.tabs[tabIndex]
 				if tabData then
-					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or ("Tab " .. tabIndex), tabData.icon)
+					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or (L.tabLabel:format(tabIndex)), tabData.icon)
 					local items = CollectItems(tabData.items, tabData.slots or 98, true)
 					yOffset = RenderGuildBankVerticalGrid(items, yOffset)
 				end
@@ -774,7 +776,7 @@ function BankViewer.UpdateUI()
 			for _, tabIndex in ipairs(tabOrder) do
 				local tabData = guildData.tabs[tabIndex]
 				if tabData and (ContainerHasItems(tabData.items, tabData.slots or 98) or showEmpty) then
-					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or ("Tab " .. tabIndex), tabData.icon)
+					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or (L.tabLabel:format(tabIndex)), tabData.icon)
 					local items = CollectItems(tabData.items, tabData.slots or 98, showEmpty)
 					yOffset = RenderItemGrid(items, columns, yOffset)
 				end
@@ -806,7 +808,7 @@ function BankViewer.UpdateUI()
 			for _, tabIndex in ipairs(tabOrder) do
 				local tabData = warbandData.tabs[tabIndex]
 				if tabData and (ContainerHasItems(tabData.items, tabData.slots or 98) or showEmpty) then
-					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or ("Tab " .. tabIndex), tabData.icon)
+					yOffset = CreateSectionHeader(contentWidth, yOffset, tabData.name or (L.tabLabel:format(tabIndex)), tabData.icon)
 					local items = CollectItems(tabData.items, tabData.slots or 98, showEmpty)
 					yOffset = RenderItemGrid(items, columns, yOffset)
 				end
@@ -854,10 +856,10 @@ function BankViewer.UpdateUI()
 				if bagData and bagData.slots and bagData.slots > 0 and (ContainerHasItems(bagData.items, bagData.slots) or showEmpty) then
 					local label, icon
 					if BankViewer.isRetailBankTabs then
-						label = bagData.tabName or ("Tab " .. bagID)
+						label = bagData.tabName or (L.tabLabel:format(bagID))
 						icon = bagData.tabIcon
 					else
-						label = bagID == BANK_CONTAINER and "Main Bank" or ("Bag " .. (bagID - NUM_BAG_SLOTS))
+						label = bagID == BANK_CONTAINER and L.mainBank or (L.bagLabel:format(bagID - NUM_BAG_SLOTS))
 						icon = bagID ~= BANK_CONTAINER and bagData.bagIcon or nil
 					end
 					yOffset = CreateSectionHeader(contentWidth, yOffset, label, icon)
@@ -1019,7 +1021,7 @@ skinFrame:SetScript("OnEvent", function(self)
 	if ElvUI then
 		local success, err = pcall(ApplyElvUISkin)
 		if not success then
-			print("|cff00ccffBankViewer:|r ElvUI skin failed: " .. tostring(err))
+			print("|cff00ccffBankViewer:|r " .. L.elvuiSkinFailed:format(tostring(err)))
 		end
 	end
 end)
