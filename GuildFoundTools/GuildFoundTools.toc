@@ -1,0 +1,12 @@
+## Interface: 11302, 11307, 20505
+## Title: GuildFound Tools
+## Notes: Tools for Guilds, especially for GuildFound.
+## Author: derpierre65
+## Version: 1.0.0
+## SavedVariables: GuildFoundToolsDB
+
+GuildFoundTools.lua
+GuildFoundTools_UI.lua
+GuildFoundTools_Minimap.lua
+GuildFoundTools_LFG.lua
+GuildFoundTools_Professions.lua
