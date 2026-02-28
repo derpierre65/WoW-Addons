@@ -674,7 +674,12 @@ tinsert(UISpecialFrames, "GuildFoundToolsRolePopup")
 
 local scrollFrame = CreateFrame("ScrollFrame", "GuildFoundToolsLFGScrollFrame", contentFrame, "UIPanelScrollFrameTemplate")
 scrollFrame:SetPoint("TOPLEFT", 0, 0)
-scrollFrame:SetPoint("BOTTOMRIGHT", -25, ACTION_BAR_HEIGHT)
+scrollFrame:SetPoint("BOTTOMRIGHT", -16, ACTION_BAR_HEIGHT)
+
+local scrollBar = scrollFrame.ScrollBar or _G["GuildFoundToolsLFGScrollFrameScrollBar"]
+scrollBar:ClearAllPoints()
+scrollBar:SetPoint("TOPLEFT", scrollFrame, "TOPRIGHT", 0, -16)
+scrollBar:SetPoint("BOTTOMLEFT", scrollFrame, "BOTTOMRIGHT", 0, -16)
 
 local scrollChild = CreateFrame("Frame", "GuildFoundToolsLFGScrollChild", scrollFrame)
 scrollChild:SetSize(scrollFrame:GetWidth(), 1)
