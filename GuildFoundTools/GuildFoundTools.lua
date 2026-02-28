@@ -3,16 +3,16 @@ GuildFoundTools = GuildFoundTools or {}
 local ADDON_PREFIX = "GFTools"
 
 GuildFoundTools.MESSAGE_TYPES = {
-	GROUP_CREATE = "GC",
-	GROUP_EDIT = "GE",
-	GROUP_REMOVE = "GR",
-	GROUP_SIGNUP = "GS",
-	GROUP_LEAVE = "GL",
-	GROUP_MEMBERS_SYNC = "GM",
-	GROUP_LIST_REQUEST = "GQ",
-	GROUP_LIST_ANSWER = "GA",
-	PROFESSION_QUERY = "PQ",
-	PROFESSION_ANSWER = "PA",
+	GROUP_CREATE = "GROUP_CREATE",
+	GROUP_EDIT = "GROUP_EDIT",
+	GROUP_REMOVE = "GROUP_REMOVE",
+	GROUP_SIGNUP = "GROUP_SIGNUP",
+	GROUP_LEAVE = "GROUP_LEAVE",
+	GROUP_MEMBERS_SYNC = "GROUP_MEMBERS_SYNC",
+	GROUP_LIST_REQUEST = "GROUP_LIST_REQUEST",
+	GROUP_LIST_ANSWER = "GROUP_LIST_ANSWER",
+	PROFESSION_QUERY = "PROFESSION_QUERY",
+	PROFESSION_ANSWER = "PROFESSION_ANSWER",
 }
 
 -- Global event handler system (supports multiple handlers per event)
@@ -40,12 +40,6 @@ end)
 
 -- Global message handler system (supports multiple handlers per message type)
 local messageHandlers = {}
-
--- Reverse lookup: message code -> message name
-local MESSAGE_TYPE_NAMES = {}
-for name, code in pairs(GuildFoundTools.MESSAGE_TYPES) do
-	MESSAGE_TYPE_NAMES[code] = name
-end
 
 GuildFoundTools.MessageHandlers = setmetatable({}, {
 	__newindex = function(self, messageType, handler)
@@ -126,8 +120,7 @@ GuildFoundTools.EventHandlers.CHAT_MSG_ADDON = function(prefix, message, channel
 
 	sender = NormalizeSender(sender)
 	local fields = Deserialize(message)
-	local messageCode = fields[1]
-	local messageType = MESSAGE_TYPE_NAMES[messageCode]
+	local messageType = fields[1]
 
 	local handlers = messageHandlers[messageType]
 	if handlers then
