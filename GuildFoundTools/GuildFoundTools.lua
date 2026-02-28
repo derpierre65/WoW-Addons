@@ -3,19 +3,6 @@ GuildFoundTools = GuildFoundTools or {}
 local AceComm = LibStub("AceComm-3.0")
 local ADDON_PREFIX = "GFTools"
 
-GuildFoundTools.MESSAGE_TYPES = {
-	GROUP_CREATE = "GROUP_CREATE",
-	GROUP_EDIT = "GROUP_EDIT",
-	GROUP_REMOVE = "GROUP_REMOVE",
-	GROUP_SIGNUP = "GROUP_SIGNUP",
-	GROUP_LEAVE = "GROUP_LEAVE",
-	GROUP_MEMBERS_SYNC = "GROUP_MEMBERS_SYNC",
-	GROUP_LIST_REQUEST = "GROUP_LIST_REQUEST",
-	GROUP_LIST_ANSWER = "GROUP_LIST_ANSWER",
-	PROFESSION_QUERY = "PROFESSION_QUERY",
-	PROFESSION_ANSWER = "PROFESSION_ANSWER",
-}
-
 -- Global event handler system (supports multiple handlers per event)
 local eventFrame = CreateFrame("Frame")
 local eventHandlers = {}

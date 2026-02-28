@@ -6,7 +6,7 @@
 
 GuildFoundTools.Professions = GuildFoundTools.Professions or {}
 
-local MESSAGE_TYPES = GuildFoundTools.MESSAGE_TYPES
+local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
 local Serialize = GuildFoundTools.Serialize
 local SendGuildMessage = GuildFoundTools.SendGuildMessage
 
@@ -98,8 +98,7 @@ function GuildFoundTools.Professions.RequestProfessions()
 	-- Clear old data
 	wipe(GuildFoundTools.professions)
 
-	local message = Serialize(MESSAGE_TYPES.PROFESSION_QUERY)
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.PROFESSION_QUERY))
 
 	if GuildFoundTools.UI and GuildFoundTools.UI.UpdateProfessionsUI then
 		GuildFoundTools.UI.UpdateProfessionsUI()
@@ -125,7 +124,7 @@ GuildFoundTools.MessageHandlers.PROFESSION_QUERY = function(fields, sender)
 			itemIdsString = table.concat(itemIds, ",")
 		end
 
-		SendGuildMessage(Serialize(MESSAGE_TYPES.PROFESSION_ANSWER, profession.name, profession.rank, profession.maxRank, itemIdsString))
+		SendGuildMessage(Serialize(MESSAGE_TYPE.PROFESSION_ANSWER, profession.name, profession.rank, profession.maxRank, itemIdsString))
 	end
 end
 

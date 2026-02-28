@@ -6,7 +6,7 @@
 
 GuildFoundTools.LFG = GuildFoundTools.LFG or {}
 
-local MESSAGE_TYPES = GuildFoundTools.MESSAGE_TYPES
+local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
 local Serialize = GuildFoundTools.Serialize
 local SendGuildMessage = GuildFoundTools.SendGuildMessage
 local GetPlayerName = GuildFoundTools.GetPlayerName
@@ -69,8 +69,7 @@ local function RestoreGroupFromStorage()
 	GuildFoundTools.LFG.ownGroupId = group.id
 
 	-- Broadcast to guild so others know the group exists
-	local message = Serialize(MESSAGE_TYPES.GROUP_CREATE, group.id, group.category, group.dungeon, group.description, group.maxMembers, group.leader, saved.leaderRole or "DD", group.beginnerFriendly and "1" or "0")
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_CREATE, group.id, group.category, group.dungeon, group.description, group.maxMembers, group.leader, saved.leaderRole or "DD", group.beginnerFriendly and "1" or "0"))
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -116,8 +115,7 @@ local function SyncPartyMembers()
 	for memberName, role in pairs(group.members) do
 		table.insert(memberParts, memberName .. ":" .. role)
 	end
-	local message = Serialize(MESSAGE_TYPES.GROUP_MEMBERS_SYNC, GuildFoundTools.LFG.ownGroupId, table.concat(memberParts, ","))
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_MEMBERS_SYNC, GuildFoundTools.LFG.ownGroupId, table.concat(memberParts, ",")))
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -164,8 +162,7 @@ function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMemb
 
 	SaveGroupToStorage(group)
 
-	local message = Serialize(MESSAGE_TYPES.GROUP_CREATE, groupId, category, dungeon, description, maxMembers, GetPlayerName(), leaderRole or "DD", beginnerFriendly and "1" or "0")
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_CREATE, groupId, category, dungeon, description, maxMembers, GetPlayerName(), leaderRole or "DD", beginnerFriendly and "1" or "0"))
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -184,8 +181,7 @@ function GuildFoundTools.LFG.RemoveGroup(groupId)
 
 	ClearGroupFromStorage()
 
-	local message = Serialize(MESSAGE_TYPES.GROUP_REMOVE, groupId)
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_REMOVE, groupId))
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -206,8 +202,7 @@ function GuildFoundTools.LFG.EditGroup(groupId, category, dungeon, description, 
 
 	SaveGroupToStorage(group)
 
-	local message = Serialize(MESSAGE_TYPES.GROUP_EDIT, groupId, group.category, group.dungeon, group.description, group.maxMembers, group.beginnerFriendly and "1" or "0")
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_EDIT, groupId, group.category, group.dungeon, group.description, group.maxMembers, group.beginnerFriendly and "1" or "0"))
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -222,22 +217,19 @@ function GuildFoundTools.LFG.SignupForGroup(groupId, role)
 		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
 	end
 
-	local message = Serialize(MESSAGE_TYPES.GROUP_SIGNUP, groupId, GetPlayerName(), role or "DD")
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_SIGNUP, groupId, GetPlayerName(), role or "DD"))
 end
 
 function GuildFoundTools.LFG.LeaveGroup(groupId)
 	if not IsInGuild() then return end
 
-	local message = Serialize(MESSAGE_TYPES.GROUP_LEAVE, groupId, GetPlayerName())
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LEAVE, groupId, GetPlayerName()))
 end
 
 function GuildFoundTools.LFG.RequestGroupList()
 	if not IsInGuild() then return end
 
-	local message = Serialize(MESSAGE_TYPES.GROUP_LIST_REQUEST)
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LIST_REQUEST))
 end
 
 -- ============================================================
@@ -392,8 +384,7 @@ GuildFoundTools.MessageHandlers.GROUP_LIST_REQUEST = function(fields, sender)
 	for memberName, role in pairs(group.members) do
 		table.insert(memberParts, memberName .. ":" .. role)
 	end
-	local message = Serialize(MESSAGE_TYPES.GROUP_LIST_ANSWER, GuildFoundTools.LFG.ownGroupId, group.category, group.dungeon, group.description, group.maxMembers, group.leader, table.concat(memberParts, ","), group.beginnerFriendly and "1" or "0")
-	SendGuildMessage(message)
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LIST_ANSWER, GuildFoundTools.LFG.ownGroupId, group.category, group.dungeon, group.description, group.maxMembers, group.leader, table.concat(memberParts, ","), group.beginnerFriendly and "1" or "0"))
 end
 
 GuildFoundTools.MessageHandlers.GROUP_LIST_ANSWER = function(fields)

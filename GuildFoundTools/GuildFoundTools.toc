@@ -7,6 +7,7 @@
 
 Libs\AceComm-3.0\AceComm-3.0.xml
 
+GuildFoundTools_Enums.lua
 GuildFoundTools.lua
 GuildFoundTools_UI.lua
 GuildFoundTools_Minimap.lua
