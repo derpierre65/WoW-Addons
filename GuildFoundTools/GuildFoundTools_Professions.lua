@@ -241,7 +241,7 @@ end
 -- Professions UI
 -- ============================================================
 
-local contentFrame = GuildFoundTools.UI.GetContentFrame(2)
+local contentFrame = GuildFoundTools.UI.GetContentFrame(3)
 
 local LEFT_PANEL_WIDTH = 180
 local selectedMember = nil

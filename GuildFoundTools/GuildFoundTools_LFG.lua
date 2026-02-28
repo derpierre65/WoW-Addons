@@ -508,15 +508,6 @@ local DUNGEON_LIST = {
 	["Custom"] = {},
 }
 
--- ============================================================
--- Top bar: Create Group button
--- ============================================================
-
-local createGroupButton = CreateFrame("Button", nil, contentFrame, "UIPanelButtonTemplate")
-createGroupButton:SetSize(130, 22)
-createGroupButton:SetPoint("TOPLEFT", 0, 0)
-createGroupButton:SetText("Gruppe erstellen")
-
 -- No groups hint
 local noGroupsText = contentFrame:CreateFontString(nil, "OVERLAY", "GameFontDisable")
 noGroupsText:SetPoint("CENTER", 0, -20)
@@ -546,19 +537,6 @@ leaveButton:SetSize(120, 24)
 leaveButton:SetPoint("LEFT", 0, 0)
 leaveButton:SetText("Verlassen")
 leaveButton:Hide()
-
--- Right side: leader buttons (always visible when player has a group)
-local deleteGroupButton = CreateFrame("Button", nil, actionBar, "UIPanelButtonTemplate")
-deleteGroupButton:SetSize(140, 24)
-deleteGroupButton:SetPoint("RIGHT", 0, 0)
-deleteGroupButton:SetText("Gruppe löschen")
-deleteGroupButton:Hide()
-
-local editGroupButton = CreateFrame("Button", nil, actionBar, "UIPanelButtonTemplate")
-editGroupButton:SetSize(140, 24)
-editGroupButton:SetPoint("RIGHT", deleteGroupButton, "LEFT", -4, 0)
-editGroupButton:SetText("Gruppe bearbeiten")
-editGroupButton:Hide()
 
 -- ============================================================
 -- Role selection popup (for signup)
@@ -621,7 +599,7 @@ tinsert(UISpecialFrames, "GuildFoundToolsRolePopup")
 -- ============================================================
 
 local scrollFrame = CreateFrame("ScrollFrame", "GuildFoundToolsLFGScrollFrame", contentFrame, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT", 0, -30)
+scrollFrame:SetPoint("TOPLEFT", 0, 0)
 scrollFrame:SetPoint("BOTTOMRIGHT", -25, ACTION_BAR_HEIGHT)
 
 local scrollChild = CreateFrame("Frame", "GuildFoundToolsLFGScrollChild", scrollFrame)
@@ -835,18 +813,9 @@ end
 local function UpdateActionBar()
 	signupButton:Hide()
 	leaveButton:Hide()
-	deleteGroupButton:Hide()
-	editGroupButton:Hide()
 
 	local playerName = UnitName("player")
-
-	-- Leader buttons: always visible when player has a group
 	local ownGroupId = GuildFoundTools.LFG.ownGroupId
-
-	if ownGroupId then
-		deleteGroupButton:Show()
-		editGroupButton:Show()
-	end
 
 	-- Selection-based buttons (only for non-own groups)
 	if selectedGroupId and selectedGroupId ~= ownGroupId then
@@ -876,17 +845,6 @@ leaveButton:SetScript("OnClick", function()
 	GuildFoundTools.LFG.LeaveGroup(selectedGroupId)
 end)
 
-deleteGroupButton:SetScript("OnClick", function()
-	local playerName = UnitName("player")
-	local ownGroupId = GuildFoundTools.LFG.ownGroupId
-	if ownGroupId then
-		if selectedGroupId == ownGroupId then
-			selectedGroupId = nil
-		end
-		GuildFoundTools.LFG.RemoveGroup(ownGroupId)
-	end
-end)
-
 -- ============================================================
 -- Update group listing
 -- ============================================================
@@ -897,8 +855,8 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 	local groups = GuildFoundTools.groups
 	local playerName = UnitName("player")
 
-	-- Disable create button if player already has a group
-	createGroupButton:SetEnabled(not GuildFoundTools.LFG.ownGroupId)
+	-- Update tab 2 text based on group state
+	GuildFoundTools.LFG.UpdateCreateGroupTab()
 
 	-- Validate selected group still exists
 	if selectedGroupId and not groups[selectedGroupId] then
@@ -1049,50 +1007,50 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 	UpdateActionBar()
 end
 
-local editingGroupId = nil
+-- Initial update when tab 1 is shown
+contentFrame:SetScript("OnShow", function()
+	GuildFoundTools.LFG.UpdateLFGUI()
+end)
 
 -- ============================================================
--- Create / Edit Group dialog
+-- Create Group / My Group Tab (Tab 2)
 -- ============================================================
 
-local dialogFrame = CreateFrame("Frame", "GuildFoundToolsCreateGroupDialog", UIParent, "BasicFrameTemplateWithInset")
-dialogFrame:SetSize(350, 340)
-dialogFrame:SetPoint("CENTER")
-dialogFrame:SetMovable(true)
-dialogFrame:SetClampedToScreen(true)
-dialogFrame:SetFrameStrata("DIALOG")
-dialogFrame:Hide()
+local createGroupContent = GuildFoundTools.UI.GetContentFrame(2)
 
-dialogFrame.title = dialogFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-dialogFrame.title:SetPoint("CENTER", dialogFrame.TitleBg, "CENTER", 0, 0)
-dialogFrame.title:SetText("Gruppe erstellen")
-
-dialogFrame:EnableMouse(true)
-dialogFrame:RegisterForDrag("LeftButton")
-dialogFrame:SetScript("OnDragStart", dialogFrame.StartMoving)
-dialogFrame:SetScript("OnDragStop", dialogFrame.StopMovingOrSizing)
-
-tinsert(UISpecialFrames, "GuildFoundToolsCreateGroupDialog")
+-- Helper: find the group the player belongs to (own or as member)
+function GuildFoundTools.LFG.GetMyGroup()
+	if GuildFoundTools.LFG.ownGroupId then
+		return GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	end
+	local playerName = GetPlayerName()
+	for _, group in pairs(GuildFoundTools.groups) do
+		if group.members[playerName] then
+			return group
+		end
+	end
+	return nil
+end
 
 -- Category dropdown
-local categoryLabel = dialogFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-categoryLabel:SetPoint("TOPLEFT", 20, -35)
+local categoryLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+categoryLabel:SetPoint("TOPLEFT", 4, -10)
 categoryLabel:SetText("Kategorie:")
 
-local categoryDropdown = CreateFrame("Frame", "GuildFoundToolsCategoryDropdown", dialogFrame, "UIDropDownMenuTemplate")
-categoryDropdown:SetPoint("TOPLEFT", 4, -47)
+local categoryDropdown = CreateFrame("Frame", "GuildFoundToolsCategoryDropdown", createGroupContent, "UIDropDownMenuTemplate")
+categoryDropdown:SetPoint("TOPLEFT", -12, -22)
 UIDropDownMenu_SetWidth(categoryDropdown, 140)
 UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
 
 local selectedCategory = "Dungeons"
 
 -- Dungeon dropdown
-local dungeonLabel = dialogFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-dungeonLabel:SetPoint("TOPLEFT", 20, -77)
+local dungeonLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+dungeonLabel:SetPoint("TOPLEFT", 4, -52)
 dungeonLabel:SetText("Dungeon/Raid:")
 
-local dungeonDropdown = CreateFrame("Frame", "GuildFoundToolsDungeonDropdown", dialogFrame, "UIDropDownMenuTemplate")
-dungeonDropdown:SetPoint("TOPLEFT", 4, -89)
+local dungeonDropdown = CreateFrame("Frame", "GuildFoundToolsDungeonDropdown", createGroupContent, "UIDropDownMenuTemplate")
+dungeonDropdown:SetPoint("TOPLEFT", -12, -64)
 UIDropDownMenu_SetWidth(dungeonDropdown, 280)
 UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
 
@@ -1151,26 +1109,26 @@ end
 UIDropDownMenu_Initialize(categoryDropdown, InitCategoryDropdown)
 
 -- Description editbox
-local descriptionLabel = dialogFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-descriptionLabel:SetPoint("TOPLEFT", 20, -121)
+local descriptionLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+descriptionLabel:SetPoint("TOPLEFT", 4, -96)
 descriptionLabel:SetText("Beschreibung:")
 
-local descriptionEditBox = CreateFrame("EditBox", "GuildFoundToolsDescriptionEditBox", dialogFrame, "InputBoxTemplate")
+local descriptionEditBox = CreateFrame("EditBox", "GuildFoundToolsDescriptionEditBox", createGroupContent, "InputBoxTemplate")
 descriptionEditBox:SetSize(290, 24)
-descriptionEditBox:SetPoint("TOPLEFT", 25, -135)
+descriptionEditBox:SetPoint("TOPLEFT", 9, -110)
 descriptionEditBox:SetAutoFocus(false)
 descriptionEditBox:SetMaxLetters(100)
 descriptionEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 descriptionEditBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
 
 -- Max members
-local maxMembersLabel = dialogFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-maxMembersLabel:SetPoint("TOPLEFT", 20, -167)
+local maxMembersLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+maxMembersLabel:SetPoint("TOPLEFT", 4, -142)
 maxMembersLabel:SetText("Max. Mitglieder:")
 
-local maxMembersEditBox = CreateFrame("EditBox", "GuildFoundToolsMaxMembersEditBox", dialogFrame, "InputBoxTemplate")
+local maxMembersEditBox = CreateFrame("EditBox", "GuildFoundToolsMaxMembersEditBox", createGroupContent, "InputBoxTemplate")
 maxMembersEditBox:SetSize(50, 24)
-maxMembersEditBox:SetPoint("TOPLEFT", 25, -181)
+maxMembersEditBox:SetPoint("TOPLEFT", 9, -156)
 maxMembersEditBox:SetAutoFocus(false)
 maxMembersEditBox:SetNumeric(true)
 maxMembersEditBox:SetMaxLetters(2)
@@ -1185,8 +1143,8 @@ maxMembersEditBox:SetScript("OnTextChanged", function(self)
 end)
 
 -- Role selection
-local roleLabel = dialogFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-roleLabel:SetPoint("TOPLEFT", 20, -213)
+local roleLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+roleLabel:SetPoint("TOPLEFT", 4, -188)
 roleLabel:SetText("Rolle:")
 
 local selectedRole = "DD"
@@ -1210,9 +1168,9 @@ local function UpdateRoleButtons()
 end
 
 for index, roleData in ipairs(roles) do
-	local roleButton = CreateFrame("Button", nil, dialogFrame)
+	local roleButton = CreateFrame("Button", nil, createGroupContent)
 	roleButton:SetSize(32, 32)
-	roleButton:SetPoint("TOPLEFT", 20 + (index - 1) * 36, -227)
+	roleButton:SetPoint("TOPLEFT", 4 + (index - 1) * 36, -202)
 	roleButton.roleKey = roleData.key
 
 	roleButton.icon = roleButton:CreateTexture(nil, "ARTWORK")
@@ -1244,9 +1202,9 @@ end
 -- Beginner friendly button (same style as role buttons)
 local selectedBeginnerFriendly = false
 
-local beginnerFriendlyButton = CreateFrame("Button", nil, dialogFrame)
+local beginnerFriendlyButton = CreateFrame("Button", nil, createGroupContent)
 beginnerFriendlyButton:SetSize(32, 32)
-beginnerFriendlyButton:SetPoint("TOPLEFT", 20 + 3 * 36, -227)
+beginnerFriendlyButton:SetPoint("TOPLEFT", 4 + 3 * 36, -202)
 
 beginnerFriendlyButton.icon = beginnerFriendlyButton:CreateTexture(nil, "ARTWORK")
 beginnerFriendlyButton.icon:SetAllPoints()
@@ -1277,22 +1235,20 @@ beginnerFriendlyButton:SetScript("OnEnter", function(self)
 end)
 beginnerFriendlyButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
--- Create / Cancel buttons
-local createButton = CreateFrame("Button", nil, dialogFrame, "UIPanelButtonTemplate")
-createButton:SetSize(120, 26)
-createButton:SetPoint("BOTTOMLEFT", 30, 15)
-createButton:SetText("Erstellen")
+-- Submit button
+local submitButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
+submitButton:SetSize(140, 26)
+submitButton:SetPoint("BOTTOMLEFT", 0, 0)
+submitButton:SetText("Erstellen")
 
-local cancelButton = CreateFrame("Button", nil, dialogFrame, "UIPanelButtonTemplate")
-cancelButton:SetSize(120, 26)
-cancelButton:SetPoint("BOTTOMRIGHT", -30, 15)
-cancelButton:SetText("Abbrechen")
+-- Delete group button (only visible in edit mode)
+local deleteGroupTabButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
+deleteGroupTabButton:SetSize(140, 26)
+deleteGroupTabButton:SetPoint("BOTTOMRIGHT", 0, 0)
+deleteGroupTabButton:SetText("Gruppe löschen")
+deleteGroupTabButton:Hide()
 
-cancelButton:SetScript("OnClick", function()
-	dialogFrame:Hide()
-end)
-
-createButton:SetScript("OnClick", function()
+submitButton:SetScript("OnClick", function()
 	local category = selectedCategory
 	local dungeon = selectedDungeon
 	local description = descriptionEditBox:GetText() or ""
@@ -1301,21 +1257,42 @@ createButton:SetScript("OnClick", function()
 	if maxMembers < 1 then maxMembers = 1 end
 	if maxMembers > 40 then maxMembers = 40 end
 
-	if editingGroupId then
-		GuildFoundTools.LFG.EditGroup(editingGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+	if GuildFoundTools.LFG.ownGroupId then
+		GuildFoundTools.LFG.EditGroup(GuildFoundTools.LFG.ownGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 	else
 		GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 	end
-	editingGroupId = nil
-	dialogFrame:Hide()
 end)
 
--- Wire up the create group button
-createGroupButton:SetScript("OnClick", function()
-	-- Reset dialog for creating
-	editingGroupId = nil
-	dialogFrame.title:SetText("Gruppe erstellen")
-	createButton:SetText("Erstellen")
+deleteGroupTabButton:SetScript("OnClick", function()
+	if GuildFoundTools.LFG.ownGroupId then
+		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+	end
+end)
+
+-- Member info text (shown when player is member of someone else's group)
+local memberInfoText = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+memberInfoText:SetPoint("CENTER", 0, 0)
+memberInfoText:SetJustifyH("CENTER")
+memberInfoText:Hide()
+
+-- Form elements to show/hide together
+local formElements = { categoryLabel, categoryDropdown, dungeonLabel, dungeonDropdown, descriptionLabel, descriptionEditBox, maxMembersLabel, maxMembersEditBox, roleLabel, submitButton, beginnerFriendlyButton }
+for _, roleButton in ipairs(roleButtons) do
+	table.insert(formElements, roleButton)
+end
+
+local function ShowFormElements(visible)
+	for _, element in ipairs(formElements) do
+		if visible then
+			element:Show()
+		else
+			element:Hide()
+		end
+	end
+end
+
+local function ResetForm()
 	selectedCategory = "Dungeons"
 	selectedDungeon = ""
 	UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
@@ -1327,27 +1304,15 @@ createGroupButton:SetScript("OnClick", function()
 	UpdateRoleButtons()
 	selectedBeginnerFriendly = false
 	UpdateBeginnerFriendlyButton()
-	dialogFrame:Show()
-end)
+end
 
--- Wire up edit group button
-editGroupButton:SetScript("OnClick", function()
-	local playerName = UnitName("player")
-	local ownGroup = nil
-	local ownGroupId = GuildFoundTools.LFG.ownGroupId
-	if not ownGroupId then return end
-	ownGroup = GuildFoundTools.groups[ownGroupId]
-	if not ownGroup then return end
+local function PopulateFormFromGroup(group)
+	local playerName = GetPlayerName()
 
-	editingGroupId = ownGroup.id
-	dialogFrame.title:SetText("Gruppe bearbeiten")
-	createButton:SetText("Speichern")
-
-	-- Populate dialog with current group values
-	selectedCategory = ownGroup.category or "Dungeons"
+	selectedCategory = group.category or "Dungeons"
 	UIDropDownMenu_SetText(categoryDropdown, selectedCategory)
 
-	selectedDungeon = ownGroup.dungeon or ""
+	selectedDungeon = group.dungeon or ""
 	if selectedDungeon ~= "" then
 		UIDropDownMenu_SetText(dungeonDropdown, selectedDungeon)
 	else
@@ -1360,21 +1325,49 @@ editGroupButton:SetScript("OnClick", function()
 		dungeonDropdown:SetAlpha(1)
 	end
 
-	descriptionEditBox:SetText(ownGroup.description or "")
-	maxMembersEditBox:SetText(tostring(ownGroup.maxMembers or 5))
+	descriptionEditBox:SetText(group.description or "")
+	maxMembersEditBox:SetText(tostring(group.maxMembers or 5))
 
-	selectedRole = ownGroup.members[playerName] or "DD"
+	selectedRole = group.members[playerName] or "DD"
 	UpdateRoleButtons()
 
-	selectedBeginnerFriendly = ownGroup.beginnerFriendly or false
+	selectedBeginnerFriendly = group.beginnerFriendly or false
 	UpdateBeginnerFriendlyButton()
+end
 
-	dialogFrame:Show()
-end)
+function GuildFoundTools.LFG.UpdateCreateGroupTab()
+	local myGroup = GuildFoundTools.LFG.GetMyGroup()
+	local playerName = GetPlayerName()
 
--- Initial update when tab is shown
-contentFrame:SetScript("OnShow", function()
-	GuildFoundTools.LFG.UpdateLFGUI()
+	if myGroup then
+		GuildFoundTools.UI.SetTabText(2, "Meine Gruppe")
+
+		if myGroup.leader == playerName then
+			-- Leader: show edit form
+			ShowFormElements(true)
+			memberInfoText:Hide()
+			submitButton:SetText("Speichern")
+			deleteGroupTabButton:Show()
+			PopulateFormFromGroup(myGroup)
+		else
+			-- Member: show info text
+			ShowFormElements(false)
+			deleteGroupTabButton:Hide()
+			memberInfoText:SetText("Du bist in der Gruppe von " .. myGroup.leader .. ".")
+			memberInfoText:Show()
+		end
+	else
+		GuildFoundTools.UI.SetTabText(2, "Gruppe erstellen")
+		ShowFormElements(true)
+		memberInfoText:Hide()
+		submitButton:SetText("Erstellen")
+		deleteGroupTabButton:Hide()
+		ResetForm()
+	end
+end
+
+createGroupContent:SetScript("OnShow", function()
+	GuildFoundTools.LFG.UpdateCreateGroupTab()
 end)
 
 -- ============================================================

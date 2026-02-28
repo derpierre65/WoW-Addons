@@ -31,7 +31,7 @@ tinsert(UISpecialFrames, "GuildFoundToolsMainFrame")
 -- Tab system
 -- ============================================================
 
-local TAB_NAMES = { "Gruppenbrowser", "Berufe" }
+local TAB_NAMES = { "Gruppenbrowser", "Gruppe erstellen", "Berufe" }
 local contentFrames = {}
 
 -- Create tab buttons (below the frame)
@@ -61,8 +61,21 @@ for index = 1, #TAB_NAMES do
 	contentFrames[index] = contentFrame
 end
 
+local tabButtons = {}
+for index = 1, #TAB_NAMES do
+	tabButtons[index] = _G["GuildFoundToolsMainFrameTab" .. index]
+end
+
 PanelTemplates_SetNumTabs(mainFrame, #TAB_NAMES)
 PanelTemplates_SetTab(mainFrame, 1)
+
+function GuildFoundTools.UI.SetTabText(tabIndex, text)
+	local tabButton = tabButtons[tabIndex]
+	if tabButton then
+		tabButton:SetText(text)
+		PanelTemplates_TabResize(tabButton, 0)
+	end
+end
 
 function GuildFoundTools.UI.ShowTab(tabIndex)
 	for index, contentFrame in ipairs(contentFrames) do
@@ -98,9 +111,3 @@ mainFrame:SetScript("OnShow", function()
 	GuildFoundTools.LFG.RequestGroupList()
 end)
 
--- Close child windows when main frame is hidden
-mainFrame:SetScript("OnHide", function()
-	if GuildFoundToolsCreateGroupDialog then
-		GuildFoundToolsCreateGroupDialog:Hide()
-	end
-end)
