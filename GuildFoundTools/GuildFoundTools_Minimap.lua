@@ -1,5 +1,6 @@
 -- Minimap button (adapted from BankViewer)
 
+local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
 local DEFAULT_ANGLE = 200
 
 local function IsSquareMinimap()
@@ -69,8 +70,8 @@ end)
 
 minimapButton:SetScript("OnEnter", function(self)
 	GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-	GameTooltip:AddLine("GuildFound Tools")
-	GameTooltip:AddLine("Klicken um das Fenster zu öffnen", 1, 1, 1)
+	GameTooltip:AddLine(L["AddonTitle"])
+	GameTooltip:AddLine(L["MinimapTooltip"], 1, 1, 1)
 	GameTooltip:Show()
 end)
 

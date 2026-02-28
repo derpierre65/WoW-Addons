@@ -6,6 +6,7 @@
 
 GuildFoundTools.LFG = GuildFoundTools.LFG or {}
 
+local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
 local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
 local Serialize = GuildFoundTools.Serialize
 local SendGuildMessage = GuildFoundTools.SendGuildMessage
@@ -134,13 +135,13 @@ end
 
 function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
 	if not IsInGuild() then
-		print("|cff00ccffGuildFound Tools:|r Du bist in keiner Gilde.")
+		print("|cff00ccffGuildFound Tools:|r " .. L["NotInGuild"])
 		return
 	end
 
 	-- Only one group per player allowed
 	if GuildFoundTools.LFG.ownGroupId then
-		print("|cff00ccffGuildFound Tools:|r Du hast bereits eine Gruppe erstellt.")
+		print("|cff00ccffGuildFound Tools:|r " .. L["AlreadyHaveGroup"])
 		return
 	end
 
@@ -483,7 +484,7 @@ GuildFoundTools.EventHandlers.GROUP_JOINED = function()
 		C_Timer.After(0.5, function()
 			if not UnitIsGroupLeader("player") then
 				GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
-				print("|cff00ccffGuildFound Tools:|r Deine Gruppe wurde entfernt, da du einer anderen Gruppe beigetreten bist.")
+				print("|cff00ccffGuildFound Tools:|r " .. L["GroupRemovedJoinedOther"])
 			end
 		end)
 	else
@@ -617,7 +618,7 @@ local DUNGEON_LIST = {
 -- No groups hint
 local noGroupsText = contentFrame:CreateFontString(nil, "OVERLAY", "GameFontDisable")
 noGroupsText:SetPoint("CENTER", 0, -20)
-noGroupsText:SetText("Keine Gruppen vorhanden.\nErstelle eine Gruppe oder warte auf Gildenmitglieder.")
+noGroupsText:SetText(L["NoGroupsAvailable"])
 noGroupsText:SetJustifyH("CENTER")
 
 -- ============================================================
@@ -635,13 +636,13 @@ actionBar:SetPoint("BOTTOMRIGHT", 0, 0)
 local signupButton = CreateFrame("Button", nil, actionBar, "UIPanelButtonTemplate")
 signupButton:SetSize(120, 24)
 signupButton:SetPoint("LEFT", 0, 0)
-signupButton:SetText("Anmelden")
+signupButton:SetText(L["ButtonSignUp"])
 signupButton:Hide()
 
 local leaveButton = CreateFrame("Button", nil, actionBar, "UIPanelButtonTemplate")
 leaveButton:SetSize(120, 24)
 leaveButton:SetPoint("LEFT", 0, 0)
-leaveButton:SetText("Verlassen")
+leaveButton:SetText(L["ButtonLeave"])
 leaveButton:Hide()
 
 -- ============================================================
@@ -687,11 +688,11 @@ for index, roleName in ipairs(ROLE_NAMES) do
 	button:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		if roleName == "TANK" then
-			GameTooltip:SetText("Tank")
+			GameTooltip:SetText(L["RoleTank"])
 		elseif roleName == "HEAL" then
-			GameTooltip:SetText("Heiler")
+			GameTooltip:SetText(L["RoleHealer"])
 		else
-			GameTooltip:SetText("Damage Dealer")
+			GameTooltip:SetText(L["RoleDamageDealer"])
 		end
 		GameTooltip:Show()
 	end)
@@ -735,14 +736,14 @@ local function ShowContextMenu(owner, group)
 		local playerName = UnitName("player")
 
 		-- Send message
-		rootDescription:CreateButton("Nachricht senden", function()
+		rootDescription:CreateButton(L["ContextMenuSendMessage"], function()
 			ChatFrame_SendTell(group.leader)
 		end)
 
 		-- Group invite (only for leader, only if target is alone)
 		if group.leader ~= playerName and GuildFoundTools.LFG.GetMemberCount(group) == 1 then
 			if GuildFoundTools.LFG.ownGroupId then
-				rootDescription:CreateButton("Spieler einladen", function()
+				rootDescription:CreateButton(L["ContextMenuInvitePlayer"], function()
 					C_PartyInfo.InviteUnit(group.leader)
 				end)
 			end
@@ -849,7 +850,7 @@ local function CreateGroupRow(parent)
 
 		-- Members header + list (with role icon, class color, level)
 		if self.roleArea.members and #self.roleArea.members > 0 then
-			GameTooltip:AddLine("Mitglieder:")
+			GameTooltip:AddLine(L["TooltipMembersHeader"])
 			local tankCount, healCount, ddCount = 0, 0, 0
 			for _, memberInfo in ipairs(self.roleArea.members) do
 				local roleIcon = ROLE_ICON_MARKUP[memberInfo.role] or ROLE_ICON_MARKUP["DD"]
@@ -885,7 +886,7 @@ local function CreateGroupRow(parent)
 
 			-- Member count with role breakdown
 			GameTooltip:AddLine(" ")
-			GameTooltip:AddLine("Mitglieder: |cffffffff" .. #self.roleArea.members .. "/" .. (self.groupMaxMembers or "?") .. " (" .. tankCount .. "/" .. healCount .. "/" .. ddCount .. ")|r")
+			GameTooltip:AddLine(string.format(L["TooltipMembersSummary"], #self.roleArea.members, self.groupMaxMembers or "?", tankCount, healCount, ddCount))
 		end
 
 		-- Description (if exists)
@@ -1205,11 +1206,11 @@ for index, roleData in ipairs(roles) do
 	roleButton:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		if self.roleKey == "TANK" then
-			GameTooltip:SetText("Tank")
+			GameTooltip:SetText(L["RoleTank"])
 		elseif self.roleKey == "HEAL" then
-			GameTooltip:SetText("Heiler")
+			GameTooltip:SetText(L["RoleHealer"])
 		else
-			GameTooltip:SetText("Damage Dealer")
+			GameTooltip:SetText(L["RoleDamageDealer"])
 		end
 		GameTooltip:Show()
 	end)
@@ -1249,7 +1250,7 @@ end)
 
 beginnerFriendlyButton:SetScript("OnEnter", function(self)
 	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-	GameTooltip:SetText("Neulinge willkommen")
+	GameTooltip:SetText(L["BeginnerFriendly"])
 	GameTooltip:Show()
 end)
 beginnerFriendlyButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1259,7 +1260,7 @@ local FORM_TOP_OFFSET = -68
 -- Category dropdown
 local categoryLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 categoryLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET)
-categoryLabel:SetText("Kategorie:")
+categoryLabel:SetText(L["LabelCategory"])
 
 local categoryDropdown = CreateFrame("Frame", "GuildFoundToolsCategoryDropdown", createGroupContent, "UIDropDownMenuTemplate")
 categoryDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 12)
@@ -1271,12 +1272,12 @@ local selectedCategory = "Dungeons"
 -- Dungeon dropdown
 local dungeonLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 dungeonLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 42)
-dungeonLabel:SetText("Dungeon/Raid:")
+dungeonLabel:SetText(L["LabelDungeonRaid"])
 
 local dungeonDropdown = CreateFrame("Frame", "GuildFoundToolsDungeonDropdown", createGroupContent, "UIDropDownMenuTemplate")
 dungeonDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 54)
 UIDropDownMenu_SetWidth(dungeonDropdown, 280)
-UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
+UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
 
 local selectedDungeon = ""
 
@@ -1284,7 +1285,7 @@ local function InitDungeonDropdown(self, level)
 	local dungeons = DUNGEON_LIST[selectedCategory] or {}
 	if #dungeons == 0 then
 		local info = UIDropDownMenu_CreateInfo()
-		info.text = "(Freitext in Beschreibung)"
+		info.text = L["DropdownFreetext"]
 		info.disabled = true
 		info.notCheckable = true
 		UIDropDownMenu_AddButton(info)
@@ -1314,7 +1315,7 @@ local function InitCategoryDropdown(self, level)
 			selectedCategory = category
 			selectedDungeon = ""
 			UIDropDownMenu_SetText(categoryDropdown, category)
-			UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
+			UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
 			UIDropDownMenu_Initialize(dungeonDropdown, InitDungeonDropdown)
 			CloseDropDownMenus()
 
@@ -1335,7 +1336,7 @@ UIDropDownMenu_Initialize(categoryDropdown, InitCategoryDropdown)
 -- Description editbox
 local descriptionLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 descriptionLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 86)
-descriptionLabel:SetText("Beschreibung:")
+descriptionLabel:SetText(L["LabelDescription"])
 
 local descriptionEditBox = CreateFrame("EditBox", "GuildFoundToolsDescriptionEditBox", createGroupContent, "InputBoxTemplate")
 descriptionEditBox:SetSize(290, 24)
@@ -1348,7 +1349,7 @@ descriptionEditBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() 
 -- Max members
 local maxMembersLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 maxMembersLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 132)
-maxMembersLabel:SetText("Max. Mitglieder:")
+maxMembersLabel:SetText(L["LabelMaxMembers"])
 
 local maxMembersEditBox = CreateFrame("EditBox", "GuildFoundToolsMaxMembersEditBox", createGroupContent, "InputBoxTemplate")
 maxMembersEditBox:SetSize(50, 24)
@@ -1370,7 +1371,7 @@ end)
 local leftButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
 leftButton:SetSize(140, 26)
 leftButton:SetPoint("BOTTOMLEFT", 0, 0)
-leftButton:SetText("Erstellen")
+leftButton:SetText(L["ButtonCreate"])
 
 local rightButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
 rightButton:SetSize(140, 26)
@@ -1381,7 +1382,7 @@ rightButton:Hide()
 local myGroupInfoText = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
 myGroupInfoText:SetPoint("CENTER", 0, 0)
 myGroupInfoText:SetJustifyH("CENTER")
-myGroupInfoText:SetText("Noch keine Anmeldungen f\195\188r deine Gruppe vorhanden.\nSobald sich Gildenmitglieder anmelden, erscheinen sie hier.")
+myGroupInfoText:SetText(L["NoSignupsYet"])
 myGroupInfoText:Hide()
 
 -- Member info text (shown when player is member of someone else's group)
@@ -1407,7 +1408,7 @@ local function ResetForm()
 	selectedCategory = "Dungeons"
 	selectedDungeon = ""
 	UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
-	UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
+	UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
 	dungeonDropdown:SetAlpha(1)
 	descriptionEditBox:SetText("")
 	maxMembersEditBox:SetText("5")
@@ -1427,7 +1428,7 @@ local function PopulateFormFromGroup(group)
 	if selectedDungeon ~= "" then
 		UIDropDownMenu_SetText(dungeonDropdown, selectedDungeon)
 	else
-		UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
+		UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
 	end
 
 	if selectedCategory == "Custom" then
@@ -1458,9 +1459,9 @@ local function ShowMyGroupListView(myGroup)
 	selectedRole = myGroup.members[GetPlayerName()] or "DD"
 	UpdateRoleButtons()
 
-	leftButton:SetText("Gruppe entfernen")
+	leftButton:SetText(L["ButtonRemoveGroup"])
 	leftButton:Show()
-	rightButton:SetText("Bearbeiten")
+	rightButton:SetText(L["ButtonEdit"])
 	rightButton:Show()
 end
 
@@ -1470,9 +1471,9 @@ local function ShowMyGroupEditView(myGroup)
 	myGroupInfoText:Hide()
 	PopulateFormFromGroup(myGroup)
 
-	leftButton:SetText("Zur\195\188ck")
+	leftButton:SetText(L["ButtonBack"])
 	leftButton:Show()
-	rightButton:SetText("Speichern")
+	rightButton:SetText(L["ButtonSave"])
 	rightButton:Show()
 end
 
@@ -1481,7 +1482,7 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 	local playerName = GetPlayerName()
 
 	if myGroup then
-		GuildFoundTools.UI.SetTabText(2, "Meine Gruppe")
+		GuildFoundTools.UI.SetTabText(2, L["TabMyGroup"])
 
 		if myGroup.leader == playerName then
 			beginnerFriendlyButton:Show()
@@ -1498,7 +1499,7 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 			myGroupInfoText:Hide()
 			leftButton:Hide()
 			rightButton:Hide()
-			memberInfoText:SetText("Du bist in der Gruppe von " .. myGroup.leader .. ".")
+			memberInfoText:SetText(string.format(L["MemberOfGroup"], myGroup.leader))
 			memberInfoText:Show()
 
 			-- Set role from group data and show role buttons
@@ -1506,13 +1507,13 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 			UpdateRoleButtons()
 		end
 	else
-		GuildFoundTools.UI.SetTabText(2, "Gruppe erstellen")
+		GuildFoundTools.UI.SetTabText(2, L["TabCreateGroup"])
 		isEditingMyGroup = false
 		beginnerFriendlyButton:Show()
 		ShowFormElements(true)
 		memberInfoText:Hide()
 		myGroupInfoText:Hide()
-		leftButton:SetText("Erstellen")
+		leftButton:SetText(L["ButtonCreate"])
 		leftButton:Show()
 		rightButton:Hide()
 		ResetForm()
@@ -1589,13 +1590,13 @@ partyRolePopup:EnableMouse(true)
 
 partyRolePopup.title = partyRolePopup:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 partyRolePopup.title:SetPoint("CENTER", partyRolePopup.TitleBg, "CENTER", 0, 0)
-partyRolePopup.title:SetText("Rolle wählen")
+partyRolePopup.title:SetText(L["SelectRoleTitle"])
 
 partyRolePopup.groupId = nil
 
 local partyRoleLabel = partyRolePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 partyRoleLabel:SetPoint("TOP", 0, -30)
-partyRoleLabel:SetText("Welche Rolle möchtest du spielen?")
+partyRoleLabel:SetText(L["SelectRolePrompt"])
 
 local PARTY_ROLE_NAMES = { "TANK", "HEAL", "DD" }
 
@@ -1619,11 +1620,11 @@ for index, roleName in ipairs(PARTY_ROLE_NAMES) do
 	button:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		if roleName == "TANK" then
-			GameTooltip:SetText("Tank")
+			GameTooltip:SetText(L["RoleTank"])
 		elseif roleName == "HEAL" then
-			GameTooltip:SetText("Heiler")
+			GameTooltip:SetText(L["RoleHealer"])
 		else
-			GameTooltip:SetText("Damage Dealer")
+			GameTooltip:SetText(L["RoleDamageDealer"])
 		end
 		GameTooltip:Show()
 	end)

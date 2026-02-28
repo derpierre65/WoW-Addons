@@ -2,6 +2,8 @@
 
 GuildFoundTools.UI = GuildFoundTools.UI or {}
 
+local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
+
 local FRAME_WIDTH = 500
 local FRAME_HEIGHT = 450
 
@@ -17,7 +19,7 @@ mainFrame:Hide()
 -- Title (centered on the built-in title background)
 mainFrame.title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 mainFrame.title:SetPoint("CENTER", mainFrame.TitleBg, "CENTER", 0, 0)
-mainFrame.title:SetText("GuildFound Tools")
+mainFrame.title:SetText(L["AddonTitle"])
 
 -- Make frame draggable
 mainFrame:EnableMouse(true)
@@ -31,7 +33,7 @@ tinsert(UISpecialFrames, "GuildFoundToolsMainFrame")
 -- Tab system
 -- ============================================================
 
-local TAB_NAMES = { "Gruppenbrowser", "Gruppe erstellen", "Berufe" }
+local TAB_NAMES = { L["TabGroupBrowser"], L["TabCreateGroup"], L["TabProfessions"] }
 local contentFrames = {}
 
 -- Create tab buttons (below the frame)

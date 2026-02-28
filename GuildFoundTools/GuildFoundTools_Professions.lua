@@ -6,6 +6,7 @@
 
 GuildFoundTools.Professions = GuildFoundTools.Professions or {}
 
+local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
 local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
 local Serialize = GuildFoundTools.Serialize
 local SendGuildMessage = GuildFoundTools.SendGuildMessage
@@ -91,7 +92,7 @@ end
 
 function GuildFoundTools.Professions.RequestProfessions()
 	if not IsInGuild() then
-		print("|cff00ccffGuildFound Tools:|r Du bist in keiner Gilde.")
+		print("|cff00ccffGuildFound Tools:|r " .. L["NotInGuild"])
 		return
 	end
 
@@ -187,21 +188,21 @@ local pendingItemRequests = {}
 local queryButton = CreateFrame("Button", nil, contentFrame, "UIPanelButtonTemplate")
 queryButton:SetSize(140, 22)
 queryButton:SetPoint("TOPLEFT", 0, 0)
-queryButton:SetText("Berufe abfragen")
+queryButton:SetText(L["ButtonQueryProfessions"])
 
 local statusText = contentFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 statusText:SetPoint("LEFT", queryButton, "RIGHT", 10, 0)
 statusText:SetText("")
 
 queryButton:SetScript("OnClick", function()
-	statusText:SetText("Abfrage gesendet...")
+	statusText:SetText(L["QuerySent"])
 	GuildFoundTools.Professions.RequestProfessions()
 	C_Timer.After(5, function()
 		local count = 0
 		for _ in pairs(GuildFoundTools.professions) do
 			count = count + 1
 		end
-		statusText:SetText(count .. " Antworten erhalten")
+		statusText:SetText(string.format(L["ResponsesReceived"], count))
 	end)
 end)
 
@@ -263,7 +264,7 @@ rightScrollFrame:SetScrollChild(rightScrollChild)
 -- Hint text when no recipes
 local noRecipesText = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontDisable")
 noRecipesText:SetPoint("CENTER", 0, 0)
-noRecipesText:SetText("Berufsfenster öffnen\num Rezepte zu teilen")
+noRecipesText:SetText(L["OpenProfessionWindow"])
 noRecipesText:SetJustifyH("CENTER")
 noRecipesText:Hide()
 
@@ -385,7 +386,7 @@ local function UpdateRightPanel()
 	local recipes = professionData.recipes
 	if not recipes or #recipes == 0 then
 		noRecipesText:Show()
-		noRecipesText:SetText("Berufsfenster öffnen\num Rezepte zu teilen")
+		noRecipesText:SetText(L["OpenProfessionWindow"])
 		return
 	end
 
@@ -401,7 +402,7 @@ local function UpdateRightPanel()
 		if itemName then
 			entry.text:SetText(itemName)
 		else
-			entry.text:SetText("Lade... (Item " .. itemId .. ")")
+			entry.text:SetText(string.format(L["LoadingItem"], itemId))
 			-- Request item info
 			pendingItemRequests[itemId] = true
 		end

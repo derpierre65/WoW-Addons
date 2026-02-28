@@ -8,6 +8,9 @@
 Libs\AceComm-3.0\AceComm-3.0.xml
 Libs\AceLocale-3.0\AceLocale-3.0.xml
 
+Localization\enUS.lua
+Localization\deDE.lua
+
 GuildFoundTools_Enums.lua
 GuildFoundTools.lua
 GuildFoundTools_UI.lua
