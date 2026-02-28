@@ -736,8 +736,10 @@ local function CreateGroupRow(parent)
 		end
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
-		-- Members first (with role icon, class color, level)
+		-- Members header + list (with role icon, class color, level)
 		if self.roleArea.members and #self.roleArea.members > 0 then
+			GameTooltip:AddLine("Mitglieder:")
+			local tankCount, healCount, ddCount = 0, 0, 0
 			for _, memberInfo in ipairs(self.roleArea.members) do
 				local roleIcon = ROLE_ICON_MARKUP[memberInfo.role] or ROLE_ICON_MARKUP["DD"]
 				local classFileName, level = GetGuildMemberInfo(memberInfo.name)
@@ -759,20 +761,26 @@ local function CreateGroupRow(parent)
 					leaderIcon = "|TInterface\\GroupFrame\\UI-Group-LeaderIcon:14:14|t "
 				end
 
-				GameTooltip:AddLine(leaderIcon .. memberInfo.name .. levelText .. " " .. roleIcon, red, green, blue)
+				GameTooltip:AddLine("  " .. leaderIcon .. roleIcon .. " " .. memberInfo.name .. levelText, red, green, blue)
+
+				if memberInfo.role == "TANK" then
+					tankCount = tankCount + 1
+				elseif memberInfo.role == "HEAL" then
+					healCount = healCount + 1
+				else
+					ddCount = ddCount + 1
+				end
 			end
+
+			-- Member count with role breakdown
+			GameTooltip:AddLine(" ")
+			GameTooltip:AddLine("Mitglieder: |cffffffff" .. #self.roleArea.members .. "/" .. (self.groupMaxMembers or "?") .. " (" .. tankCount .. "/" .. healCount .. "/" .. ddCount .. ")|r")
 		end
 
 		-- Description (if exists)
 		if self.groupDescription and self.groupDescription ~= "" then
 			GameTooltip:AddLine(" ")
 			GameTooltip:AddLine(self.groupDescription, 0.6, 0.6, 0.6, true)
-		end
-
-		-- Member count
-		if self.roleArea.members then
-			GameTooltip:AddLine(" ")
-			GameTooltip:AddLine("Mitglieder: " .. #self.roleArea.members .. "/" .. (self.groupMaxMembers or "?"), 0.6, 0.6, 0.6)
 		end
 
 		GameTooltip:Show()
@@ -1235,40 +1243,23 @@ beginnerFriendlyButton:SetScript("OnEnter", function(self)
 end)
 beginnerFriendlyButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
--- Submit button
-local submitButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
-submitButton:SetSize(140, 26)
-submitButton:SetPoint("BOTTOMLEFT", 0, 0)
-submitButton:SetText("Erstellen")
+-- Bottom buttons (shared between all states)
+local leftButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
+leftButton:SetSize(140, 26)
+leftButton:SetPoint("BOTTOMLEFT", 0, 0)
+leftButton:SetText("Erstellen")
 
--- Delete group button (only visible in edit mode)
-local deleteGroupTabButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
-deleteGroupTabButton:SetSize(140, 26)
-deleteGroupTabButton:SetPoint("BOTTOMRIGHT", 0, 0)
-deleteGroupTabButton:SetText("Gruppe löschen")
-deleteGroupTabButton:Hide()
+local rightButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
+rightButton:SetSize(140, 26)
+rightButton:SetPoint("BOTTOMRIGHT", 0, 0)
+rightButton:Hide()
 
-submitButton:SetScript("OnClick", function()
-	local category = selectedCategory
-	local dungeon = selectedDungeon
-	local description = descriptionEditBox:GetText() or ""
-	local maxMembers = tonumber(maxMembersEditBox:GetText()) or 5
-
-	if maxMembers < 1 then maxMembers = 1 end
-	if maxMembers > 40 then maxMembers = 40 end
-
-	if GuildFoundTools.LFG.ownGroupId then
-		GuildFoundTools.LFG.EditGroup(GuildFoundTools.LFG.ownGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
-	else
-		GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
-	end
-end)
-
-deleteGroupTabButton:SetScript("OnClick", function()
-	if GuildFoundTools.LFG.ownGroupId then
-		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
-	end
-end)
+-- Placeholder text for "Meine Gruppe" list view (when no signups yet)
+local myGroupInfoText = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+myGroupInfoText:SetPoint("CENTER", 0, 0)
+myGroupInfoText:SetJustifyH("CENTER")
+myGroupInfoText:SetText("Noch keine Anmeldungen f\195\188r deine Gruppe vorhanden.\nSobald sich Gildenmitglieder anmelden, erscheinen sie hier.")
+myGroupInfoText:Hide()
 
 -- Member info text (shown when player is member of someone else's group)
 local memberInfoText = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -1277,7 +1268,7 @@ memberInfoText:SetJustifyH("CENTER")
 memberInfoText:Hide()
 
 -- Form elements to show/hide together
-local formElements = { categoryLabel, categoryDropdown, dungeonLabel, dungeonDropdown, descriptionLabel, descriptionEditBox, maxMembersLabel, maxMembersEditBox, roleLabel, submitButton, beginnerFriendlyButton }
+local formElements = { categoryLabel, categoryDropdown, dungeonLabel, dungeonDropdown, descriptionLabel, descriptionEditBox, maxMembersLabel, maxMembersEditBox, roleLabel, beginnerFriendlyButton }
 for _, roleButton in ipairs(roleButtons) do
 	table.insert(formElements, roleButton)
 end
@@ -1335,6 +1326,33 @@ local function PopulateFormFromGroup(group)
 	UpdateBeginnerFriendlyButton()
 end
 
+-- State tracking for "Meine Gruppe" tab
+local isEditingMyGroup = false
+
+local function ShowMyGroupListView(myGroup)
+	ShowFormElements(false)
+	memberInfoText:Hide()
+	myGroupInfoText:Show()
+
+	leftButton:SetText("Gruppe entfernen")
+	leftButton:Show()
+	rightButton:SetText("Bearbeiten")
+	rightButton:Show()
+end
+
+local function ShowMyGroupEditView(myGroup)
+	ShowFormElements(true)
+	memberInfoText:Hide()
+	myGroupMembersHeader:Hide()
+	myGroupInfoText:Hide()
+	PopulateFormFromGroup(myGroup)
+
+	leftButton:SetText("Zur\195\188ck")
+	leftButton:Show()
+	rightButton:SetText("Speichern")
+	rightButton:Show()
+end
+
 function GuildFoundTools.LFG.UpdateCreateGroupTab()
 	local myGroup = GuildFoundTools.LFG.GetMyGroup()
 	local playerName = GetPlayerName()
@@ -1343,30 +1361,88 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 		GuildFoundTools.UI.SetTabText(2, "Meine Gruppe")
 
 		if myGroup.leader == playerName then
-			-- Leader: show edit form
-			ShowFormElements(true)
-			memberInfoText:Hide()
-			submitButton:SetText("Speichern")
-			deleteGroupTabButton:Show()
-			PopulateFormFromGroup(myGroup)
+			if isEditingMyGroup then
+				ShowMyGroupEditView(myGroup)
+			else
+				ShowMyGroupListView(myGroup)
+			end
 		else
 			-- Member: show info text
+			isEditingMyGroup = false
 			ShowFormElements(false)
-			deleteGroupTabButton:Hide()
+			myGroupInfoText:Hide()
+			leftButton:Hide()
+			rightButton:Hide()
 			memberInfoText:SetText("Du bist in der Gruppe von " .. myGroup.leader .. ".")
 			memberInfoText:Show()
 		end
 	else
 		GuildFoundTools.UI.SetTabText(2, "Gruppe erstellen")
+		isEditingMyGroup = false
 		ShowFormElements(true)
 		memberInfoText:Hide()
-		submitButton:SetText("Erstellen")
-		deleteGroupTabButton:Hide()
+		myGroupInfoText:Hide()
+		leftButton:SetText("Erstellen")
+		leftButton:Show()
+		rightButton:Hide()
 		ResetForm()
 	end
 end
 
+leftButton:SetScript("OnClick", function()
+	local myGroup = GuildFoundTools.LFG.GetMyGroup()
+
+	if myGroup and myGroup.leader == GetPlayerName() then
+		if isEditingMyGroup then
+			-- "Zurück" -> back to list view
+			isEditingMyGroup = false
+			GuildFoundTools.LFG.UpdateCreateGroupTab()
+		else
+			-- "Gruppe entfernen" -> remove group
+			if GuildFoundTools.LFG.ownGroupId then
+				GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+			end
+		end
+	else
+		-- "Erstellen" -> create new group
+		local category = selectedCategory
+		local dungeon = selectedDungeon
+		local description = descriptionEditBox:GetText() or ""
+		local maxMembers = tonumber(maxMembersEditBox:GetText()) or 5
+
+		if maxMembers < 1 then maxMembers = 1 end
+		if maxMembers > 40 then maxMembers = 40 end
+
+		GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+	end
+end)
+
+rightButton:SetScript("OnClick", function()
+	local myGroup = GuildFoundTools.LFG.GetMyGroup()
+	if not myGroup or myGroup.leader ~= GetPlayerName() then return end
+
+	if isEditingMyGroup then
+		-- "Speichern" -> save edits
+		local category = selectedCategory
+		local dungeon = selectedDungeon
+		local description = descriptionEditBox:GetText() or ""
+		local maxMembers = tonumber(maxMembersEditBox:GetText()) or 5
+
+		if maxMembers < 1 then maxMembers = 1 end
+		if maxMembers > 40 then maxMembers = 40 end
+
+		GuildFoundTools.LFG.EditGroup(GuildFoundTools.LFG.ownGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+		isEditingMyGroup = false
+		GuildFoundTools.LFG.UpdateCreateGroupTab()
+	else
+		-- "Bearbeiten" -> switch to edit view
+		isEditingMyGroup = true
+		GuildFoundTools.LFG.UpdateCreateGroupTab()
+	end
+end)
+
 createGroupContent:SetScript("OnShow", function()
+	isEditingMyGroup = false
 	GuildFoundTools.LFG.UpdateCreateGroupTab()
 end)
 
