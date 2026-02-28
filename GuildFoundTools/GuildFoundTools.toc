@@ -3,7 +3,7 @@
 ## Notes: Tools for Guilds, especially for GuildFound.
 ## Author: derpierre65
 ## Version: 1.0.0
-## SavedVariables: GuildFoundToolsDB
+## SavedVariables: GuildFoundToolsDB, GuildFoundTools_LFG
 
 GuildFoundTools.lua
 GuildFoundTools_UI.lua

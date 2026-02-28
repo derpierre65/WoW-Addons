@@ -17,6 +17,67 @@ local function GenerateGroupId()
 end
 
 -- ============================================================
+-- Session persistence (survives /reload)
+-- ============================================================
+
+local function SaveGroupToStorage(group)
+	local characterGuid = UnitGUID("player")
+	if not characterGuid then return end
+
+	GuildFoundTools_LFG = GuildFoundTools_LFG or {}
+	GuildFoundTools_LFG[characterGuid] = {
+		id = group.id,
+		category = group.category,
+		dungeon = group.dungeon,
+		description = group.description,
+		maxMembers = group.maxMembers,
+		beginnerFriendly = group.beginnerFriendly,
+		leaderRole = group.members[group.leader] or "DD",
+		createdAt = group.createdAt,
+	}
+end
+
+local function ClearGroupFromStorage()
+	local characterGuid = UnitGUID("player")
+	if not characterGuid then return end
+
+	if GuildFoundTools_LFG then
+		GuildFoundTools_LFG[characterGuid] = nil
+	end
+end
+
+local function RestoreGroupFromStorage()
+	local characterGuid = UnitGUID("player")
+	if not characterGuid or not GuildFoundTools_LFG then return end
+
+	local saved = GuildFoundTools_LFG[characterGuid]
+	if not saved then return end
+
+	local group = {
+		id = saved.id,
+		category = saved.category or "Custom",
+		dungeon = saved.dungeon or "",
+		description = saved.description or "",
+		maxMembers = saved.maxMembers or 5,
+		beginnerFriendly = saved.beginnerFriendly or false,
+		leader = GetPlayerName(),
+		members = { [GetPlayerName()] = saved.leaderRole or "DD" },
+		createdAt = saved.createdAt or time(),
+	}
+
+	GuildFoundTools.groups[group.id] = group
+	GuildFoundTools.LFG.ownGroupId = group.id
+
+	-- Broadcast to guild so others know the group exists
+	local message = Serialize(MESSAGE_TYPES.GROUP_CREATE, group.id, group.category, group.dungeon, group.description, group.maxMembers, group.leader, saved.leaderRole or "DD", group.beginnerFriendly and "1" or "0")
+	SendGuildMessage(message)
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+-- ============================================================
 -- Party member tracking
 -- ============================================================
 
@@ -101,6 +162,8 @@ function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMemb
 	GuildFoundTools.groups[groupId] = group
 	GuildFoundTools.LFG.ownGroupId = groupId
 
+	SaveGroupToStorage(group)
+
 	local message = Serialize(MESSAGE_TYPES.GROUP_CREATE, groupId, category, dungeon, description, maxMembers, GetPlayerName(), leaderRole or "DD", beginnerFriendly and "1" or "0")
 	SendGuildMessage(message)
 
@@ -118,6 +181,8 @@ function GuildFoundTools.LFG.RemoveGroup(groupId)
 
 	GuildFoundTools.groups[groupId] = nil
 	GuildFoundTools.LFG.ownGroupId = nil
+
+	ClearGroupFromStorage()
 
 	local message = Serialize(MESSAGE_TYPES.GROUP_REMOVE, groupId)
 	SendGuildMessage(message)
@@ -138,6 +203,8 @@ function GuildFoundTools.LFG.EditGroup(groupId, category, dungeon, description, 
 	group.maxMembers = maxMembers or group.maxMembers
 	group.beginnerFriendly = beginnerFriendly
 	group.members[group.leader] = leaderRole or "DD"
+
+	SaveGroupToStorage(group)
 
 	local message = Serialize(MESSAGE_TYPES.GROUP_EDIT, groupId, group.category, group.dungeon, group.description, group.maxMembers, group.beginnerFriendly and "1" or "0")
 	SendGuildMessage(message)
@@ -368,6 +435,13 @@ GuildFoundTools.MessageHandlers.GROUP_LIST_ANSWER = function(fields)
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
+end
+
+-- Restore group session after login/reload
+GuildFoundTools.EventHandlers.PLAYER_LOGIN = function()
+	C_Timer.After(2, function()
+		RestoreGroupFromStorage()
+	end)
 end
 
 -- Register LFG event handlers
@@ -861,7 +935,6 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 	ReleaseRows()
 
 	local groups = GuildFoundTools.groups
-	local playerName = UnitName("player")
 
 	-- Update tab 2 text based on group state
 	GuildFoundTools.LFG.UpdateCreateGroupTab()
