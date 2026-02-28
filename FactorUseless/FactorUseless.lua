@@ -2361,7 +2361,7 @@ frame:RegisterEvent("ADDON_LOADED")
 
 local hasPosted = false
 
-frame:SetScript("OnEvent", function(self, event, arg1)
+frame:SetScript("OnEvent", function(self, event, arg1, arg2)
     if event == "ADDON_LOADED" and arg1 == "FactorUseless" then
         FactorUselessDB = FactorUselessDB or {}
         FactorUselessCharDB = FactorUselessCharDB or {}
@@ -2378,7 +2378,7 @@ frame:SetScript("OnEvent", function(self, event, arg1)
     end
 
     if event == "PLAYER_ENTERING_WORLD" then
-        if hasPosted then
+        if hasPosted or arg2 then
             return
         end
 
