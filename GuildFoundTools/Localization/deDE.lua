@@ -11,6 +11,7 @@ L["RoleTank"] = "Tank"
 L["RoleHealer"] = "Heiler"
 L["RoleDamageDealer"] = "Damage Dealer"
 L["BeginnerFriendly"] = "Neulinge willkommen"
+L["BeginnerFriendlyTooltip"] = "Zeigt an, dass du neue Spieler in deiner Gruppe willkommen heißt und bereit bist, ihnen als Guide zu helfen."
 
 -- UI Tabs
 L["TabGroupBrowser"] = "Gruppenbrowser"

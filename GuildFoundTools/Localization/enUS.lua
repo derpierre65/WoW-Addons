@@ -10,7 +10,8 @@ L["NotInGuild"] = "You are not in a guild."
 L["RoleTank"] = "Tank"
 L["RoleHealer"] = "Healer"
 L["RoleDamageDealer"] = "Damage Dealer"
-L["BeginnerFriendly"] = "Beginner friendly"
+L["BeginnerFriendly"] = "New Players Welcome"
+L["BeginnerFriendlyTooltip"] = "Indicates that you welcome new players into your group and are willing to act as a guide for them."
 
 -- UI Tabs
 L["TabGroupBrowser"] = "Group Browser"

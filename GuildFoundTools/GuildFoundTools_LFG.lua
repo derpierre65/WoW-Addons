@@ -848,9 +848,14 @@ local function CreateGroupRow(parent)
 		end
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
+		-- Beginner friendly hint (green, top of tooltip)
+		if self.groupBeginnerFriendly then
+			GameTooltip:AddLine(L["BeginnerFriendly"], 0, 1, 0)
+			GameTooltip:AddLine(" ")
+		end
+
 		-- Members header + list (with role icon, class color, level)
 		if self.roleArea.members and #self.roleArea.members > 0 then
-			GameTooltip:AddLine(L["TooltipMembersHeader"])
 			local tankCount, healCount, ddCount = 0, 0, 0
 			for _, memberInfo in ipairs(self.roleArea.members) do
 				local roleIcon = ROLE_ICON_MARKUP[memberInfo.role] or ROLE_ICON_MARKUP["DD"]
@@ -873,7 +878,7 @@ local function CreateGroupRow(parent)
 					leaderIcon = "|TInterface\\GroupFrame\\UI-Group-LeaderIcon:14:14|t "
 				end
 
-				GameTooltip:AddLine("  " .. leaderIcon .. roleIcon .. " " .. memberInfo.name .. levelText, red, green, blue)
+				GameTooltip:AddLine(leaderIcon .. roleIcon .. " " .. memberInfo.name .. levelText, red, green, blue)
 
 				if memberInfo.role == "TANK" then
 					tankCount = tankCount + 1
@@ -1029,6 +1034,7 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 		row.groupDescription = group.description or ""
 		row.groupMaxMembers = group.maxMembers
 		row.groupLeader = group.leader
+		row.groupBeginnerFriendly = group.beginnerFriendly
 
 		-- Beginner friendly icon
 		row.beginnerFriendlyIcon:SetShown(group.beginnerFriendly == true)
@@ -1250,7 +1256,8 @@ end)
 
 beginnerFriendlyButton:SetScript("OnEnter", function(self)
 	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-	GameTooltip:SetText(L["BeginnerFriendly"])
+	GameTooltip:AddLine(L["BeginnerFriendly"], 0, 1, 0)
+	GameTooltip:AddLine(L["BeginnerFriendlyTooltip"], 1, 0.82, 0, true)
 	GameTooltip:Show()
 end)
 beginnerFriendlyButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
