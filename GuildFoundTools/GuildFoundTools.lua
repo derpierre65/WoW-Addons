@@ -158,15 +158,22 @@ end
 -- Party member tracking
 -- ============================================================
 
-GuildFoundTools.GuildFoundTools.ownGroupId = nil
+GuildFoundTools.ownGroupId = nil
+
+function GuildFoundTools.GetMemberCount(group)
+	local count = 0
+	for _ in pairs(group.members) do
+		count = count + 1
+	end
+	return count
+end
 
 local function SyncPartyMembers()
 	if not GuildFoundTools.ownGroupId then return end
 
 	local group = GuildFoundTools.groups[GuildFoundTools.ownGroupId]
 	if not group then return end
-	local partyMembers = { GetPlayerName() }
-	local partyRoles = { [GetPlayerName()] = group.memberRoles[GetPlayerName()] or group.role }
+	local newMembers = { [GetPlayerName()] = group.members[GetPlayerName()] or "DD" }
 	local numGroupMembers = GetNumGroupMembers()
 
 	for index = 1, numGroupMembers do
@@ -174,19 +181,17 @@ local function SyncPartyMembers()
 		if name then
 			name = strsplit("-", name)
 			if name ~= GetPlayerName() then
-				table.insert(partyMembers, name)
-				partyRoles[name] = group.memberRoles[name] or "DD"
+				newMembers[name] = group.members[name] or "DD"
 			end
 		end
 	end
 
-	group.members = partyMembers
-	group.memberRoles = partyRoles
+	group.members = newMembers
 
 	-- Broadcast full member list to guild
 	local memberParts = {}
-	for _, memberName in ipairs(group.members) do
-		table.insert(memberParts, memberName .. ":" .. (partyRoles[memberName] or "DD"))
+	for memberName, role in pairs(group.members) do
+		table.insert(memberParts, memberName .. ":" .. role)
 	end
 	local message = Serialize(MESSAGE_TYPES.GROUP_MEMBERS_SYNC, GuildFoundTools.ownGroupId, table.concat(memberParts, ","))
 	SendGuildMessage(message)
@@ -206,7 +211,7 @@ end
 -- Group management API
 -- ============================================================
 
-function GuildFoundTools.CreateGroup(category, dungeon, description, maxMembers, role, beginnerFriendly)
+function GuildFoundTools.CreateGroup(category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
 	if not IsInGuild() then
 		print("|cff00ccffGuildFound Tools:|r Du bist in keiner Gilde.")
 		return
@@ -219,25 +224,22 @@ function GuildFoundTools.CreateGroup(category, dungeon, description, maxMembers,
 	end
 
 	local groupId = GenerateGroupId()
-	local leaderRole = role or "DD"
 	local group = {
 		id = groupId,
 		category = category or "Custom",
 		dungeon = dungeon or "",
 		description = description or "",
 		maxMembers = maxMembers or 5,
-		role = leaderRole,
 		beginnerFriendly = beginnerFriendly or false,
 		leader = GetPlayerName(),
-		members = { GetPlayerName() },
-		memberRoles = { [GetPlayerName()] = leaderRole },
+		members = { [GetPlayerName()] = leaderRole or "DD" },
 		createdAt = time(),
 	}
 
 	GuildFoundTools.groups[groupId] = group
 	GuildFoundTools.ownGroupId = groupId
 
-	local message = Serialize(MESSAGE_TYPES.GROUP_CREATE, groupId, category, dungeon, description, maxMembers, GetPlayerName(), role or "DD", beginnerFriendly and "1" or "0")
+	local message = Serialize(MESSAGE_TYPES.GROUP_CREATE, groupId, category, dungeon, description, maxMembers, GetPlayerName(), leaderRole or "DD", beginnerFriendly and "1" or "0")
 	SendGuildMessage(message)
 
 	if GuildFoundTools.UpdateLFGUI then
@@ -263,7 +265,7 @@ function GuildFoundTools.RemoveGroup(groupId)
 	end
 end
 
-function GuildFoundTools.EditGroup(groupId, category, dungeon, description, maxMembers, role, beginnerFriendly)
+function GuildFoundTools.EditGroup(groupId, category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
 	local group = GuildFoundTools.groups[groupId]
 	if not group then return end
 	if group.leader ~= GetPlayerName() then return end
@@ -272,11 +274,10 @@ function GuildFoundTools.EditGroup(groupId, category, dungeon, description, maxM
 	group.dungeon = dungeon or group.dungeon
 	group.description = description or group.description
 	group.maxMembers = maxMembers or group.maxMembers
-	group.role = role or group.role
 	group.beginnerFriendly = beginnerFriendly
-	group.memberRoles[group.leader] = role or group.role
+	group.members[group.leader] = leaderRole or "DD"
 
-	local message = Serialize(MESSAGE_TYPES.GROUP_EDIT, groupId, group.category, group.dungeon, group.description, group.maxMembers, group.role, group.beginnerFriendly and "1" or "0")
+	local message = Serialize(MESSAGE_TYPES.GROUP_EDIT, groupId, group.category, group.dungeon, group.description, group.maxMembers, group.beginnerFriendly and "1" or "0")
 	SendGuildMessage(message)
 
 	if GuildFoundTools.UpdateLFGUI then
@@ -338,14 +339,14 @@ end
 local pendingSignups = {} -- buffer for GS/GL arriving before GC
 
 local function HandleGroupCreate(fields, sender)
-	-- GC groupId category dungeon description maxMembers leader role beginnerFriendly
+	-- GC groupId category dungeon description maxMembers leader leaderRole beginnerFriendly
 	local groupId = fields[2]
 	local category = fields[3]
 	local dungeon = fields[4]
 	local description = fields[5]
 	local maxMembers = tonumber(fields[6]) or 5
 	local leader = fields[7] or sender
-	local role = fields[8] or "DD"
+	local leaderRole = fields[8] or "DD"
 	local beginnerFriendly = fields[9] == "1"
 
 	if not groupId then return end
@@ -356,11 +357,9 @@ local function HandleGroupCreate(fields, sender)
 		dungeon = dungeon or "",
 		description = description or "",
 		maxMembers = maxMembers,
-		role = role,
 		beginnerFriendly = beginnerFriendly,
 		leader = leader,
-		members = { leader },
-		memberRoles = { [leader] = role },
+		members = { [leader] = leaderRole },
 		createdAt = time(),
 	}
 
@@ -368,16 +367,8 @@ local function HandleGroupCreate(fields, sender)
 	if pendingSignups[groupId] then
 		for _, signup in ipairs(pendingSignups[groupId]) do
 			local group = GuildFoundTools.groups[groupId]
-			local alreadyMember = false
-			for _, existing in ipairs(group.members) do
-				if existing == signup.name then
-					alreadyMember = true
-					break
-				end
-			end
-			if not alreadyMember and #group.members < group.maxMembers then
-				table.insert(group.members, signup.name)
-				group.memberRoles[signup.name] = signup.role or "DD"
+			if not group.members[signup.name] and GuildFoundTools.GetMemberCount(group) < group.maxMembers then
+				group.members[signup.name] = signup.role or "DD"
 			end
 		end
 		pendingSignups[groupId] = nil
@@ -389,7 +380,7 @@ local function HandleGroupCreate(fields, sender)
 end
 
 local function HandleGroupEdit(fields, sender)
-	-- GE groupId category dungeon description maxMembers role beginnerFriendly
+	-- GE groupId category dungeon description maxMembers beginnerFriendly
 	local groupId = fields[2]
 	if not groupId then return end
 
@@ -400,10 +391,7 @@ local function HandleGroupEdit(fields, sender)
 	group.dungeon = fields[4] or group.dungeon
 	group.description = fields[5] or group.description
 	group.maxMembers = tonumber(fields[6]) or group.maxMembers
-	group.role = fields[7] or group.role
-	group.beginnerFriendly = fields[8] == "1"
-	group.memberRoles = group.memberRoles or {}
-	group.memberRoles[group.leader] = group.role
+	group.beginnerFriendly = fields[7] == "1"
 
 	if GuildFoundTools.UpdateLFGUI then
 		GuildFoundTools.UpdateLFGUI()
@@ -438,15 +426,10 @@ local function HandleGroupSignup(fields)
 		return
 	end
 
-	-- Check if already a member
-	for _, existing in ipairs(group.members) do
-		if existing == memberName then return end
-	end
+	if group.members[memberName] then return end
 
-	if #group.members < group.maxMembers then
-		table.insert(group.members, memberName)
-		group.memberRoles = group.memberRoles or {}
-		group.memberRoles[memberName] = memberRole
+	if GuildFoundTools.GetMemberCount(group) < group.maxMembers then
+		group.members[memberName] = memberRole
 	end
 
 	if GuildFoundTools.UpdateLFGUI then
@@ -462,15 +445,7 @@ local function HandleGroupLeave(fields)
 	local group = GuildFoundTools.groups[groupId]
 	if not group then return end
 
-	for index, existing in ipairs(group.members) do
-		if existing == memberName then
-			table.remove(group.members, index)
-			if group.memberRoles then
-				group.memberRoles[memberName] = nil
-			end
-			break
-		end
-	end
+	group.members[memberName] = nil
 
 	if GuildFoundTools.UpdateLFGUI then
 		GuildFoundTools.UpdateLFGUI()
@@ -487,15 +462,12 @@ local function HandleGroupMembersSync(fields)
 	if not group then return end
 
 	local members = {}
-	local memberRoles = {}
 	for entry in membersString:gmatch("[^,]+") do
 		local name, role = strsplit(":", entry)
-		table.insert(members, name)
-		memberRoles[name] = role or "DD"
+		members[name] = role or "DD"
 	end
 
 	group.members = members
-	group.memberRoles = memberRoles
 
 	if GuildFoundTools.UpdateLFGUI then
 		GuildFoundTools.UpdateLFGUI()
@@ -509,16 +481,15 @@ local function HandleGroupListRequest(fields, sender)
 	if not group then return end
 
 	local memberParts = {}
-	for _, memberName in ipairs(group.members) do
-		local role = (group.memberRoles and group.memberRoles[memberName]) or "DD"
+	for memberName, role in pairs(group.members) do
 		table.insert(memberParts, memberName .. ":" .. role)
 	end
-	local message = Serialize(MESSAGE_TYPES.GROUP_LIST_ANSWER, GuildFoundTools.ownGroupId, group.category, group.dungeon, group.description, group.maxMembers, group.leader, table.concat(memberParts, ","), group.role or "DD", group.beginnerFriendly and "1" or "0")
+	local message = Serialize(MESSAGE_TYPES.GROUP_LIST_ANSWER, GuildFoundTools.ownGroupId, group.category, group.dungeon, group.description, group.maxMembers, group.leader, table.concat(memberParts, ","), group.beginnerFriendly and "1" or "0")
 	SendGuildMessage(message)
 end
 
 local function HandleGroupListAnswer(fields)
-	-- GA groupId category dungeon description maxMembers leader members(comma-sep) role beginnerFriendly
+	-- GA groupId category dungeon description maxMembers leader members(comma-sep) beginnerFriendly
 	local groupId = fields[2]
 	if not groupId then return end
 
@@ -531,16 +502,13 @@ local function HandleGroupListAnswer(fields)
 	local maxMembers = tonumber(fields[6]) or 5
 	local leader = fields[7] or ""
 	local membersString = fields[8] or leader
-	local role = fields[9] or "DD"
-	local beginnerFriendly = fields[10] == "1"
+	local beginnerFriendly = fields[9] == "1"
 
 	local members = {}
-	local memberRoles = {}
 	if membersString and membersString ~= "" then
 		for entry in membersString:gmatch("[^,]+") do
 			local name, entryRole = strsplit(":", entry)
-			table.insert(members, name)
-			memberRoles[name] = entryRole or "DD"
+			members[name] = entryRole or "DD"
 		end
 	end
 
@@ -550,11 +518,9 @@ local function HandleGroupListAnswer(fields)
 		dungeon = dungeon or "",
 		description = description or "",
 		maxMembers = maxMembers,
-		role = role,
 		beginnerFriendly = beginnerFriendly,
 		leader = leader,
 		members = members,
-		memberRoles = memberRoles,
 		createdAt = time(),
 	}
 

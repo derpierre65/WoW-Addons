@@ -243,15 +243,8 @@ local function ShowContextMenu(owner, group)
 		end)
 
 		-- Group invite (only for leader, only if target is alone)
-		if group.leader ~= playerName and #group.members == 1 then
-			local isLeader = false
-			for _, existingGroup in pairs(GuildFoundTools.groups) do
-				if existingGroup.leader == playerName then
-					isLeader = true
-					break
-				end
-			end
-			if isLeader then
+		if group.leader ~= playerName and GuildFoundTools.GetMemberCount(group) == 1 then
+			if GuildFoundTools.ownGroupId then
 				rootDescription:CreateButton("Spieler einladen", function()
 					C_PartyInfo.InviteUnit(group.leader)
 				end)
@@ -450,20 +443,11 @@ local function UpdateActionBar()
 	if selectedGroupId and selectedGroupId ~= ownGroupId then
 		local group = GuildFoundTools.groups[selectedGroupId]
 		if group then
-			local isMember = false
-			for _, member in ipairs(group.members) do
-				if member == playerName then
-					isMember = true
-					break
-				end
-			end
-
-			if isMember then
+			if group.members[playerName] then
 				leaveButton:Show()
 			else
 				signupButton:Show()
-				local isFull = #group.members >= group.maxMembers
-				signupButton:SetEnabled(not isFull)
+				signupButton:SetEnabled(GuildFoundTools.GetMemberCount(group) < group.maxMembers)
 			end
 		end
 	end
@@ -564,10 +548,9 @@ function GuildFoundTools.UpdateLFGUI()
 		row.beginnerFriendlyIcon:SetShown(group.beginnerFriendly == true)
 
 		-- Role icon slots (right side)
-		local memberRoles = group.memberRoles or {}
 		local memberInfoList = {}
-		for _, memberName in ipairs(group.members) do
-			table.insert(memberInfoList, { name = memberName, role = memberRoles[memberName] or "DD" })
+		for memberName, role in pairs(group.members) do
+			table.insert(memberInfoList, { name = memberName, role = role })
 		end
 
 		-- Sort members by role priority: TANK first, then HEAL, then DD
@@ -910,9 +893,9 @@ createButton:SetScript("OnClick", function()
 	if maxMembers > 40 then maxMembers = 40 end
 
 	if editingGroupId then
-		GuildFoundTools.EditGroup(editingGroupId, category, dungeon, description, maxMembers, selectedRole, selectedBeginnerFriendly)
+		GuildFoundTools.EditGroup(editingGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 	else
-		GuildFoundTools.CreateGroup(category, dungeon, description, maxMembers, selectedRole, selectedBeginnerFriendly)
+		GuildFoundTools.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 	end
 	editingGroupId = nil
 	dialogFrame:Hide()
@@ -971,7 +954,7 @@ editGroupButton:SetScript("OnClick", function()
 	descriptionEditBox:SetText(ownGroup.description or "")
 	maxMembersEditBox:SetText(tostring(ownGroup.maxMembers or 5))
 
-	selectedRole = ownGroup.role or "DD"
+	selectedRole = ownGroup.members[playerName] or "DD"
 	UpdateRoleButtons()
 
 	selectedBeginnerFriendly = ownGroup.beginnerFriendly or false
