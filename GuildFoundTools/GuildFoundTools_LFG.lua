@@ -143,7 +143,7 @@ leaveButton:Hide()
 local deleteGroupButton = CreateFrame("Button", nil, actionBar, "UIPanelButtonTemplate")
 deleteGroupButton:SetSize(140, 24)
 deleteGroupButton:SetPoint("RIGHT", 0, 0)
-deleteGroupButton:SetText("Gruppe loeschen")
+deleteGroupButton:SetText("Gruppe löschen")
 deleteGroupButton:Hide()
 
 local editGroupButton = CreateFrame("Button", nil, actionBar, "UIPanelButtonTemplate")
@@ -686,7 +686,7 @@ dungeonLabel:SetText("Dungeon/Raid:")
 local dungeonDropdown = CreateFrame("Frame", "GuildFoundToolsDungeonDropdown", dialogFrame, "UIDropDownMenuTemplate")
 dungeonDropdown:SetPoint("TOPLEFT", 4, -89)
 UIDropDownMenu_SetWidth(dungeonDropdown, 280)
-UIDropDownMenu_SetText(dungeonDropdown, "-- Waehlen --")
+UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
 
 local selectedDungeon = ""
 
@@ -724,7 +724,7 @@ local function InitCategoryDropdown(self, level)
 			selectedCategory = category
 			selectedDungeon = ""
 			UIDropDownMenu_SetText(categoryDropdown, category)
-			UIDropDownMenu_SetText(dungeonDropdown, "-- Waehlen --")
+			UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
 			UIDropDownMenu_Initialize(dungeonDropdown, InitDungeonDropdown)
 			CloseDropDownMenus()
 
@@ -911,7 +911,7 @@ createGroupButton:SetScript("OnClick", function()
 	selectedCategory = "Dungeons"
 	selectedDungeon = ""
 	UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
-	UIDropDownMenu_SetText(dungeonDropdown, "-- Waehlen --")
+	UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
 	dungeonDropdown:SetAlpha(1)
 	descriptionEditBox:SetText("")
 	maxMembersEditBox:SetText("5")
@@ -943,7 +943,7 @@ editGroupButton:SetScript("OnClick", function()
 	if selectedDungeon ~= "" then
 		UIDropDownMenu_SetText(dungeonDropdown, selectedDungeon)
 	else
-		UIDropDownMenu_SetText(dungeonDropdown, "-- Waehlen --")
+		UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
 	end
 
 	if selectedCategory == "Custom" then

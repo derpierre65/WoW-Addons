@@ -90,7 +90,7 @@ rightScrollFrame:SetScrollChild(rightScrollChild)
 -- Hint text when no recipes
 local noRecipesText = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontDisable")
 noRecipesText:SetPoint("CENTER", 0, 0)
-noRecipesText:SetText("Berufsfenster oeffnen\num Rezepte zu teilen")
+noRecipesText:SetText("Berufsfenster öffnen\num Rezepte zu teilen")
 noRecipesText:SetJustifyH("CENTER")
 noRecipesText:Hide()
 
@@ -212,7 +212,7 @@ local function UpdateRightPanel()
 	local recipes = professionData.recipes
 	if not recipes or #recipes == 0 then
 		noRecipesText:Show()
-		noRecipesText:SetText("Berufsfenster oeffnen\num Rezepte zu teilen")
+		noRecipesText:SetText("Berufsfenster öffnen\num Rezepte zu teilen")
 		return
 	end
 

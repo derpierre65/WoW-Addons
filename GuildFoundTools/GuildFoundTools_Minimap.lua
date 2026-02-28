@@ -71,7 +71,7 @@ end)
 minimapButton:SetScript("OnEnter", function(self)
 	GameTooltip:SetOwner(self, "ANCHOR_LEFT")
 	GameTooltip:AddLine("GuildFound Tools")
-	GameTooltip:AddLine("Klicken um das Fenster zu oeffnen", 1, 1, 1)
+	GameTooltip:AddLine("Klicken um das Fenster zu öffnen", 1, 1, 1)
 	GameTooltip:Show()
 end)
 
