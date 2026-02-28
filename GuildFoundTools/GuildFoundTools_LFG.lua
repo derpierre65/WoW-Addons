@@ -428,6 +428,47 @@ GuildFoundTools.MessageHandlers.GROUP_LIST_ANSWER = function(fields)
 	end
 end
 
+-- ============================================================
+-- Role change handling
+-- ============================================================
+
+-- Receive role change from any guild member
+GuildFoundTools.MessageHandlers.LFG_ROLE_CHANGE = function(fields, sender)
+	-- LFG_ROLE_CHANGE groupId playerName newRole
+	local groupId = fields[2]
+	local memberName = fields[3]
+	local newRole = fields[4]
+	if not groupId or not memberName or not newRole then return end
+
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+
+	group.members[memberName] = newRole
+
+	if GuildFoundToolsMainFrame:IsShown() and GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+-- Change the player's own role in their group
+function GuildFoundTools.LFG.ChangeMyRole(newRole)
+	local myGroup = GuildFoundTools.LFG.GetMyGroup and GuildFoundTools.LFG.GetMyGroup()
+	if not myGroup then return end
+
+	local playerName = GetPlayerName()
+	myGroup.members[playerName] = newRole
+
+	if myGroup.leader == playerName then
+		SaveGroupToStorage(myGroup)
+	end
+
+	SendGuildMessage(Serialize(MESSAGE_TYPE.LFG_ROLE_CHANGE, myGroup.id, playerName, newRole))
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
 -- Restore group session after login/reload
 GuildFoundTools.EventHandlers.PLAYER_LOGIN = function()
 	C_Timer.After(2, function()
@@ -1109,13 +1150,119 @@ function GuildFoundTools.LFG.GetMyGroup()
 	return nil
 end
 
+-- Role selection (top of form, large icons)
+local selectedRole = "DD"
+local roleButtons = {}
+local roles = {
+	{ key = "TANK" },
+	{ key = "HEAL" },
+	{ key = "DD" },
+}
+
+local ROLE_BUTTON_SIZE = 48
+local ROLE_BUTTON_SPACING = 8
+
+local function UpdateRoleButtons()
+	for _, roleButton in ipairs(roleButtons) do
+		if roleButton.roleKey == selectedRole then
+			roleButton.icon:SetDesaturated(false)
+			roleButton:SetAlpha(1)
+		else
+			roleButton.icon:SetDesaturated(true)
+			roleButton:SetAlpha(0.4)
+		end
+	end
+end
+
+-- Container to center all role buttons (3 roles + 1 beginner = 4 buttons)
+local totalRoleWidth = 4 * ROLE_BUTTON_SIZE + 3 * ROLE_BUTTON_SPACING
+local roleContainer = CreateFrame("Frame", nil, createGroupContent)
+roleContainer:SetSize(totalRoleWidth, ROLE_BUTTON_SIZE)
+roleContainer:SetPoint("TOP", 0, -8)
+
+for index, roleData in ipairs(roles) do
+	local roleButton = CreateFrame("Button", nil, roleContainer)
+	roleButton:SetSize(ROLE_BUTTON_SIZE, ROLE_BUTTON_SIZE)
+	roleButton:SetPoint("LEFT", (index - 1) * (ROLE_BUTTON_SIZE + ROLE_BUTTON_SPACING), 0)
+	roleButton.roleKey = roleData.key
+
+	roleButton.icon = roleButton:CreateTexture(nil, "ARTWORK")
+	roleButton.icon:SetAllPoints()
+	roleButton.icon:SetTexture(ROLE_TEXTURE)
+	roleButton.icon:SetTexCoord(unpack(ROLE_TEXCOORDS[roleData.key]))
+
+	roleButton:SetScript("OnClick", function(self)
+		selectedRole = self.roleKey
+		UpdateRoleButtons()
+
+		-- In "Meine Gruppe" mode (not editing, not creating): change role immediately
+		local myGroup = GuildFoundTools.LFG.GetMyGroup and GuildFoundTools.LFG.GetMyGroup()
+		if myGroup and not isEditingMyGroup then
+			GuildFoundTools.LFG.ChangeMyRole(self.roleKey)
+		end
+	end)
+
+	roleButton:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		if self.roleKey == "TANK" then
+			GameTooltip:SetText("Tank")
+		elseif self.roleKey == "HEAL" then
+			GameTooltip:SetText("Heiler")
+		else
+			GameTooltip:SetText("Damage Dealer")
+		end
+		GameTooltip:Show()
+	end)
+	roleButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+	table.insert(roleButtons, roleButton)
+end
+
+-- Beginner friendly button (next to role buttons)
+local selectedBeginnerFriendly = false
+
+local beginnerFriendlyButton = CreateFrame("Button", nil, roleContainer)
+beginnerFriendlyButton:SetSize(ROLE_BUTTON_SIZE, ROLE_BUTTON_SIZE)
+beginnerFriendlyButton:SetPoint("LEFT", 3 * (ROLE_BUTTON_SIZE + ROLE_BUTTON_SPACING), 0)
+
+beginnerFriendlyButton.icon = beginnerFriendlyButton:CreateTexture(nil, "ARTWORK")
+beginnerFriendlyButton.icon:SetAllPoints()
+beginnerFriendlyButton.icon:SetTexture(ROLE_TEXTURE)
+beginnerFriendlyButton.icon:SetTexCoord(unpack(BEGINNER_FRIENDLY_TEXCOORD))
+beginnerFriendlyButton.icon:SetDesaturated(true)
+beginnerFriendlyButton:SetAlpha(0.4)
+
+local function UpdateBeginnerFriendlyButton()
+	if selectedBeginnerFriendly then
+		beginnerFriendlyButton.icon:SetDesaturated(false)
+		beginnerFriendlyButton:SetAlpha(1)
+	else
+		beginnerFriendlyButton.icon:SetDesaturated(true)
+		beginnerFriendlyButton:SetAlpha(0.4)
+	end
+end
+
+beginnerFriendlyButton:SetScript("OnClick", function()
+	selectedBeginnerFriendly = not selectedBeginnerFriendly
+	UpdateBeginnerFriendlyButton()
+end)
+
+beginnerFriendlyButton:SetScript("OnEnter", function(self)
+	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+	GameTooltip:SetText("Neulinge willkommen")
+	GameTooltip:Show()
+end)
+beginnerFriendlyButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+local FORM_TOP_OFFSET = -68
+
 -- Category dropdown
 local categoryLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-categoryLabel:SetPoint("TOPLEFT", 4, -10)
+categoryLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET)
 categoryLabel:SetText("Kategorie:")
 
 local categoryDropdown = CreateFrame("Frame", "GuildFoundToolsCategoryDropdown", createGroupContent, "UIDropDownMenuTemplate")
-categoryDropdown:SetPoint("TOPLEFT", -12, -22)
+categoryDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 12)
 UIDropDownMenu_SetWidth(categoryDropdown, 140)
 UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
 
@@ -1123,11 +1270,11 @@ local selectedCategory = "Dungeons"
 
 -- Dungeon dropdown
 local dungeonLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-dungeonLabel:SetPoint("TOPLEFT", 4, -52)
+dungeonLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 42)
 dungeonLabel:SetText("Dungeon/Raid:")
 
 local dungeonDropdown = CreateFrame("Frame", "GuildFoundToolsDungeonDropdown", createGroupContent, "UIDropDownMenuTemplate")
-dungeonDropdown:SetPoint("TOPLEFT", -12, -64)
+dungeonDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 54)
 UIDropDownMenu_SetWidth(dungeonDropdown, 280)
 UIDropDownMenu_SetText(dungeonDropdown, "-- Wählen --")
 
@@ -1187,12 +1334,12 @@ UIDropDownMenu_Initialize(categoryDropdown, InitCategoryDropdown)
 
 -- Description editbox
 local descriptionLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-descriptionLabel:SetPoint("TOPLEFT", 4, -96)
+descriptionLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 86)
 descriptionLabel:SetText("Beschreibung:")
 
 local descriptionEditBox = CreateFrame("EditBox", "GuildFoundToolsDescriptionEditBox", createGroupContent, "InputBoxTemplate")
 descriptionEditBox:SetSize(290, 24)
-descriptionEditBox:SetPoint("TOPLEFT", 9, -110)
+descriptionEditBox:SetPoint("TOPLEFT", 9, FORM_TOP_OFFSET - 100)
 descriptionEditBox:SetAutoFocus(false)
 descriptionEditBox:SetMaxLetters(100)
 descriptionEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
@@ -1200,12 +1347,12 @@ descriptionEditBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() 
 
 -- Max members
 local maxMembersLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-maxMembersLabel:SetPoint("TOPLEFT", 4, -142)
+maxMembersLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 132)
 maxMembersLabel:SetText("Max. Mitglieder:")
 
 local maxMembersEditBox = CreateFrame("EditBox", "GuildFoundToolsMaxMembersEditBox", createGroupContent, "InputBoxTemplate")
 maxMembersEditBox:SetSize(50, 24)
-maxMembersEditBox:SetPoint("TOPLEFT", 9, -156)
+maxMembersEditBox:SetPoint("TOPLEFT", 9, FORM_TOP_OFFSET - 146)
 maxMembersEditBox:SetAutoFocus(false)
 maxMembersEditBox:SetNumeric(true)
 maxMembersEditBox:SetMaxLetters(2)
@@ -1218,99 +1365,6 @@ maxMembersEditBox:SetScript("OnTextChanged", function(self)
 		self:SetText("40")
 	end
 end)
-
--- Role selection
-local roleLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-roleLabel:SetPoint("TOPLEFT", 4, -188)
-roleLabel:SetText("Rolle:")
-
-local selectedRole = "DD"
-local roleButtons = {}
-local roles = {
-	{ key = "TANK" },
-	{ key = "HEAL" },
-	{ key = "DD" },
-}
-
-local function UpdateRoleButtons()
-	for _, roleButton in ipairs(roleButtons) do
-		if roleButton.roleKey == selectedRole then
-			roleButton.icon:SetDesaturated(false)
-			roleButton:SetAlpha(1)
-		else
-			roleButton.icon:SetDesaturated(true)
-			roleButton:SetAlpha(0.4)
-		end
-	end
-end
-
-for index, roleData in ipairs(roles) do
-	local roleButton = CreateFrame("Button", nil, createGroupContent)
-	roleButton:SetSize(32, 32)
-	roleButton:SetPoint("TOPLEFT", 4 + (index - 1) * 36, -202)
-	roleButton.roleKey = roleData.key
-
-	roleButton.icon = roleButton:CreateTexture(nil, "ARTWORK")
-	roleButton.icon:SetAllPoints()
-	roleButton.icon:SetTexture(ROLE_TEXTURE)
-	roleButton.icon:SetTexCoord(unpack(ROLE_TEXCOORDS[roleData.key]))
-
-	roleButton:SetScript("OnClick", function(self)
-		selectedRole = self.roleKey
-		UpdateRoleButtons()
-	end)
-
-	roleButton:SetScript("OnEnter", function(self)
-		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		if self.roleKey == "TANK" then
-			GameTooltip:SetText("Tank")
-		elseif self.roleKey == "HEAL" then
-			GameTooltip:SetText("Heiler")
-		else
-			GameTooltip:SetText("Damage Dealer")
-		end
-		GameTooltip:Show()
-	end)
-	roleButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-	table.insert(roleButtons, roleButton)
-end
-
--- Beginner friendly button (same style as role buttons)
-local selectedBeginnerFriendly = false
-
-local beginnerFriendlyButton = CreateFrame("Button", nil, createGroupContent)
-beginnerFriendlyButton:SetSize(32, 32)
-beginnerFriendlyButton:SetPoint("TOPLEFT", 4 + 3 * 36, -202)
-
-beginnerFriendlyButton.icon = beginnerFriendlyButton:CreateTexture(nil, "ARTWORK")
-beginnerFriendlyButton.icon:SetAllPoints()
-beginnerFriendlyButton.icon:SetTexture(ROLE_TEXTURE)
-beginnerFriendlyButton.icon:SetTexCoord(unpack(BEGINNER_FRIENDLY_TEXCOORD))
-beginnerFriendlyButton.icon:SetDesaturated(true)
-beginnerFriendlyButton:SetAlpha(0.4)
-
-local function UpdateBeginnerFriendlyButton()
-	if selectedBeginnerFriendly then
-		beginnerFriendlyButton.icon:SetDesaturated(false)
-		beginnerFriendlyButton:SetAlpha(1)
-	else
-		beginnerFriendlyButton.icon:SetDesaturated(true)
-		beginnerFriendlyButton:SetAlpha(0.4)
-	end
-end
-
-beginnerFriendlyButton:SetScript("OnClick", function()
-	selectedBeginnerFriendly = not selectedBeginnerFriendly
-	UpdateBeginnerFriendlyButton()
-end)
-
-beginnerFriendlyButton:SetScript("OnEnter", function(self)
-	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-	GameTooltip:SetText("Neulinge willkommen")
-	GameTooltip:Show()
-end)
-beginnerFriendlyButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 -- Bottom buttons (shared between all states)
 local leftButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
@@ -1337,10 +1391,7 @@ memberInfoText:SetJustifyH("CENTER")
 memberInfoText:Hide()
 
 -- Form elements to show/hide together
-local formElements = { categoryLabel, categoryDropdown, dungeonLabel, dungeonDropdown, descriptionLabel, descriptionEditBox, maxMembersLabel, maxMembersEditBox, roleLabel, beginnerFriendlyButton }
-for _, roleButton in ipairs(roleButtons) do
-	table.insert(formElements, roleButton)
-end
+local formElements = { categoryLabel, categoryDropdown, dungeonLabel, dungeonDropdown, descriptionLabel, descriptionEditBox, maxMembersLabel, maxMembersEditBox }
 
 local function ShowFormElements(visible)
 	for _, element in ipairs(formElements) do
@@ -1403,6 +1454,10 @@ local function ShowMyGroupListView(myGroup)
 	memberInfoText:Hide()
 	myGroupInfoText:Show()
 
+	-- Show current role selection
+	selectedRole = myGroup.members[GetPlayerName()] or "DD"
+	UpdateRoleButtons()
+
 	leftButton:SetText("Gruppe entfernen")
 	leftButton:Show()
 	rightButton:SetText("Bearbeiten")
@@ -1429,24 +1484,31 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 		GuildFoundTools.UI.SetTabText(2, "Meine Gruppe")
 
 		if myGroup.leader == playerName then
+			beginnerFriendlyButton:Show()
 			if isEditingMyGroup then
 				ShowMyGroupEditView(myGroup)
 			else
 				ShowMyGroupListView(myGroup)
 			end
 		else
-			-- Member: show info text
+			-- Member: show info text and role selection
 			isEditingMyGroup = false
+			beginnerFriendlyButton:Hide()
 			ShowFormElements(false)
 			myGroupInfoText:Hide()
 			leftButton:Hide()
 			rightButton:Hide()
 			memberInfoText:SetText("Du bist in der Gruppe von " .. myGroup.leader .. ".")
 			memberInfoText:Show()
+
+			-- Set role from group data and show role buttons
+			selectedRole = myGroup.members[playerName] or "DD"
+			UpdateRoleButtons()
 		end
 	else
 		GuildFoundTools.UI.SetTabText(2, "Gruppe erstellen")
 		isEditingMyGroup = false
+		beginnerFriendlyButton:Show()
 		ShowFormElements(true)
 		memberInfoText:Hide()
 		myGroupInfoText:Hide()
