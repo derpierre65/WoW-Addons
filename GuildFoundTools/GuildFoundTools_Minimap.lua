@@ -1,6 +1,5 @@
 -- Minimap button (adapted from BankViewer)
 
-local BUTTON_RADIUS = 80
 local DEFAULT_ANGLE = 200
 
 local function IsSquareMinimap()
@@ -80,12 +79,9 @@ minimapButton:SetScript("OnLeave", function()
 end)
 
 -- Initialize position after DB is loaded
-local initFrame = CreateFrame("Frame")
-initFrame:RegisterEvent("PLAYER_LOGIN")
-initFrame:SetScript("OnEvent", function(self)
+GuildFoundTools.EventHandlers.PLAYER_LOGIN = function()
 	GuildFoundToolsDB.minimap = GuildFoundToolsDB.minimap or {}
 	local angle = GuildFoundToolsDB.minimap.angle or DEFAULT_ANGLE
 	minimapButton:ClearAllPoints()
 	UpdatePosition(angle)
-	self:UnregisterAllEvents()
-end)
+end

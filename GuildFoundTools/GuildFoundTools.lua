@@ -15,15 +15,46 @@ local MESSAGE_TYPES = {
 	PROFESSION_ANSWER = "PA",
 }
 
-local EVENTS = {
-	ADDON_LOADED = "ADDON_LOADED",
-	PLAYER_LOGIN = "PLAYER_LOGIN",
-	CHAT_MSG_ADDON = "CHAT_MSG_ADDON",
-	TRADE_SKILL_SHOW = "TRADE_SKILL_SHOW",
-	TRADE_SKILL_CLOSE = "TRADE_SKILL_CLOSE",
-	GROUP_JOINED = "GROUP_JOINED",
-	GROUP_ROSTER_UPDATE = "GROUP_ROSTER_UPDATE",
-}
+-- Global event handler system (supports multiple handlers per event)
+local eventFrame = CreateFrame("Frame")
+local eventHandlers = {}
+
+GuildFoundTools.EventHandlers = setmetatable({}, {
+	__newindex = function(self, event, handler)
+		if not eventHandlers[event] then
+			eventHandlers[event] = {}
+			eventFrame:RegisterEvent(event)
+		end
+		table.insert(eventHandlers[event], handler)
+	end,
+})
+
+eventFrame:SetScript("OnEvent", function(self, event, ...)
+	local handlers = eventHandlers[event]
+	if handlers then
+		for _, handler in ipairs(handlers) do
+			handler(...)
+		end
+	end
+end)
+
+-- Global message handler system (supports multiple handlers per message type)
+local messageHandlers = {}
+
+-- Reverse lookup: message code -> message name
+local MESSAGE_TYPE_NAMES = {}
+for name, code in pairs(MESSAGE_TYPES) do
+	MESSAGE_TYPE_NAMES[code] = name
+end
+
+GuildFoundTools.MessageHandlers = setmetatable({}, {
+	__newindex = function(self, messageType, handler)
+		if not messageHandlers[messageType] then
+			messageHandlers[messageType] = {}
+		end
+		table.insert(messageHandlers[messageType], handler)
+	end,
+})
 
 -- In-memory state
 GuildFoundTools.groups = {}
@@ -646,88 +677,90 @@ local function HandleProfessionAnswer(fields, sender)
 	end
 end
 
--- Message dispatch
-local MESSAGE_HANDLERS = {
-	[MESSAGE_TYPES.GROUP_CREATE] = HandleGroupCreate,
-	[MESSAGE_TYPES.GROUP_EDIT] = HandleGroupEdit,
-	[MESSAGE_TYPES.GROUP_REMOVE] = HandleGroupRemove,
-	[MESSAGE_TYPES.GROUP_SIGNUP] = HandleGroupSignup,
-	[MESSAGE_TYPES.GROUP_LEAVE] = HandleGroupLeave,
-	[MESSAGE_TYPES.GROUP_MEMBERS_SYNC] = HandleGroupMembersSync,
-	[MESSAGE_TYPES.GROUP_LIST_REQUEST] = HandleGroupListRequest,
-	[MESSAGE_TYPES.GROUP_LIST_ANSWER] = HandleGroupListAnswer,
-	[MESSAGE_TYPES.PROFESSION_QUERY] = HandleProfessionQuery,
-	[MESSAGE_TYPES.PROFESSION_ANSWER] = HandleProfessionAnswer,
-}
+-- Register message handlers
+GuildFoundTools.MessageHandlers.GROUP_CREATE = HandleGroupCreate
+GuildFoundTools.MessageHandlers.GROUP_EDIT = HandleGroupEdit
+GuildFoundTools.MessageHandlers.GROUP_REMOVE = HandleGroupRemove
+GuildFoundTools.MessageHandlers.GROUP_SIGNUP = HandleGroupSignup
+GuildFoundTools.MessageHandlers.GROUP_LEAVE = HandleGroupLeave
+GuildFoundTools.MessageHandlers.GROUP_MEMBERS_SYNC = HandleGroupMembersSync
+GuildFoundTools.MessageHandlers.GROUP_LIST_REQUEST = HandleGroupListRequest
+GuildFoundTools.MessageHandlers.GROUP_LIST_ANSWER = HandleGroupListAnswer
+GuildFoundTools.MessageHandlers.PROFESSION_QUERY = HandleProfessionQuery
+GuildFoundTools.MessageHandlers.PROFESSION_ANSWER = HandleProfessionAnswer
 
 -- ============================================================
--- Event handling
+-- Event handlers
 -- ============================================================
 
-local frame = CreateFrame("Frame")
-for _, eventName in pairs(EVENTS) do
-	frame:RegisterEvent(eventName)
+GuildFoundTools.EventHandlers.ADDON_LOADED = function(addonName)
+	if addonName ~= "GuildFoundTools" then return end
+	GuildFoundToolsDB = GuildFoundToolsDB or {}
+	GuildFoundToolsDB.minimap = GuildFoundToolsDB.minimap or {}
+	C_ChatInfo.RegisterAddonMessagePrefix(ADDON_PREFIX)
 end
 
-frame:SetScript("OnEvent", function(self, event, ...)
-	if event == EVENTS.ADDON_LOADED then
-		local addonName = ...
-		if addonName == "GuildFoundTools" then
-			GuildFoundToolsDB = GuildFoundToolsDB or {}
-			GuildFoundToolsDB.minimap = GuildFoundToolsDB.minimap or {}
-			C_ChatInfo.RegisterAddonMessagePrefix(ADDON_PREFIX)
-		end
-	elseif event == EVENTS.PLAYER_LOGIN then
-		playerName = UnitName("player")
-		playerRealm = GetRealmName()
-	elseif event == EVENTS.CHAT_MSG_ADDON then
-		local prefix, message, channel, sender = ...
-		if prefix ~= ADDON_PREFIX or channel ~= "GUILD" then return end
+GuildFoundTools.EventHandlers.PLAYER_LOGIN = function()
+	playerName = UnitName("player")
+	playerRealm = GetRealmName()
+end
 
-		sender = NormalizeSender(sender)
-		local fields = Deserialize(message)
-		local messageType = fields[1]
+GuildFoundTools.EventHandlers.CHAT_MSG_ADDON = function(prefix, message, channel, sender)
+	if prefix ~= ADDON_PREFIX or channel ~= "GUILD" then return end
 
-		local handler = MESSAGE_HANDLERS[messageType]
-		if handler then
+	sender = NormalizeSender(sender)
+	local fields = Deserialize(message)
+	local messageCode = fields[1]
+	local messageType = MESSAGE_TYPE_NAMES[messageCode]
+
+	local handlers = messageHandlers[messageType]
+	if handlers then
+		for _, handler in ipairs(handlers) do
 			handler(fields, sender)
 		end
-	elseif event == EVENTS.GROUP_JOINED then
-		if GuildFoundTools.ownGroupId then
-			-- If we joined someone else's party, remove our own tool group
-			C_Timer.After(0.5, function()
-				if not UnitIsGroupLeader("player") then
-					GuildFoundTools.RemoveGroup(GuildFoundTools.ownGroupId)
-					print("|cff00ccffGuildFound Tools:|r Deine Gruppe wurde entfernt, da du einer anderen Gruppe beigetreten bist.")
-				end
-			end)
-		else
-			-- Check if anyone in the party is a tool group leader -> show role popup
-			C_Timer.After(0.5, function()
-				local numGroupMembers = GetNumGroupMembers()
-				for index = 1, numGroupMembers do
-					local name = GetRaidRosterInfo(index)
-					if name then
-						name = strsplit("-", name)
-						for _, group in pairs(GuildFoundTools.groups) do
-							if group.leader == name and GuildFoundTools.ShowPartyRolePopup then
-								GuildFoundTools.ShowPartyRolePopup(group.id)
-								return
-							end
+	end
+end
+
+GuildFoundTools.EventHandlers.GROUP_JOINED = function()
+	if GuildFoundTools.ownGroupId then
+		-- If we joined someone else's party, remove our own tool group
+		C_Timer.After(0.5, function()
+			if not UnitIsGroupLeader("player") then
+				GuildFoundTools.RemoveGroup(GuildFoundTools.ownGroupId)
+				print("|cff00ccffGuildFound Tools:|r Deine Gruppe wurde entfernt, da du einer anderen Gruppe beigetreten bist.")
+			end
+		end)
+	else
+		-- Check if anyone in the party is a tool group leader -> show role popup
+		C_Timer.After(0.5, function()
+			local numGroupMembers = GetNumGroupMembers()
+			for index = 1, numGroupMembers do
+				local name = GetRaidRosterInfo(index)
+				if name then
+					name = strsplit("-", name)
+					for _, group in pairs(GuildFoundTools.groups) do
+						if group.leader == name and GuildFoundTools.ShowPartyRolePopup then
+							GuildFoundTools.ShowPartyRolePopup(group.id)
+							return
 						end
 					end
 				end
-			end)
-		end
-	elseif event == EVENTS.GROUP_ROSTER_UPDATE then
-		HandlePartyRosterUpdate()
-	elseif event == EVENTS.TRADE_SKILL_SHOW then
-		ScanCurrentTradeSkill()
-	elseif event == EVENTS.TRADE_SKILL_CLOSE then
-		-- Scan one more time before closing
-		ScanCurrentTradeSkill()
+			end
+		end)
 	end
-end)
+end
+
+GuildFoundTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
+	HandlePartyRosterUpdate()
+end
+
+GuildFoundTools.EventHandlers.TRADE_SKILL_SHOW = function()
+	ScanCurrentTradeSkill()
+end
+
+GuildFoundTools.EventHandlers.TRADE_SKILL_CLOSE = function()
+	ScanCurrentTradeSkill()
+end
 
 -- ============================================================
 -- Slash commands
