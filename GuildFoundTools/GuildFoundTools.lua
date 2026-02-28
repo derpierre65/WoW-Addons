@@ -680,7 +680,6 @@ frame:SetScript("OnEvent", function(self, event, ...)
 	elseif event == EVENTS.PLAYER_LOGIN then
 		playerName = UnitName("player")
 		playerRealm = GetRealmName()
-
 	elseif event == EVENTS.CHAT_MSG_ADDON then
 		local prefix, message, channel, sender = ...
 		if prefix ~= ADDON_PREFIX or channel ~= "GUILD" then return end

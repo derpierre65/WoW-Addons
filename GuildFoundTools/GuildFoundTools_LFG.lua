@@ -333,6 +333,7 @@ local function CreateGroupRow(parent)
 	row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	row:SetScript("OnClick", function(self, button)
 		if button == "RightButton" then
+			if self.groupId == GuildFoundTools.ownGroupId then return end
 			local group = GuildFoundTools.groups[self.groupId]
 			if not group then return end
 
