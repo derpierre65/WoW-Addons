@@ -1343,7 +1343,6 @@ end
 local function ShowMyGroupEditView(myGroup)
 	ShowFormElements(true)
 	memberInfoText:Hide()
-	myGroupMembersHeader:Hide()
 	myGroupInfoText:Hide()
 	PopulateFormFromGroup(myGroup)
 
