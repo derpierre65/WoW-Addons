@@ -1,6 +1,247 @@
--- Professions tab: query guild, display recipes
+-- Professions tab: logic + UI for querying guild professions and recipes
 
-local contentFrame = GuildFoundTools.GetContentFrame(2)
+-- ============================================================
+-- Profession Logic
+-- ============================================================
+
+GuildFoundTools.Professions = GuildFoundTools.Professions or {}
+
+local MESSAGE_TYPES = GuildFoundTools.MESSAGE_TYPES
+local Serialize = GuildFoundTools.Serialize
+local SendGuildMessage = GuildFoundTools.SendGuildMessage
+local SendGuildMessages = GuildFoundTools.SendGuildMessages
+
+-- ============================================================
+-- Profession scanning (Classic: GetNumSkillLines/GetSkillLineInfo)
+-- ============================================================
+
+local KNOWN_PROFESSIONS = {
+	["Alchemy"] = true, ["Alchimie"] = true,
+	["Blacksmithing"] = true, ["Schmiedekunst"] = true,
+	["Enchanting"] = true, ["Verzauberkunst"] = true,
+	["Engineering"] = true, ["Ingenieurskunst"] = true,
+	["Herbalism"] = true, ["Kraeuterkunde"] = true,
+	["Leatherworking"] = true, ["Lederverarbeitung"] = true,
+	["Mining"] = true, ["Bergbau"] = true,
+	["Skinning"] = true, ["Kuerschnerei"] = true,
+	["Tailoring"] = true, ["Schneiderei"] = true,
+	["Cooking"] = true, ["Kochkunst"] = true,
+	["First Aid"] = true, ["Erste Hilfe"] = true,
+	["Fishing"] = true, ["Angeln"] = true,
+	["Jewelcrafting"] = true, ["Juwelenschleifen"] = true,
+	["Inscription"] = true, ["Inschriftenkunde"] = true,
+}
+
+function GuildFoundTools.Professions.ScanProfessions()
+	local result = {}
+
+	if not GetNumSkillLines then return result end
+
+	for index = 1, GetNumSkillLines() do
+		local skillName, isHeader, _, skillRank, _, _, skillMaxRank = GetSkillLineInfo(index)
+		if skillName and not isHeader and KNOWN_PROFESSIONS[skillName] then
+			table.insert(result, {
+				name = skillName,
+				rank = skillRank or 0,
+				maxRank = skillMaxRank or 0,
+			})
+		end
+	end
+
+	return result
+end
+
+-- ============================================================
+-- Recipe scanning (when tradeskill window is open)
+-- ============================================================
+
+local scannedRecipes = {} -- [professionName] = { { itemId = number, name = string }, ... }
+
+local function ScanCurrentTradeSkill()
+	if not GetTradeSkillLine or not GetNumTradeSkills then return end
+
+	local tradeSkillName = GetTradeSkillLine()
+	if not tradeSkillName or tradeSkillName == "UNKNOWN" then return end
+
+	local recipes = {}
+	for index = 1, GetNumTradeSkills() do
+		local recipeName, recipeType = GetTradeSkillInfo(index)
+		if recipeName and recipeType ~= "header" then
+			local itemLink = GetTradeSkillItemLink(index)
+			local itemId = 0
+			if itemLink then
+				itemId = tonumber(itemLink:match("item:(%d+)")) or 0
+			end
+			table.insert(recipes, {
+				itemId = itemId,
+				name = recipeName,
+			})
+		end
+	end
+
+	scannedRecipes[tradeSkillName] = recipes
+end
+
+function GuildFoundTools.Professions.GetScannedRecipes()
+	return scannedRecipes
+end
+
+-- ============================================================
+-- Profession query API
+-- ============================================================
+
+function GuildFoundTools.Professions.RequestProfessions()
+	if not IsInGuild() then
+		print("|cff00ccffGuildFound Tools:|r Du bist in keiner Gilde.")
+		return
+	end
+
+	-- Clear old data
+	wipe(GuildFoundTools.professions)
+
+	local message = Serialize(MESSAGE_TYPES.PROFESSION_QUERY)
+	SendGuildMessage(message)
+
+	if GuildFoundTools.UI and GuildFoundTools.UI.UpdateProfessionsUI then
+		GuildFoundTools.UI.UpdateProfessionsUI()
+	end
+end
+
+-- ============================================================
+-- Profession message handlers
+-- ============================================================
+
+-- Profession message chunks: PA sender profName rank maxRank numChunks chunkIndex itemId1,itemId2,...
+local professionChunks = {} -- [sender..profName] = { chunks = {}, expected = N }
+
+GuildFoundTools.MessageHandlers.PROFESSION_QUERY = function(fields, sender)
+	-- Someone is requesting professions; respond with ours
+	local myProfessions = GuildFoundTools.Professions.ScanProfessions()
+	local messages = {}
+
+	for _, profession in ipairs(myProfessions) do
+		local recipes = scannedRecipes[profession.name]
+		if recipes and #recipes > 0 then
+			-- Chunk the recipe item IDs to fit within 255 bytes
+			local itemIds = {}
+			for _, recipe in ipairs(recipes) do
+				table.insert(itemIds, recipe.itemId)
+			end
+
+			local chunks = {}
+			local currentChunk = {}
+			local currentLength = 0
+			-- Header overhead: PA\tprofName\trank\tmaxRank\tnumChunks\tchunkIndex\t = ~50 chars
+			local maxPayload = 180
+
+			for _, itemId in ipairs(itemIds) do
+				local idStr = tostring(itemId)
+				local addLength = #idStr + (currentLength > 0 and 1 or 0) -- comma separator
+				if currentLength + addLength > maxPayload and #currentChunk > 0 then
+					table.insert(chunks, table.concat(currentChunk, ","))
+					currentChunk = {}
+					currentLength = 0
+				end
+				table.insert(currentChunk, idStr)
+				currentLength = currentLength + addLength
+			end
+			if #currentChunk > 0 then
+				table.insert(chunks, table.concat(currentChunk, ","))
+			end
+
+			for chunkIndex, chunkData in ipairs(chunks) do
+				local message = Serialize(MESSAGE_TYPES.PROFESSION_ANSWER, profession.name, profession.rank, profession.maxRank, #chunks, chunkIndex, chunkData)
+				table.insert(messages, message)
+			end
+		else
+			-- No recipes scanned, just send profession info
+			local message = Serialize(MESSAGE_TYPES.PROFESSION_ANSWER, profession.name, profession.rank, profession.maxRank, 0, 0, "")
+			table.insert(messages, message)
+		end
+	end
+
+	if #messages > 0 then
+		SendGuildMessages(messages)
+	end
+end
+
+GuildFoundTools.MessageHandlers.PROFESSION_ANSWER = function(fields, sender)
+	-- PA profName rank maxRank numChunks chunkIndex itemIds
+	local professionName = fields[2]
+	local rank = tonumber(fields[3]) or 0
+	local maxRank = tonumber(fields[4]) or 0
+	local numChunks = tonumber(fields[5]) or 0
+	local chunkIndex = tonumber(fields[6]) or 0
+	local itemIdsString = fields[7] or ""
+
+	if not professionName then return end
+
+	-- Initialize profession data for this sender
+	GuildFoundTools.professions[sender] = GuildFoundTools.professions[sender] or {}
+
+	local chunkKey = sender .. "|" .. professionName
+
+	if numChunks == 0 then
+		-- No recipes, just profession info
+		GuildFoundTools.professions[sender][professionName] = {
+			rank = rank,
+			maxRank = maxRank,
+			recipes = {},
+		}
+	else
+		-- Accumulate chunks
+		professionChunks[chunkKey] = professionChunks[chunkKey] or { chunks = {}, expected = numChunks, rank = rank, maxRank = maxRank }
+		professionChunks[chunkKey].chunks[chunkIndex] = itemIdsString
+
+		-- Check if all chunks received
+		local allReceived = true
+		for index = 1, professionChunks[chunkKey].expected do
+			if not professionChunks[chunkKey].chunks[index] then
+				allReceived = false
+				break
+			end
+		end
+
+		if allReceived then
+			local allItemIds = {}
+			for index = 1, professionChunks[chunkKey].expected do
+				for itemId in professionChunks[chunkKey].chunks[index]:gmatch("[^,]+") do
+					local id = tonumber(itemId)
+					if id and id > 0 then
+						table.insert(allItemIds, id)
+					end
+				end
+			end
+
+			GuildFoundTools.professions[sender][professionName] = {
+				rank = rank,
+				maxRank = maxRank,
+				recipes = allItemIds,
+			}
+
+			professionChunks[chunkKey] = nil
+		end
+	end
+
+	if GuildFoundTools.UI and GuildFoundTools.UI.UpdateProfessionsUI then
+		GuildFoundTools.UI.UpdateProfessionsUI()
+	end
+end
+
+-- Register profession event handlers
+GuildFoundTools.EventHandlers.TRADE_SKILL_SHOW = function()
+	ScanCurrentTradeSkill()
+end
+
+GuildFoundTools.EventHandlers.TRADE_SKILL_CLOSE = function()
+	ScanCurrentTradeSkill()
+end
+
+-- ============================================================
+-- Professions UI
+-- ============================================================
+
+local contentFrame = GuildFoundTools.UI.GetContentFrame(2)
 
 local LEFT_PANEL_WIDTH = 180
 local selectedMember = nil
@@ -22,7 +263,7 @@ statusText:SetText("")
 
 queryButton:SetScript("OnClick", function()
 	statusText:SetText("Abfrage gesendet...")
-	GuildFoundTools.RequestProfessions()
+	GuildFoundTools.Professions.RequestProfessions()
 	C_Timer.After(5, function()
 		local count = 0
 		for _ in pairs(GuildFoundTools.professions) do
@@ -315,7 +556,7 @@ end
 -- Public update function
 -- ============================================================
 
-function GuildFoundTools.UpdateProfessionsUI()
+function GuildFoundTools.UI.UpdateProfessionsUI()
 	if not contentFrame:IsShown() then return end
 	UpdateLeftPanel()
 	UpdateRightPanel()

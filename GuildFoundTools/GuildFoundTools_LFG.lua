@@ -1,6 +1,414 @@
--- LFG Tab: create/list/join groups
+-- LFG Tab: logic + UI for create/list/join groups
 
-local contentFrame = GuildFoundTools.GetContentFrame(1)
+-- ============================================================
+-- LFG Logic
+-- ============================================================
+
+GuildFoundTools.LFG = GuildFoundTools.LFG or {}
+
+local MESSAGE_TYPES = GuildFoundTools.MESSAGE_TYPES
+local Serialize = GuildFoundTools.Serialize
+local SendGuildMessage = GuildFoundTools.SendGuildMessage
+local GetPlayerName = GuildFoundTools.GetPlayerName
+
+-- Generate a unique group ID
+local function GenerateGroupId()
+	return GetPlayerName() .. "-" .. time()
+end
+
+-- ============================================================
+-- Party member tracking
+-- ============================================================
+
+GuildFoundTools.LFG.ownGroupId = nil
+
+function GuildFoundTools.LFG.GetMemberCount(group)
+	local count = 0
+	for _ in pairs(group.members) do
+		count = count + 1
+	end
+	return count
+end
+
+local function SyncPartyMembers()
+	if not GuildFoundTools.LFG.ownGroupId then return end
+
+	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	if not group then return end
+	local newMembers = { [GetPlayerName()] = group.members[GetPlayerName()] or "DD" }
+	local numGroupMembers = GetNumGroupMembers()
+
+	for index = 1, numGroupMembers do
+		local name = GetRaidRosterInfo(index)
+		if name then
+			name = strsplit("-", name)
+			if name ~= GetPlayerName() then
+				newMembers[name] = group.members[name] or "DD"
+			end
+		end
+	end
+
+	group.members = newMembers
+
+	-- Broadcast full member list to guild
+	local memberParts = {}
+	for memberName, role in pairs(group.members) do
+		table.insert(memberParts, memberName .. ":" .. role)
+	end
+	local message = Serialize(MESSAGE_TYPES.GROUP_MEMBERS_SYNC, GuildFoundTools.LFG.ownGroupId, table.concat(memberParts, ","))
+	SendGuildMessage(message)
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+local function HandlePartyRosterUpdate()
+	if GuildFoundTools.LFG.ownGroupId then
+		SyncPartyMembers()
+	end
+end
+
+-- ============================================================
+-- Group management API
+-- ============================================================
+
+function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
+	if not IsInGuild() then
+		print("|cff00ccffGuildFound Tools:|r Du bist in keiner Gilde.")
+		return
+	end
+
+	-- Only one group per player allowed
+	if GuildFoundTools.LFG.ownGroupId then
+		print("|cff00ccffGuildFound Tools:|r Du hast bereits eine Gruppe erstellt.")
+		return
+	end
+
+	local groupId = GenerateGroupId()
+	local group = {
+		id = groupId,
+		category = category or "Custom",
+		dungeon = dungeon or "",
+		description = description or "",
+		maxMembers = maxMembers or 5,
+		beginnerFriendly = beginnerFriendly or false,
+		leader = GetPlayerName(),
+		members = { [GetPlayerName()] = leaderRole or "DD" },
+		createdAt = time(),
+	}
+
+	GuildFoundTools.groups[groupId] = group
+	GuildFoundTools.LFG.ownGroupId = groupId
+
+	local message = Serialize(MESSAGE_TYPES.GROUP_CREATE, groupId, category, dungeon, description, maxMembers, GetPlayerName(), leaderRole or "DD", beginnerFriendly and "1" or "0")
+	SendGuildMessage(message)
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+
+	return groupId
+end
+
+function GuildFoundTools.LFG.RemoveGroup(groupId)
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+	if group.leader ~= GetPlayerName() then return end
+
+	GuildFoundTools.groups[groupId] = nil
+	GuildFoundTools.LFG.ownGroupId = nil
+
+	local message = Serialize(MESSAGE_TYPES.GROUP_REMOVE, groupId)
+	SendGuildMessage(message)
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+function GuildFoundTools.LFG.EditGroup(groupId, category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+	if group.leader ~= GetPlayerName() then return end
+
+	group.category = category or group.category
+	group.dungeon = dungeon or group.dungeon
+	group.description = description or group.description
+	group.maxMembers = maxMembers or group.maxMembers
+	group.beginnerFriendly = beginnerFriendly
+	group.members[group.leader] = leaderRole or "DD"
+
+	local message = Serialize(MESSAGE_TYPES.GROUP_EDIT, groupId, group.category, group.dungeon, group.description, group.maxMembers, group.beginnerFriendly and "1" or "0")
+	SendGuildMessage(message)
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+function GuildFoundTools.LFG.SignupForGroup(groupId, role)
+	if not IsInGuild() then return end
+
+	-- If the player is a group leader, remove their group first
+	if GuildFoundTools.LFG.ownGroupId then
+		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+	end
+
+	local message = Serialize(MESSAGE_TYPES.GROUP_SIGNUP, groupId, GetPlayerName(), role or "DD")
+	SendGuildMessage(message)
+end
+
+function GuildFoundTools.LFG.LeaveGroup(groupId)
+	if not IsInGuild() then return end
+
+	local message = Serialize(MESSAGE_TYPES.GROUP_LEAVE, groupId, GetPlayerName())
+	SendGuildMessage(message)
+end
+
+function GuildFoundTools.LFG.RequestGroupList()
+	if not IsInGuild() then return end
+
+	local message = Serialize(MESSAGE_TYPES.GROUP_LIST_REQUEST)
+	SendGuildMessage(message)
+end
+
+-- ============================================================
+-- LFG Message handlers
+-- ============================================================
+
+local pendingSignups = {} -- buffer for GS/GL arriving before GC
+
+GuildFoundTools.MessageHandlers.GROUP_CREATE = function(fields, sender)
+	-- GC groupId category dungeon description maxMembers leader leaderRole beginnerFriendly
+	local groupId = fields[2]
+	local category = fields[3]
+	local dungeon = fields[4]
+	local description = fields[5]
+	local maxMembers = tonumber(fields[6]) or 5
+	local leader = fields[7] or sender
+	local leaderRole = fields[8] or "DD"
+	local beginnerFriendly = fields[9] == "1"
+
+	if not groupId then return end
+
+	GuildFoundTools.groups[groupId] = {
+		id = groupId,
+		category = category or "Custom",
+		dungeon = dungeon or "",
+		description = description or "",
+		maxMembers = maxMembers,
+		beginnerFriendly = beginnerFriendly,
+		leader = leader,
+		members = { [leader] = leaderRole },
+		createdAt = time(),
+	}
+
+	-- Apply any buffered signups
+	if pendingSignups[groupId] then
+		for _, signup in ipairs(pendingSignups[groupId]) do
+			local group = GuildFoundTools.groups[groupId]
+			if not group.members[signup.name] and GuildFoundTools.LFG.GetMemberCount(group) < group.maxMembers then
+				group.members[signup.name] = signup.role or "DD"
+			end
+		end
+		pendingSignups[groupId] = nil
+	end
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+GuildFoundTools.MessageHandlers.GROUP_EDIT = function(fields, sender)
+	-- GE groupId category dungeon description maxMembers beginnerFriendly
+	local groupId = fields[2]
+	if not groupId then return end
+
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+
+	group.category = fields[3] or group.category
+	group.dungeon = fields[4] or group.dungeon
+	group.description = fields[5] or group.description
+	group.maxMembers = tonumber(fields[6]) or group.maxMembers
+	group.beginnerFriendly = fields[7] == "1"
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+GuildFoundTools.MessageHandlers.GROUP_REMOVE = function(fields)
+	local groupId = fields[2]
+	if not groupId then return end
+
+	GuildFoundTools.groups[groupId] = nil
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+GuildFoundTools.MessageHandlers.GROUP_SIGNUP = function(fields)
+	local groupId = fields[2]
+	local memberName = fields[3]
+	local memberRole = fields[4] or "DD"
+	if not groupId or not memberName then return end
+
+	local group = GuildFoundTools.groups[groupId]
+	if not group then
+		-- Buffer the signup for a short time
+		pendingSignups[groupId] = pendingSignups[groupId] or {}
+		table.insert(pendingSignups[groupId], { name = memberName, role = memberRole })
+		C_Timer.After(5, function()
+			pendingSignups[groupId] = nil
+		end)
+		return
+	end
+
+	if group.members[memberName] then return end
+
+	if GuildFoundTools.LFG.GetMemberCount(group) < group.maxMembers then
+		group.members[memberName] = memberRole
+	end
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+GuildFoundTools.MessageHandlers.GROUP_LEAVE = function(fields)
+	local groupId = fields[2]
+	local memberName = fields[3]
+	if not groupId or not memberName then return end
+
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+
+	group.members[memberName] = nil
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+GuildFoundTools.MessageHandlers.GROUP_MEMBERS_SYNC = function(fields)
+	-- GM groupId members(comma-sep name:role)
+	local groupId = fields[2]
+	local membersString = fields[3] or ""
+	if not groupId then return end
+
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+
+	local members = {}
+	for entry in membersString:gmatch("[^,]+") do
+		local name, role = strsplit(":", entry)
+		members[name] = role or "DD"
+	end
+
+	group.members = members
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+GuildFoundTools.MessageHandlers.GROUP_LIST_REQUEST = function(fields, sender)
+	if not GuildFoundTools.LFG.ownGroupId then return end
+
+	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	if not group then return end
+
+	local memberParts = {}
+	for memberName, role in pairs(group.members) do
+		table.insert(memberParts, memberName .. ":" .. role)
+	end
+	local message = Serialize(MESSAGE_TYPES.GROUP_LIST_ANSWER, GuildFoundTools.LFG.ownGroupId, group.category, group.dungeon, group.description, group.maxMembers, group.leader, table.concat(memberParts, ","), group.beginnerFriendly and "1" or "0")
+	SendGuildMessage(message)
+end
+
+GuildFoundTools.MessageHandlers.GROUP_LIST_ANSWER = function(fields)
+	-- GA groupId category dungeon description maxMembers leader members(comma-sep) beginnerFriendly
+	local groupId = fields[2]
+	if not groupId then return end
+
+	-- Don't overwrite if we already have it
+	if GuildFoundTools.groups[groupId] then return end
+
+	local category = fields[3]
+	local dungeon = fields[4]
+	local description = fields[5]
+	local maxMembers = tonumber(fields[6]) or 5
+	local leader = fields[7] or ""
+	local membersString = fields[8] or leader
+	local beginnerFriendly = fields[9] == "1"
+
+	local members = {}
+	if membersString and membersString ~= "" then
+		for entry in membersString:gmatch("[^,]+") do
+			local name, entryRole = strsplit(":", entry)
+			members[name] = entryRole or "DD"
+		end
+	end
+
+	GuildFoundTools.groups[groupId] = {
+		id = groupId,
+		category = category or "Custom",
+		dungeon = dungeon or "",
+		description = description or "",
+		maxMembers = maxMembers,
+		beginnerFriendly = beginnerFriendly,
+		leader = leader,
+		members = members,
+		createdAt = time(),
+	}
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+-- Register LFG event handlers
+GuildFoundTools.EventHandlers.GROUP_JOINED = function()
+	if GuildFoundTools.LFG.ownGroupId then
+		-- If we joined someone else's party, remove our own tool group
+		C_Timer.After(0.5, function()
+			if not UnitIsGroupLeader("player") then
+				GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+				print("|cff00ccffGuildFound Tools:|r Deine Gruppe wurde entfernt, da du einer anderen Gruppe beigetreten bist.")
+			end
+		end)
+	else
+		-- Check if anyone in the party is a tool group leader -> show role popup
+		C_Timer.After(0.5, function()
+			local numGroupMembers = GetNumGroupMembers()
+			for index = 1, numGroupMembers do
+				local name = GetRaidRosterInfo(index)
+				if name then
+					name = strsplit("-", name)
+					for _, group in pairs(GuildFoundTools.groups) do
+						if group.leader == name and GuildFoundTools.LFG.ShowPartyRolePopup then
+							GuildFoundTools.LFG.ShowPartyRolePopup(group.id)
+							return
+						end
+					end
+				end
+			end
+		end)
+	end
+end
+
+GuildFoundTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
+	HandlePartyRosterUpdate()
+end
+
+-- ============================================================
+-- LFG UI
+-- ============================================================
+
+local contentFrame = GuildFoundTools.UI.GetContentFrame(1)
 
 -- ============================================================
 -- Role icons
@@ -187,7 +595,7 @@ for index, roleName in ipairs(ROLE_NAMES) do
 
 	button:SetScript("OnClick", function()
 		if rolePopup.groupId then
-			GuildFoundTools.SignupForGroup(rolePopup.groupId, roleName)
+			GuildFoundTools.LFG.SignupForGroup(rolePopup.groupId, roleName)
 		end
 		rolePopup:Hide()
 	end)
@@ -243,8 +651,8 @@ local function ShowContextMenu(owner, group)
 		end)
 
 		-- Group invite (only for leader, only if target is alone)
-		if group.leader ~= playerName and GuildFoundTools.GetMemberCount(group) == 1 then
-			if GuildFoundTools.ownGroupId then
+		if group.leader ~= playerName and GuildFoundTools.LFG.GetMemberCount(group) == 1 then
+			if GuildFoundTools.LFG.ownGroupId then
 				rootDescription:CreateButton("Spieler einladen", function()
 					C_PartyInfo.InviteUnit(group.leader)
 				end)
@@ -333,14 +741,14 @@ local function CreateGroupRow(parent)
 	row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	row:SetScript("OnClick", function(self, button)
 		if button == "RightButton" then
-			if self.groupId == GuildFoundTools.ownGroupId then return end
+			if self.groupId == GuildFoundTools.LFG.ownGroupId then return end
 			local group = GuildFoundTools.groups[self.groupId]
 			if not group then return end
 
 			ShowContextMenu(self, group)
 		else
 			selectedGroupId = self.groupId
-			GuildFoundTools.UpdateLFGUI()
+			GuildFoundTools.LFG.UpdateLFGUI()
 		end
 	end)
 
@@ -433,7 +841,7 @@ local function UpdateActionBar()
 	local playerName = UnitName("player")
 
 	-- Leader buttons: always visible when player has a group
-	local ownGroupId = GuildFoundTools.ownGroupId
+	local ownGroupId = GuildFoundTools.LFG.ownGroupId
 
 	if ownGroupId then
 		deleteGroupButton:Show()
@@ -448,7 +856,7 @@ local function UpdateActionBar()
 				leaveButton:Show()
 			else
 				signupButton:Show()
-				signupButton:SetEnabled(GuildFoundTools.GetMemberCount(group) < group.maxMembers)
+				signupButton:SetEnabled(GuildFoundTools.LFG.GetMemberCount(group) < group.maxMembers)
 			end
 		end
 	end
@@ -465,17 +873,17 @@ end)
 
 leaveButton:SetScript("OnClick", function()
 	if not selectedGroupId then return end
-	GuildFoundTools.LeaveGroup(selectedGroupId)
+	GuildFoundTools.LFG.LeaveGroup(selectedGroupId)
 end)
 
 deleteGroupButton:SetScript("OnClick", function()
 	local playerName = UnitName("player")
-	local ownGroupId = GuildFoundTools.ownGroupId
+	local ownGroupId = GuildFoundTools.LFG.ownGroupId
 	if ownGroupId then
 		if selectedGroupId == ownGroupId then
 			selectedGroupId = nil
 		end
-		GuildFoundTools.RemoveGroup(ownGroupId)
+		GuildFoundTools.LFG.RemoveGroup(ownGroupId)
 	end
 end)
 
@@ -483,14 +891,14 @@ end)
 -- Update group listing
 -- ============================================================
 
-function GuildFoundTools.UpdateLFGUI()
+function GuildFoundTools.LFG.UpdateLFGUI()
 	ReleaseRows()
 
 	local groups = GuildFoundTools.groups
 	local playerName = UnitName("player")
 
 	-- Disable create button if player already has a group
-	createGroupButton:SetEnabled(not GuildFoundTools.ownGroupId)
+	createGroupButton:SetEnabled(not GuildFoundTools.LFG.ownGroupId)
 
 	-- Validate selected group still exists
 	if selectedGroupId and not groups[selectedGroupId] then
@@ -894,9 +1302,9 @@ createButton:SetScript("OnClick", function()
 	if maxMembers > 40 then maxMembers = 40 end
 
 	if editingGroupId then
-		GuildFoundTools.EditGroup(editingGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+		GuildFoundTools.LFG.EditGroup(editingGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 	else
-		GuildFoundTools.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+		GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 	end
 	editingGroupId = nil
 	dialogFrame:Hide()
@@ -926,7 +1334,7 @@ end)
 editGroupButton:SetScript("OnClick", function()
 	local playerName = UnitName("player")
 	local ownGroup = nil
-	local ownGroupId = GuildFoundTools.ownGroupId
+	local ownGroupId = GuildFoundTools.LFG.ownGroupId
 	if not ownGroupId then return end
 	ownGroup = GuildFoundTools.groups[ownGroupId]
 	if not ownGroup then return end
@@ -966,7 +1374,7 @@ end)
 
 -- Initial update when tab is shown
 contentFrame:SetScript("OnShow", function()
-	GuildFoundTools.UpdateLFGUI()
+	GuildFoundTools.LFG.UpdateLFGUI()
 end)
 
 -- ============================================================
@@ -1004,7 +1412,7 @@ for index, roleName in ipairs(PARTY_ROLE_NAMES) do
 
 	button:SetScript("OnClick", function()
 		if partyRolePopup.groupId then
-			GuildFoundTools.SignupForGroup(partyRolePopup.groupId, roleName)
+			GuildFoundTools.LFG.SignupForGroup(partyRolePopup.groupId, roleName)
 		end
 		partyRolePopup:Hide()
 	end)
@@ -1025,7 +1433,7 @@ end
 
 tinsert(UISpecialFrames, "GuildFoundToolsPartyRolePopup")
 
-function GuildFoundTools.ShowPartyRolePopup(groupId)
+function GuildFoundTools.LFG.ShowPartyRolePopup(groupId)
 	partyRolePopup.groupId = groupId
 	partyRolePopup:Show()
 end

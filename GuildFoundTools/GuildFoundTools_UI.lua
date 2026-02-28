@@ -1,5 +1,7 @@
 -- Main frame, tab system, shared UI helpers
 
+GuildFoundTools.UI = GuildFoundTools.UI or {}
+
 local FRAME_WIDTH = 500
 local FRAME_HEIGHT = 450
 
@@ -29,7 +31,7 @@ tinsert(UISpecialFrames, "GuildFoundToolsMainFrame")
 -- Tab system
 -- ============================================================
 
-local TAB_NAMES = { "Gruppensuche", "Berufe" }
+local TAB_NAMES = { "Gruppenbrowser", "Berufe" }
 local contentFrames = {}
 
 -- Create tab buttons (below the frame)
@@ -46,7 +48,7 @@ for index = 1, #TAB_NAMES do
 
 	tabButton:SetScript("OnClick", function(self)
 		PanelTemplates_SetTab(mainFrame, self:GetID())
-		GuildFoundTools.ShowTab(self:GetID())
+		GuildFoundTools.UI.ShowTab(self:GetID())
 	end)
 end
 
@@ -62,7 +64,7 @@ end
 PanelTemplates_SetNumTabs(mainFrame, #TAB_NAMES)
 PanelTemplates_SetTab(mainFrame, 1)
 
-function GuildFoundTools.ShowTab(tabIndex)
+function GuildFoundTools.UI.ShowTab(tabIndex)
 	for index, contentFrame in ipairs(contentFrames) do
 		if index == tabIndex then
 			contentFrame:Show()
@@ -72,28 +74,28 @@ function GuildFoundTools.ShowTab(tabIndex)
 	end
 end
 
-function GuildFoundTools.GetContentFrame(tabIndex)
+function GuildFoundTools.UI.GetContentFrame(tabIndex)
 	return contentFrames[tabIndex]
 end
 
-function GuildFoundTools.GetMainFrame()
+function GuildFoundTools.UI.GetMainFrame()
 	return mainFrame
 end
 
-function GuildFoundTools.Toggle()
+function GuildFoundTools.UI.Toggle()
 	if mainFrame:IsShown() then
 		mainFrame:Hide()
 	else
 		mainFrame:Show()
-		GuildFoundTools.ShowTab(PanelTemplates_GetSelectedTab(mainFrame) or 1)
+		GuildFoundTools.UI.ShowTab(PanelTemplates_GetSelectedTab(mainFrame) or 1)
 	end
 end
 
 -- Show first tab by default when frame opens and request group list
 mainFrame:SetScript("OnShow", function()
 	local selectedTab = PanelTemplates_GetSelectedTab(mainFrame) or 1
-	GuildFoundTools.ShowTab(selectedTab)
-	GuildFoundTools.RequestGroupList()
+	GuildFoundTools.UI.ShowTab(selectedTab)
+	GuildFoundTools.LFG.RequestGroupList()
 end)
 
 -- Close child windows when main frame is hidden

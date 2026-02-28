@@ -64,7 +64,7 @@ minimapButton:SetScript("OnDragStop", function(self)
 end)
 
 minimapButton:SetScript("OnClick", function()
-	GuildFoundTools.Toggle()
+	GuildFoundTools.UI.Toggle()
 end)
 
 minimapButton:SetScript("OnEnter", function(self)
