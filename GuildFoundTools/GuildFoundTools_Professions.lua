@@ -9,7 +9,6 @@ GuildFoundTools.Professions = GuildFoundTools.Professions or {}
 local MESSAGE_TYPES = GuildFoundTools.MESSAGE_TYPES
 local Serialize = GuildFoundTools.Serialize
 local SendGuildMessage = GuildFoundTools.SendGuildMessage
-local SendGuildMessages = GuildFoundTools.SendGuildMessages
 
 -- ============================================================
 -- Profession scanning (Classic: GetNumSkillLines/GetSkillLineInfo)
@@ -111,117 +110,51 @@ end
 -- Profession message handlers
 -- ============================================================
 
--- Profession message chunks: PA sender profName rank maxRank numChunks chunkIndex itemId1,itemId2,...
-local professionChunks = {} -- [sender..profName] = { chunks = {}, expected = N }
-
 GuildFoundTools.MessageHandlers.PROFESSION_QUERY = function(fields, sender)
 	-- Someone is requesting professions; respond with ours
 	local myProfessions = GuildFoundTools.Professions.ScanProfessions()
-	local messages = {}
 
 	for _, profession in ipairs(myProfessions) do
 		local recipes = scannedRecipes[profession.name]
+		local itemIdsString = ""
 		if recipes and #recipes > 0 then
-			-- Chunk the recipe item IDs to fit within 255 bytes
 			local itemIds = {}
 			for _, recipe in ipairs(recipes) do
 				table.insert(itemIds, recipe.itemId)
 			end
-
-			local chunks = {}
-			local currentChunk = {}
-			local currentLength = 0
-			-- Header overhead: PA\tprofName\trank\tmaxRank\tnumChunks\tchunkIndex\t = ~50 chars
-			local maxPayload = 180
-
-			for _, itemId in ipairs(itemIds) do
-				local idStr = tostring(itemId)
-				local addLength = #idStr + (currentLength > 0 and 1 or 0) -- comma separator
-				if currentLength + addLength > maxPayload and #currentChunk > 0 then
-					table.insert(chunks, table.concat(currentChunk, ","))
-					currentChunk = {}
-					currentLength = 0
-				end
-				table.insert(currentChunk, idStr)
-				currentLength = currentLength + addLength
-			end
-			if #currentChunk > 0 then
-				table.insert(chunks, table.concat(currentChunk, ","))
-			end
-
-			for chunkIndex, chunkData in ipairs(chunks) do
-				local message = Serialize(MESSAGE_TYPES.PROFESSION_ANSWER, profession.name, profession.rank, profession.maxRank, #chunks, chunkIndex, chunkData)
-				table.insert(messages, message)
-			end
-		else
-			-- No recipes scanned, just send profession info
-			local message = Serialize(MESSAGE_TYPES.PROFESSION_ANSWER, profession.name, profession.rank, profession.maxRank, 0, 0, "")
-			table.insert(messages, message)
+			itemIdsString = table.concat(itemIds, ",")
 		end
-	end
 
-	if #messages > 0 then
-		SendGuildMessages(messages)
+		SendGuildMessage(Serialize(MESSAGE_TYPES.PROFESSION_ANSWER, profession.name, profession.rank, profession.maxRank, itemIdsString))
 	end
 end
 
 GuildFoundTools.MessageHandlers.PROFESSION_ANSWER = function(fields, sender)
-	-- PA profName rank maxRank numChunks chunkIndex itemIds
+	-- PA profName rank maxRank itemIds
 	local professionName = fields[2]
 	local rank = tonumber(fields[3]) or 0
 	local maxRank = tonumber(fields[4]) or 0
-	local numChunks = tonumber(fields[5]) or 0
-	local chunkIndex = tonumber(fields[6]) or 0
-	local itemIdsString = fields[7] or ""
+	local itemIdsString = fields[5] or ""
 
 	if not professionName then return end
 
-	-- Initialize profession data for this sender
 	GuildFoundTools.professions[sender] = GuildFoundTools.professions[sender] or {}
 
-	local chunkKey = sender .. "|" .. professionName
-
-	if numChunks == 0 then
-		-- No recipes, just profession info
-		GuildFoundTools.professions[sender][professionName] = {
-			rank = rank,
-			maxRank = maxRank,
-			recipes = {},
-		}
-	else
-		-- Accumulate chunks
-		professionChunks[chunkKey] = professionChunks[chunkKey] or { chunks = {}, expected = numChunks, rank = rank, maxRank = maxRank }
-		professionChunks[chunkKey].chunks[chunkIndex] = itemIdsString
-
-		-- Check if all chunks received
-		local allReceived = true
-		for index = 1, professionChunks[chunkKey].expected do
-			if not professionChunks[chunkKey].chunks[index] then
-				allReceived = false
-				break
+	local recipes = {}
+	if itemIdsString ~= "" then
+		for itemId in itemIdsString:gmatch("[^,]+") do
+			local id = tonumber(itemId)
+			if id and id > 0 then
+				table.insert(recipes, id)
 			end
-		end
-
-		if allReceived then
-			local allItemIds = {}
-			for index = 1, professionChunks[chunkKey].expected do
-				for itemId in professionChunks[chunkKey].chunks[index]:gmatch("[^,]+") do
-					local id = tonumber(itemId)
-					if id and id > 0 then
-						table.insert(allItemIds, id)
-					end
-				end
-			end
-
-			GuildFoundTools.professions[sender][professionName] = {
-				rank = rank,
-				maxRank = maxRank,
-				recipes = allItemIds,
-			}
-
-			professionChunks[chunkKey] = nil
 		end
 	end
+
+	GuildFoundTools.professions[sender][professionName] = {
+		rank = rank,
+		maxRank = maxRank,
+		recipes = recipes,
+	}
 
 	if GuildFoundTools.UI and GuildFoundTools.UI.UpdateProfessionsUI then
 		GuildFoundTools.UI.UpdateProfessionsUI()

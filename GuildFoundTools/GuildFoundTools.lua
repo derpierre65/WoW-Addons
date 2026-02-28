@@ -87,13 +87,6 @@ function GuildFoundTools.SendGuildMessage(message)
 	AceComm:SendCommMessage(ADDON_PREFIX, message, "GUILD")
 end
 
--- Send multiple messages (AceComm handles throttling automatically)
-function GuildFoundTools.SendGuildMessages(messages)
-	for _, message in ipairs(messages) do
-		GuildFoundTools.SendGuildMessage(message)
-	end
-end
-
 -- ============================================================
 -- Event handlers
 -- ============================================================
