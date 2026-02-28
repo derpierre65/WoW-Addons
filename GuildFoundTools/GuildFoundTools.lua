@@ -1,5 +1,6 @@
 GuildFoundTools = GuildFoundTools or {}
 
+local AceComm = LibStub("AceComm-3.0")
 local ADDON_PREFIX = "GFTools"
 
 GuildFoundTools.MESSAGE_TYPES = {
@@ -65,11 +66,6 @@ function GuildFoundTools.GetPlayerName()
 	return playerName
 end
 
-local function NormalizeSender(sender)
-	local name = strsplit("-", sender)
-	return name
-end
-
 -- Serialization: tab-separated fields
 function GuildFoundTools.Serialize(messageType, ...)
 	local parts = { messageType }
@@ -80,22 +76,21 @@ function GuildFoundTools.Serialize(messageType, ...)
 	return table.concat(parts, "\t")
 end
 
-local function Deserialize(message)
-	return { strsplit("\t", message) }
-end
-
--- Send a message to the guild channel
+-- Send a message to the guild channel (via AceComm for automatic chunking)
 function GuildFoundTools.SendGuildMessage(message)
 	if not IsInGuild() then return end
-	C_ChatInfo.SendAddonMessage(ADDON_PREFIX, message, "GUILD")
+
+	if GuildFoundTools.debugMode then
+		print("GFT ->", message)
+	end
+
+	AceComm:SendCommMessage(ADDON_PREFIX, message, "GUILD")
 end
 
--- Staggered send for multiple messages
+-- Send multiple messages (AceComm handles throttling automatically)
 function GuildFoundTools.SendGuildMessages(messages)
-	for index, message in ipairs(messages) do
-		C_Timer.After((index - 1) * 0.1, function()
-			GuildFoundTools.SendGuildMessage(message)
-		end)
+	for _, message in ipairs(messages) do
+		GuildFoundTools.SendGuildMessage(message)
 	end
 end
 
@@ -107,7 +102,6 @@ GuildFoundTools.EventHandlers.ADDON_LOADED = function(addonName)
 	if addonName ~= "GuildFoundTools" then return end
 	GuildFoundToolsDB = GuildFoundToolsDB or {}
 	GuildFoundToolsDB.minimap = GuildFoundToolsDB.minimap or {}
-	C_ChatInfo.RegisterAddonMessagePrefix(ADDON_PREFIX)
 end
 
 GuildFoundTools.EventHandlers.PLAYER_LOGIN = function()
@@ -115,11 +109,14 @@ GuildFoundTools.EventHandlers.PLAYER_LOGIN = function()
 	playerRealm = GetRealmName()
 end
 
-GuildFoundTools.EventHandlers.CHAT_MSG_ADDON = function(prefix, message, channel, sender)
-	if prefix ~= ADDON_PREFIX or channel ~= "GUILD" then return end
+-- Receive messages via AceComm (handles automatic chunk reassembly)
+AceComm:RegisterComm(ADDON_PREFIX, function(prefix, message, distribution, sender)
+	if GuildFoundTools.debugMode then
+		print("GFT <-", distribution, sender, message)
+	end
 
-	sender = NormalizeSender(sender)
-	local fields = Deserialize(message)
+	sender = strsplit("-", sender)
+	local fields = { strsplit("\t", message) }
 	local messageType = fields[1]
 
 	local handlers = messageHandlers[messageType]
@@ -128,7 +125,7 @@ GuildFoundTools.EventHandlers.CHAT_MSG_ADDON = function(prefix, message, channel
 			handler(fields, sender)
 		end
 	end
-end
+end)
 
 -- ============================================================
 -- Slash commands

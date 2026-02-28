@@ -5,6 +5,8 @@
 ## Version: 1.0.0
 ## SavedVariables: GuildFoundToolsDB, GuildFoundTools_LFG
 
+Libs\AceComm-3.0\AceComm-3.0.xml
+
 GuildFoundTools.lua
 GuildFoundTools_UI.lua
 GuildFoundTools_Minimap.lua
