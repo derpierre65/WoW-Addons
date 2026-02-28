@@ -871,13 +871,13 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 		selectedGroupId = nil
 	end
 
-	-- Sort groups by creation time (newest first)
+	-- Sort groups by member count (most members first)
 	local sortedGroups = {}
 	for _, group in pairs(groups) do
 		table.insert(sortedGroups, group)
 	end
 	table.sort(sortedGroups, function(a, b)
-		return (a.createdAt or 0) > (b.createdAt or 0)
+		return GuildFoundTools.LFG.GetMemberCount(a) > GuildFoundTools.LFG.GetMemberCount(b)
 	end)
 
 	local hasGroups = #sortedGroups > 0
