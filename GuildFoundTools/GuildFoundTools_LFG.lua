@@ -1791,6 +1791,8 @@ for index, roleName in ipairs(ROLE_NAMES) do
 	button:SetScript("OnClick", function()
 		if partyRolePopup.groupId then
 			GuildFoundTools.LFG.SignupForGroup(partyRolePopup.groupId, roleName)
+			selectedRole = roleName
+			GuildFoundTools.LFG.ChangeMyRole(roleName)
 		end
 		partyRolePopup:Hide()
 	end)
