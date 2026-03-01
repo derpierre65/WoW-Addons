@@ -185,11 +185,7 @@ function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMemb
 		beginnerFriendly = beginnerFriendly or false,
 		leader = GetPlayerName(),
 		members = { [GetPlayerName()] = leaderRole or "DD" },
-		applicants = {
-			test = "DD",
-			healer = "HEAL",
-			tank = "TANK"
-		},
+		applicants = {},
 		createdAt = time(),
 	}
 
