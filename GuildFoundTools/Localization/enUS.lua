@@ -46,6 +46,14 @@ L["ButtonSave"] = "Save"
 L["NoSignupsYet"] = "No signups for your group yet.\nOnce guild members sign up, they will appear here."
 L["MemberOfGroup"] = "You are in the group of %s."
 
+-- Applicants
+L["ButtonWithdraw"] = "Withdraw"
+L["ButtonAccept"] = "Accept"
+L["ButtonDecline"] = "Decline"
+L["ApplicantsHeader"] = "Applicants:"
+L["NoApplicantsYet"] = "No applicants yet."
+L["ApplicationPending"] = "Application pending..."
+
 -- Role Selection Popup
 L["SelectRoleTitle"] = "Select Role"
 L["SelectRolePrompt"] = "Which role do you want to play?"

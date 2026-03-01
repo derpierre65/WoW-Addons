@@ -46,6 +46,14 @@ L["ButtonSave"] = "Speichern"
 L["NoSignupsYet"] = "Noch keine Anmeldungen für deine Gruppe vorhanden.\nSobald sich Gildenmitglieder anmelden, erscheinen sie hier."
 L["MemberOfGroup"] = "Du bist in der Gruppe von %s."
 
+-- Applicants
+L["ButtonWithdraw"] = "Zurückziehen"
+L["ButtonAccept"] = "Annehmen"
+L["ButtonDecline"] = "Ablehnen"
+L["ApplicantsHeader"] = "Bewerber:"
+L["NoApplicantsYet"] = "Noch keine Bewerber."
+L["ApplicationPending"] = "Bewerbung ausstehend..."
+
 -- Role Selection Popup
 L["SelectRoleTitle"] = "Rolle wählen"
 L["SelectRolePrompt"] = "Welche Rolle möchtest du spielen?"

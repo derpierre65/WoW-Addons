@@ -8,7 +8,6 @@ GuildFoundTools.LFG = GuildFoundTools.LFG or {}
 
 local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
 local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
-local Serialize = GuildFoundTools.Serialize
 local SendGuildMessage = GuildFoundTools.SendGuildMessage
 local GetPlayerName = GuildFoundTools.GetPlayerName
 local DUNGEON = GuildFoundTools.Enums.DUNGEON
@@ -52,16 +51,7 @@ local function SaveGroupToStorage(group)
 	if not characterGuid then return end
 
 	GuildFoundTools_LFG = GuildFoundTools_LFG or {}
-	GuildFoundTools_LFG[characterGuid] = {
-		id = group.id,
-		category = group.category,
-		dungeon = group.dungeon,
-		description = group.description,
-		maxMembers = group.maxMembers,
-		beginnerFriendly = group.beginnerFriendly,
-		members = group.members,
-		createdAt = group.createdAt,
-	}
+	GuildFoundTools_LFG[characterGuid] = group
 end
 
 local function ClearGroupFromStorage()
@@ -93,18 +83,14 @@ local function BroadcastMemberSync()
 	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
 	if not group then return end
 
-	local memberParts = {}
-	for memberName, role in pairs(group.members) do
-		table.insert(memberParts, memberName .. ":" .. role)
-	end
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_MEMBERS_SYNC, GuildFoundTools.LFG.ownGroupId, table.concat(memberParts, ",")))
+	SendGuildMessage(MESSAGE_TYPE.GROUP_MEMBERS_SYNC, { groupId = GuildFoundTools.LFG.ownGroupId, members = group.members })
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
 end
 
-local function SyncPartyMembers()
+local function UpdateGroupMembers()
 	if not GuildFoundTools.LFG.ownGroupId then return end
 
 	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
@@ -119,13 +105,16 @@ local function SyncPartyMembers()
 		local name = GetRaidRosterInfo(index)
 		if name then
 			name = strsplit("-", name)
-			newMembers[name] = group.members[name] or "DD"
+			if group.applicants and group.applicants[name] then
+				newMembers[name] = group.applicants[name]
+				group.applicants[name] = nil
+			else
+				newMembers[name] = group.members[name] or "DD"
+			end
 		end
 	end
 
 	group.members = newMembers
-	SaveGroupToStorage(group)
-	BroadcastMemberSync()
 end
 
 local function RestoreGroupFromStorage()
@@ -159,6 +148,7 @@ local function RestoreGroupFromStorage()
 		beginnerFriendly = saved.beginnerFriendly or false,
 		leader = GetPlayerName(),
 		members = restoredMembers,
+		applicants = saved.applicants or {},
 		createdAt = saved.createdAt or time(),
 	}
 
@@ -166,15 +156,7 @@ local function RestoreGroupFromStorage()
 	GuildFoundTools.LFG.ownGroupId = group.id
 
 	-- Broadcast to guild so others know the group exists
-	local leaderRole = restoredMembers[GetPlayerName()] or "DD"
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_CREATE, group.id, group.category, group.dungeon, group.description, group.maxMembers, group.leader, leaderRole, group.beginnerFriendly and "1" or "0"))
-	BroadcastMemberSync()
-end
-
-local function HandlePartyRosterUpdate()
-	if GuildFoundTools.LFG.ownGroupId then
-		SyncPartyMembers()
-	end
+	SendGuildMessage(MESSAGE_TYPE.GROUP_CREATE, group)
 end
 
 -- ============================================================
@@ -203,14 +185,19 @@ function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMemb
 		beginnerFriendly = beginnerFriendly or false,
 		leader = GetPlayerName(),
 		members = { [GetPlayerName()] = leaderRole or "DD" },
+		applicants = {
+			test = "DD",
+			healer = "HEAL",
+			tank = "TANK"
+		},
 		createdAt = time(),
 	}
 
 	GuildFoundTools.groups[groupId] = group
 	GuildFoundTools.LFG.ownGroupId = groupId
 
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_CREATE, groupId, category, dungeon, description, maxMembers, GetPlayerName(), leaderRole or "DD", beginnerFriendly and "1" or "0"))
-	SyncPartyMembers()
+	UpdateGroupMembers()
+	SendGuildMessage(MESSAGE_TYPE.GROUP_CREATE, group)
 	SaveGroupToStorage(group)
 
 	return groupId
@@ -226,7 +213,7 @@ function GuildFoundTools.LFG.RemoveGroup(groupId)
 
 	ClearGroupFromStorage()
 
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_REMOVE, groupId))
+	SendGuildMessage(MESSAGE_TYPE.GROUP_REMOVE, { id = groupId })
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -246,8 +233,14 @@ function GuildFoundTools.LFG.EditGroup(groupId, category, dungeon, description, 
 	group.members[group.leader] = leaderRole or "DD"
 
 	SaveGroupToStorage(group)
-
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_EDIT, groupId, group.category, group.dungeon, group.description, group.maxMembers, group.beginnerFriendly and "1" or "0"))
+	SendGuildMessage(MESSAGE_TYPE.GROUP_EDIT, {
+		id = groupId,
+		category = group.category,
+		dungeon = group.dungeon,
+		description = group.description,
+		maxMembers = group.maxMembers,
+		beginnerFriendly = group.beginnerFriendly,
+	})
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -262,61 +255,81 @@ function GuildFoundTools.LFG.SignupForGroup(groupId, role)
 		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
 	end
 
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_SIGNUP, groupId, GetPlayerName(), role or "DD"))
+	SendGuildMessage(MESSAGE_TYPE.GROUP_SIGNUP, { groupId = groupId, name = GetPlayerName(), role = role or "DD" })
 end
 
 function GuildFoundTools.LFG.LeaveGroup(groupId)
 	if not IsInGuild() then return end
 
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LEAVE, groupId, GetPlayerName()))
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+
+	local playerName = GetPlayerName()
+	if group.applicants and group.applicants[playerName] then
+		SendGuildMessage(MESSAGE_TYPE.GROUP_WITHDRAW, { groupId = groupId, name = playerName })
+	else
+		SendGuildMessage(MESSAGE_TYPE.GROUP_LEAVE, { groupId = groupId, name = playerName })
+	end
+end
+
+function GuildFoundTools.LFG.AcceptApplicant(groupId, applicantName)
+	if not IsInGuild() then return end
+
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+	if group.leader ~= GetPlayerName() then return end
+	if not group.applicants or not group.applicants[applicantName] then return end
+
+	-- Send party invite; applicant stays in applicants until they join the party
+	C_PartyInfo.InviteUnit(applicantName)
+end
+
+function GuildFoundTools.LFG.DeclineApplicant(groupId, applicantName)
+	if not IsInGuild() then return end
+
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+	if group.leader ~= GetPlayerName() then return end
+	if not group.applicants or not group.applicants[applicantName] then return end
+
+	group.applicants[applicantName] = nil
+	SaveGroupToStorage(group)
+
+	SendGuildMessage(MESSAGE_TYPE.GROUP_DECLINE, { groupId = groupId, name = applicantName })
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
 end
 
 function GuildFoundTools.LFG.RequestGroupList()
 	if not IsInGuild() then return end
 
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LIST_REQUEST))
+	SendGuildMessage(MESSAGE_TYPE.GROUP_LIST_REQUEST)
 end
 
 -- ============================================================
 -- LFG Message handlers
 -- ============================================================
 
-GuildFoundTools.MessageHandlers.GROUP_CREATE = function(fields, sender)
-	-- GC groupId category dungeon description maxMembers leader leaderRole beginnerFriendly
-	local groupId = fields[2]
-	local category = fields[3]
-	local dungeon = fields[4]
-	local description = fields[5]
-	local maxMembers = tonumber(fields[6]) or 5
-	local leader = fields[7] or sender
-	local leaderRole = fields[8] or "DD"
-	local beginnerFriendly = fields[9] == "1"
+GuildFoundTools.MessageHandlers.GROUP_CREATE = function(data, sender)
+	if not data or not data.id then return end
 
-	if not groupId then return end
+	local isNewGroup = not GuildFoundTools.groups[data.id]
 
-	local isNewGroup = not GuildFoundTools.groups[groupId]
-
-	GuildFoundTools.groups[groupId] = {
-		id = groupId,
-		category = category or "Custom",
-		dungeon = dungeon or "",
-		description = description or "",
-		maxMembers = maxMembers,
-		beginnerFriendly = beginnerFriendly,
-		leader = leader,
-		members = { [leader] = leaderRole },
-		createdAt = time(),
-	}
+	data.leader = data.leader or sender
+	data.createdAt = time()
+	GuildFoundTools.groups[data.id] = data
 
 	-- Show role popup if we are in the leader's party (only for new groups)
-	if isNewGroup and leader ~= GetPlayerName() and GuildFoundTools.LFG.ShowPartyRolePopup then
+	if isNewGroup and data.leader ~= GetPlayerName() and GuildFoundTools.LFG.ShowPartyRolePopup then
 		local numGroupMembers = GetNumGroupMembers()
 		for index = 1, numGroupMembers do
 			local name = GetRaidRosterInfo(index)
 			if name then
 				name = strsplit("-", name)
-				if name == leader then
-					GuildFoundTools.LFG.ShowPartyRolePopup(groupId)
+				if name == data.leader then
+					GuildFoundTools.LFG.ShowPartyRolePopup(data.id)
 					break
 				end
 			end
@@ -328,49 +341,51 @@ GuildFoundTools.MessageHandlers.GROUP_CREATE = function(fields, sender)
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_EDIT = function(fields, sender)
-	-- GE groupId category dungeon description maxMembers beginnerFriendly
-	local groupId = fields[2]
-	if not groupId then return end
+GuildFoundTools.MessageHandlers.GROUP_EDIT = function(data, sender)
+	if not data or not data.id then return end
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = GuildFoundTools.groups[data.id]
 	if not group then return end
 
-	group.category = fields[3] or group.category
-	group.dungeon = fields[4] or group.dungeon
-	group.description = fields[5] or group.description
-	group.maxMembers = tonumber(fields[6]) or group.maxMembers
-	group.beginnerFriendly = fields[7] == "1"
+	group.category = data.category or group.category
+	group.dungeon = data.dungeon or group.dungeon
+	group.description = data.description or group.description
+	group.maxMembers = data.maxMembers or group.maxMembers
+	group.beginnerFriendly = data.beginnerFriendly or false
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_REMOVE = function(fields)
-	local groupId = fields[2]
-	if not groupId then return end
+GuildFoundTools.MessageHandlers.GROUP_REMOVE = function(data)
+	if not data or not data.id then return end
 
-	GuildFoundTools.groups[groupId] = nil
+	GuildFoundTools.groups[data.id] = nil
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_SIGNUP = function(fields)
-	local groupId = fields[2]
-	local memberName = fields[3]
-	local memberRole = fields[4] or "DD"
-	if not groupId or not memberName then return end
+GuildFoundTools.MessageHandlers.GROUP_SIGNUP = function(data)
+	if not data or not data.groupId or not data.name then return end
+
+	local groupId = data.groupId
+	local memberName = data.name
+	local memberRole = data.role or "DD"
 
 	local group = GuildFoundTools.groups[groupId]
 	if not group then return end
 
 	if group.members[memberName] then return end
+	if group.applicants and group.applicants[memberName] then return end
 
-	if GuildFoundTools.LFG.GetMemberCount(group) < group.maxMembers then
-		group.members[memberName] = memberRole
+	group.applicants = group.applicants or {}
+	group.applicants[memberName] = memberRole
+
+	if group.leader == GetPlayerName() then
+		SaveGroupToStorage(group)
 	end
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
@@ -378,10 +393,11 @@ GuildFoundTools.MessageHandlers.GROUP_SIGNUP = function(fields)
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_LEAVE = function(fields)
-	local groupId = fields[2]
-	local memberName = fields[3]
-	if not groupId or not memberName then return end
+GuildFoundTools.MessageHandlers.GROUP_LEAVE = function(data)
+	if not data or not data.groupId or not data.name then return end
+
+	local groupId = data.groupId
+	local memberName = data.name
 
 	local group = GuildFoundTools.groups[groupId]
 	if not group then return end
@@ -393,86 +409,102 @@ GuildFoundTools.MessageHandlers.GROUP_LEAVE = function(fields)
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_MEMBERS_SYNC = function(fields)
-	-- GM groupId members(comma-sep name:role)
-	local groupId = fields[2]
-	local membersString = fields[3] or ""
-	if not groupId then return end
+GuildFoundTools.MessageHandlers.GROUP_DECLINE = function(data)
+	if not data or not data.groupId or not data.name then return end
+
+	local groupId = data.groupId
+	local applicantName = data.name
 
 	local group = GuildFoundTools.groups[groupId]
 	if not group then return end
 
-	local members = {}
-	for entry in membersString:gmatch("[^,]+") do
-		local name, role = strsplit(":", entry)
-		members[name] = role or "DD"
-	end
-
-	group.members = members
+	group.applicants = group.applicants or {}
+	group.applicants[applicantName] = nil
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_LIST_REQUEST = function(fields, sender)
+GuildFoundTools.MessageHandlers.GROUP_WITHDRAW = function(data)
+	if not data or not data.groupId or not data.name then return end
+
+	local groupId = data.groupId
+	local applicantName = data.name
+
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+
+	group.applicants = group.applicants or {}
+	group.applicants[applicantName] = nil
+
+	if group.leader == GetPlayerName() then
+		SaveGroupToStorage(group)
+	end
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+GuildFoundTools.MessageHandlers.GROUP_MEMBERS_SYNC = function(data)
+	if not data or not data.groupId then return end
+
+	local group = GuildFoundTools.groups[data.groupId]
+	if not group then return end
+
+	group.members = data.members or {}
+
+	-- Remove applicants who are now members
+	if group.applicants then
+		for name in pairs(group.members) do
+			group.applicants[name] = nil
+		end
+	end
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
+GuildFoundTools.MessageHandlers.GROUP_LIST_REQUEST = function(data, sender)
 	if not GuildFoundTools.LFG.ownGroupId then return end
 
 	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
 	if not group then return end
 
-	local memberParts = {}
-	for memberName, role in pairs(group.members) do
-		table.insert(memberParts, memberName .. ":" .. role)
-	end
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LIST_ANSWER, GuildFoundTools.LFG.ownGroupId, group.category, group.dungeon, group.description, group.maxMembers, group.leader, table.concat(memberParts, ","), group.beginnerFriendly and "1" or "0"))
+	SendGuildMessage(MESSAGE_TYPE.GROUP_LIST_ANSWER, {
+		id = GuildFoundTools.LFG.ownGroupId,
+		category = group.category,
+		dungeon = group.dungeon,
+		description = group.description,
+		maxMembers = group.maxMembers,
+		leader = group.leader,
+		members = group.members,
+		beginnerFriendly = group.beginnerFriendly,
+		applicants = group.applicants,
+	})
 end
 
-GuildFoundTools.MessageHandlers.GROUP_LIST_ANSWER = function(fields)
-	-- GA groupId category dungeon description maxMembers leader members(comma-sep) beginnerFriendly
-	local groupId = fields[2]
-	if not groupId then return end
+GuildFoundTools.MessageHandlers.GROUP_LIST_ANSWER = function(data)
+	if not data or not data.id then return end
 
 	-- Don't overwrite if we already have it
-	if GuildFoundTools.groups[groupId] then return end
+	if GuildFoundTools.groups[data.id] then return end
 
-	local category = fields[3]
-	local dungeon = fields[4]
-	local description = fields[5]
-	local maxMembers = tonumber(fields[6]) or 5
-	local leader = fields[7] or ""
-	local membersString = fields[8] or leader
-	local beginnerFriendly = fields[9] == "1"
-
-	local members = {}
-	if membersString and membersString ~= "" then
-		for entry in membersString:gmatch("[^,]+") do
-			local name, entryRole = strsplit(":", entry)
-			members[name] = entryRole or "DD"
-		end
-	end
-
-	GuildFoundTools.groups[groupId] = {
-		id = groupId,
-		category = category or "Custom",
-		dungeon = dungeon or "",
-		description = description or "",
-		maxMembers = maxMembers,
-		beginnerFriendly = beginnerFriendly,
-		leader = leader,
-		members = members,
-		createdAt = time(),
-	}
+	data.createdAt = time()
+	GuildFoundTools.groups[data.id] = data
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_LEADER_CHANGE = function(fields)
-	local groupId = fields[2]
-	local newLeader = fields[3]
-	if not groupId or not newLeader then return end
+GuildFoundTools.MessageHandlers.GROUP_LEADER_CHANGE = function(data)
+	if not data or not data.groupId or not data.newLeader then return end
+
+	local groupId = data.groupId
+	local newLeader = data.newLeader
 
 	local group = GuildFoundTools.groups[groupId]
 	if not group then return end
@@ -497,12 +529,12 @@ end
 -- ============================================================
 
 -- Receive role change from any guild member
-GuildFoundTools.MessageHandlers.LFG_ROLE_CHANGE = function(fields, sender)
-	-- LFG_ROLE_CHANGE groupId playerName newRole
-	local groupId = fields[2]
-	local memberName = fields[3]
-	local newRole = fields[4]
-	if not groupId or not memberName or not newRole then return end
+GuildFoundTools.MessageHandlers.LFG_ROLE_CHANGE = function(data, sender)
+	if not data or not data.groupId or not data.name or not data.role then return end
+
+	local groupId = data.groupId
+	local memberName = data.name
+	local newRole = data.role
 
 	local group = GuildFoundTools.groups[groupId]
 	if not group then return end
@@ -531,7 +563,7 @@ function GuildFoundTools.LFG.ChangeMyRole(newRole)
 	end
 
 	GuildFoundTools.Utils.Debounce("LFG_roleChange", 1, function()
-		SendGuildMessage(Serialize(MESSAGE_TYPE.LFG_ROLE_CHANGE, myGroup.id, playerName, newRole))
+		SendGuildMessage(MESSAGE_TYPE.LFG_ROLE_CHANGE, { groupId = myGroup.id, name = playerName, role = newRole })
 	end)
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
@@ -577,7 +609,14 @@ GuildFoundTools.EventHandlers.GROUP_JOINED = function()
 end
 
 GuildFoundTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
-	HandlePartyRosterUpdate()
+	if not GuildFoundTools.LFG.ownGroupId then return end
+
+	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	if not group then return end
+
+	UpdateGroupMembers()
+	SaveGroupToStorage(group)
+	BroadcastMemberSync()
 end
 
 GuildFoundTools.EventHandlers.GROUP_LEFT = function()
@@ -601,7 +640,7 @@ GuildFoundTools.EventHandlers.PARTY_LEADER_CHANGED = function()
 						ClearGroupFromStorage()
 						GuildFoundTools.LFG.ownGroupId = nil
 
-						SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LEADER_CHANGE, group.id, name))
+						SendGuildMessage(MESSAGE_TYPE.GROUP_LEADER_CHANGE, { groupId = group.id, newLeader = name })
 					end
 					break
 				end
@@ -1071,6 +1110,30 @@ local function CreateGroupRow(parent)
 			GameTooltip:AddLine(string.format(L["TooltipMembersSummary"], #self.roleArea.members, self.groupMaxMembers or "?", tankCount, healCount, ddCount))
 		end
 
+		-- Applicants section
+		if self.roleArea.applicantsList and #self.roleArea.applicantsList > 0 then
+			GameTooltip:AddLine(" ")
+			GameTooltip:AddLine(L["ApplicantsHeader"], 1, 0.82, 0)
+			for _, applicantInfo in ipairs(self.roleArea.applicantsList) do
+				local roleIcon = ROLE_ICON_MARKUP[applicantInfo.role] or ROLE_ICON_MARKUP["DD"]
+				local classFileName, level = GetGuildMemberInfo(applicantInfo.name)
+
+				local red, green, blue = 1, 1, 1
+				if classFileName and RAID_CLASS_COLORS[classFileName] then
+					red = RAID_CLASS_COLORS[classFileName].r
+					green = RAID_CLASS_COLORS[classFileName].g
+					blue = RAID_CLASS_COLORS[classFileName].b
+				end
+
+				local levelText = ""
+				if level and level > 0 then
+					levelText = " |cff888888Lvl " .. level .. "|r"
+				end
+
+				GameTooltip:AddLine(roleIcon .. " " .. applicantInfo.name .. levelText, red, green, blue)
+			end
+		end
+
 		-- Description (if exists)
 		if self.groupDescription and self.groupDescription ~= "" then
 			GameTooltip:AddLine(" ")
@@ -1112,9 +1175,22 @@ end
 -- Update action bar based on selected group
 -- ============================================================
 
+local withdrawButton = CreateFrame("Button", nil, actionBar, "UIPanelButtonTemplate")
+withdrawButton:SetSize(120, 24)
+withdrawButton:SetPoint("LEFT", 0, 0)
+withdrawButton:SetText(L["ButtonWithdraw"])
+withdrawButton:Hide()
+
+local pendingText = actionBar:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+pendingText:SetPoint("LEFT", withdrawButton, "RIGHT", 8, 0)
+pendingText:SetText(L["ApplicationPending"])
+pendingText:Hide()
+
 local function UpdateActionBar()
 	signupButton:Hide()
 	leaveButton:Hide()
+	withdrawButton:Hide()
+	pendingText:Hide()
 
 	local playerName = UnitName("player")
 	local ownGroupId = GuildFoundTools.LFG.ownGroupId
@@ -1125,6 +1201,9 @@ local function UpdateActionBar()
 		if group then
 			if group.members[playerName] then
 				leaveButton:Show()
+			elseif group.applicants and group.applicants[playerName] then
+				withdrawButton:Show()
+				pendingText:Show()
 			else
 				signupButton:Show()
 				signupButton:SetEnabled(GuildFoundTools.LFG.GetMemberCount(group) < group.maxMembers)
@@ -1143,6 +1222,11 @@ signupButton:SetScript("OnClick", function(self)
 end)
 
 leaveButton:SetScript("OnClick", function()
+	if not selectedGroupId then return end
+	GuildFoundTools.LFG.LeaveGroup(selectedGroupId)
+end)
+
+withdrawButton:SetScript("OnClick", function()
 	if not selectedGroupId then return end
 	GuildFoundTools.LFG.LeaveGroup(selectedGroupId)
 end)
@@ -1230,6 +1314,18 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 			return (ROLE_SORT_ORDER[a.role] or 3) < (ROLE_SORT_ORDER[b.role] or 3)
 		end)
 		row.roleArea.members = memberInfoList
+
+		-- Build applicants list for tooltip
+		local applicantInfoList = {}
+		if group.applicants then
+			for applicantName, role in pairs(group.applicants) do
+				table.insert(applicantInfoList, { name = applicantName, role = role })
+			end
+			table.sort(applicantInfoList, function(a, b)
+				return (ROLE_SORT_ORDER[a.role] or 3) < (ROLE_SORT_ORDER[b.role] or 3)
+			end)
+		end
+		row.roleArea.applicantsList = applicantInfoList
 
 		-- Row icons: sorted strictly by role (TANK, HEAL, DD)
 		local iconSortedMembers = {}
@@ -1338,6 +1434,17 @@ function GuildFoundTools.LFG.GetMyGroup()
 	local playerName = GetPlayerName()
 	for _, group in pairs(GuildFoundTools.groups) do
 		if group.members[playerName] then
+			return group
+		end
+	end
+	return nil
+end
+
+-- Check if player is an applicant to any group
+function GuildFoundTools.LFG.GetMyApplicationGroup()
+	local playerName = GetPlayerName()
+	for _, group in pairs(GuildFoundTools.groups) do
+		if group.applicants and group.applicants[playerName] then
 			return group
 		end
 	end
@@ -1599,12 +1706,167 @@ rightButton:SetScript("OnEnter", function(self)
 end)
 rightButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
--- Placeholder text for "My Group" list view (when no signups yet)
+-- Placeholder text for "My Group" list view (when no applicants yet)
 local myGroupInfoText = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
 myGroupInfoText:SetPoint("CENTER", 0, 0)
 myGroupInfoText:SetJustifyH("CENTER")
-myGroupInfoText:SetText(L["NoSignupsYet"])
+myGroupInfoText:SetText(L["NoApplicantsYet"])
 myGroupInfoText:Hide()
+
+-- Applicants scroll frame for "My Group" tab
+local applicantsScrollFrame = CreateFrame("ScrollFrame", "GuildFoundToolsApplicantsScrollFrame", createGroupContent, "UIPanelScrollFrameTemplate")
+applicantsScrollFrame:SetPoint("TOPLEFT", 0, FORM_TOP_OFFSET)
+applicantsScrollFrame:SetPoint("BOTTOMRIGHT", -16, 30)
+applicantsScrollFrame:Hide()
+
+local applicantsScrollBar = applicantsScrollFrame.ScrollBar or _G["GuildFoundToolsApplicantsScrollFrameScrollBar"]
+applicantsScrollBar:ClearAllPoints()
+applicantsScrollBar:SetPoint("TOPLEFT", applicantsScrollFrame, "TOPRIGHT", 0, -16)
+applicantsScrollBar:SetPoint("BOTTOMLEFT", applicantsScrollFrame, "BOTTOMRIGHT", 0, 16)
+
+local applicantsScrollChild = CreateFrame("Frame", "GuildFoundToolsApplicantsScrollChild", applicantsScrollFrame)
+applicantsScrollChild:SetSize(applicantsScrollFrame:GetWidth(), 1)
+applicantsScrollFrame:SetScrollChild(applicantsScrollChild)
+
+-- Applicant row pool
+local applicantRowPool = {}
+local activeApplicantRows = {}
+
+local function CreateApplicantRow(parent)
+	local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+	row:SetHeight(30)
+	row:SetBackdrop({
+		bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		tile = true,
+		tileSize = 16,
+		edgeSize = 12,
+		insets = { left = 2, right = 2, top = 2, bottom = 2 },
+	})
+	row:SetBackdropColor(0, 0, 0, 0.4)
+
+	-- Role icon
+	row.roleIcon = row:CreateTexture(nil, "ARTWORK")
+	row.roleIcon:SetSize(20, 20)
+	row.roleIcon:SetPoint("LEFT", 6, 0)
+	row.roleIcon:SetTexture(ROLE_TEXTURE)
+
+	-- Name text
+	row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	row.nameText:SetPoint("LEFT", row.roleIcon, "RIGHT", 6, 0)
+	row.nameText:SetJustifyH("LEFT")
+
+	-- Decline button
+	row.declineButton = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+	row.declineButton:SetSize(80, 22)
+	row.declineButton:SetPoint("RIGHT", -4, 0)
+	row.declineButton:SetText(L["ButtonDecline"])
+
+	-- Accept button
+	row.acceptButton = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+	row.acceptButton:SetSize(80, 22)
+	row.acceptButton:SetPoint("RIGHT", row.declineButton, "LEFT", -4, 0)
+	row.acceptButton:SetText(L["ButtonAccept"])
+
+	return row
+end
+
+local function ReleaseApplicantRows()
+	for _, row in ipairs(activeApplicantRows) do
+		row:Hide()
+		table.insert(applicantRowPool, row)
+	end
+	wipe(activeApplicantRows)
+end
+
+local function AcquireApplicantRow()
+	local row = table.remove(applicantRowPool)
+	if not row then
+		row = CreateApplicantRow(applicantsScrollChild)
+	end
+	row:SetParent(applicantsScrollChild)
+	row:ClearAllPoints()
+	row:Show()
+	return row
+end
+
+local function UpdateApplicantsList(group, isLeader)
+	ReleaseApplicantRows()
+
+	local applicants = group.applicants or {}
+	local applicantList = {}
+	for applicantName, role in pairs(applicants) do
+		table.insert(applicantList, { name = applicantName, role = role })
+	end
+
+	local ROLE_SORT_ORDER = { ["TANK"] = 1, ["HEAL"] = 2, ["DD"] = 3 }
+	table.sort(applicantList, function(a, b)
+		return (ROLE_SORT_ORDER[a.role] or 3) < (ROLE_SORT_ORDER[b.role] or 3)
+	end)
+
+	if #applicantList == 0 then
+		applicantsScrollFrame:Hide()
+		myGroupInfoText:SetText(L["NoApplicantsYet"])
+		myGroupInfoText:Show()
+		return
+	end
+
+	myGroupInfoText:Hide()
+	applicantsScrollFrame:Show()
+
+	local yOffset = 0
+	for _, applicantInfo in ipairs(applicantList) do
+		local row = AcquireApplicantRow()
+		row:SetPoint("TOPLEFT", applicantsScrollChild, "TOPLEFT", 0, -yOffset)
+		row:SetPoint("RIGHT", applicantsScrollChild, "RIGHT", 0, 0)
+
+		-- Role icon
+		local texCoords = ROLE_TEXCOORDS[applicantInfo.role] or ROLE_TEXCOORDS["DD"]
+		row.roleIcon:SetTexCoord(unpack(texCoords))
+
+		-- Name with class color
+		local classFileName, level = GetGuildMemberInfo(applicantInfo.name)
+		local red, green, blue = 1, 1, 1
+		if classFileName and RAID_CLASS_COLORS[classFileName] then
+			red = RAID_CLASS_COLORS[classFileName].r
+			green = RAID_CLASS_COLORS[classFileName].g
+			blue = RAID_CLASS_COLORS[classFileName].b
+		end
+
+		local nameDisplay = applicantInfo.name
+		if level and level > 0 then
+			nameDisplay = nameDisplay .. " |cff888888(" .. level .. ")|r"
+		end
+		row.nameText:SetText(nameDisplay)
+		row.nameText:SetTextColor(red, green, blue)
+
+		-- Show/hide buttons based on leader status
+		if isLeader then
+			row.acceptButton:Show()
+			row.declineButton:Show()
+			row.acceptButton:SetScript("OnClick", function()
+				GuildFoundTools.LFG.AcceptApplicant(group.id, applicantInfo.name)
+			end)
+			row.declineButton:SetScript("OnClick", function()
+				GuildFoundTools.LFG.DeclineApplicant(group.id, applicantInfo.name)
+			end)
+		else
+			row.acceptButton:Hide()
+			row.declineButton:Hide()
+		end
+
+		table.insert(activeApplicantRows, row)
+		yOffset = yOffset + 33
+	end
+
+	applicantsScrollChild:SetHeight(yOffset)
+
+	if yOffset > applicantsScrollFrame:GetHeight() then
+		applicantsScrollBar:Show()
+	else
+		applicantsScrollBar:Hide()
+	end
+end
 
 -- Member info text (shown when player is member of someone else's group)
 local memberInfoText = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -1673,11 +1935,13 @@ end
 local function ShowMyGroupListView(myGroup)
 	ShowFormElements(false)
 	memberInfoText:Hide()
-	myGroupInfoText:Show()
 
 	-- Show current role selection
 	selectedRole = myGroup.members[GetPlayerName()] or "DD"
 	UpdateRoleButtons()
+
+	-- Show applicants list
+	UpdateApplicantsList(myGroup, myGroup.leader == GetPlayerName())
 
 	leftButton:SetText(L["ButtonRemoveGroup"])
 	leftButton:Show()
@@ -1690,6 +1954,8 @@ local function ShowMyGroupEditView(myGroup)
 	ShowFormElements(true)
 	memberInfoText:Hide()
 	myGroupInfoText:Hide()
+	applicantsScrollFrame:Hide()
+	ReleaseApplicantRows()
 	PopulateFormFromGroup(myGroup)
 
 	leftButton:SetText(L["ButtonBack"])
@@ -1717,7 +1983,7 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 				ShowMyGroupListView(myGroup)
 			end
 		else
-			-- Member: show info text and role selection
+			-- Member: show info text, role selection, and applicants
 			isEditingMyGroup = false
 			beginnerFriendlyButton:Hide()
 			UpdateRoleContainerLayout()
@@ -1731,6 +1997,9 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 			-- Set role from group data and show role buttons
 			selectedRole = myGroup.members[playerName] or "DD"
 			UpdateRoleButtons()
+
+			-- Show applicants (read-only, no buttons)
+			UpdateApplicantsList(myGroup, false)
 		end
 	else
 		GuildFoundTools.UI.SetTabText(2, L["TabCreateGroup"])
@@ -1744,6 +2013,8 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 		ShowFormElements(true)
 		memberInfoText:Hide()
 		myGroupInfoText:Hide()
+		applicantsScrollFrame:Hide()
+		ReleaseApplicantRows()
 		leftButton:Hide()
 		rightButton:SetText(L["ButtonCreate"])
 		rightButton:Show()

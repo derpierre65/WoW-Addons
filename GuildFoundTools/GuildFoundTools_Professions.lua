@@ -8,7 +8,6 @@ GuildFoundTools.Professions = GuildFoundTools.Professions or {}
 
 local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
 local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
-local Serialize = GuildFoundTools.Serialize
 local SendGuildMessage = GuildFoundTools.SendGuildMessage
 
 -- ============================================================
@@ -99,7 +98,7 @@ function GuildFoundTools.Professions.RequestProfessions()
 	-- Clear old data
 	wipe(GuildFoundTools.professions)
 
-	SendGuildMessage(Serialize(MESSAGE_TYPE.PROFESSION_QUERY))
+	SendGuildMessage(MESSAGE_TYPE.PROFESSION_QUERY)
 
 	if GuildFoundTools.UI and GuildFoundTools.UI.UpdateProfessionsUI then
 		GuildFoundTools.UI.UpdateProfessionsUI()
@@ -110,50 +109,37 @@ end
 -- Profession message handlers
 -- ============================================================
 
-GuildFoundTools.MessageHandlers.PROFESSION_QUERY = function(fields, sender)
+GuildFoundTools.MessageHandlers.PROFESSION_QUERY = function(data, sender)
 	-- Someone is requesting professions; respond with ours
 	local myProfessions = GuildFoundTools.Professions.ScanProfessions()
 
 	for _, profession in ipairs(myProfessions) do
 		local recipes = scannedRecipes[profession.name]
-		local itemIdsString = ""
+		local recipeItemIds = {}
 		if recipes and #recipes > 0 then
-			local itemIds = {}
 			for _, recipe in ipairs(recipes) do
-				table.insert(itemIds, recipe.itemId)
+				table.insert(recipeItemIds, recipe.itemId)
 			end
-			itemIdsString = table.concat(itemIds, ",")
 		end
 
-		SendGuildMessage(Serialize(MESSAGE_TYPE.PROFESSION_ANSWER, profession.name, profession.rank, profession.maxRank, itemIdsString))
+		SendGuildMessage(MESSAGE_TYPE.PROFESSION_ANSWER, {
+			name = profession.name,
+			rank = profession.rank,
+			maxRank = profession.maxRank,
+			recipes = recipeItemIds,
+		})
 	end
 end
 
-GuildFoundTools.MessageHandlers.PROFESSION_ANSWER = function(fields, sender)
-	-- PA profName rank maxRank itemIds
-	local professionName = fields[2]
-	local rank = tonumber(fields[3]) or 0
-	local maxRank = tonumber(fields[4]) or 0
-	local itemIdsString = fields[5] or ""
-
-	if not professionName then return end
+GuildFoundTools.MessageHandlers.PROFESSION_ANSWER = function(data, sender)
+	if not data or not data.name then return end
 
 	GuildFoundTools.professions[sender] = GuildFoundTools.professions[sender] or {}
 
-	local recipes = {}
-	if itemIdsString ~= "" then
-		for itemId in itemIdsString:gmatch("[^,]+") do
-			local id = tonumber(itemId)
-			if id and id > 0 then
-				table.insert(recipes, id)
-			end
-		end
-	end
-
-	GuildFoundTools.professions[sender][professionName] = {
-		rank = rank,
-		maxRank = maxRank,
-		recipes = recipes,
+	GuildFoundTools.professions[sender][data.name] = {
+		rank = data.rank or 0,
+		maxRank = data.maxRank or 0,
+		recipes = data.recipes or {},
 	}
 
 	if GuildFoundTools.UI and GuildFoundTools.UI.UpdateProfessionsUI then
