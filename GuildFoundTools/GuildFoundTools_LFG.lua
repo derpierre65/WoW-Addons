@@ -543,6 +543,11 @@ GuildFoundTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
 	HandlePartyRosterUpdate()
 end
 
+GuildFoundTools.EventHandlers.GROUP_LEFT = function()
+	if not GuildFoundTools.LFG.ownGroupId then return end
+	GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+end
+
 GuildFoundTools.EventHandlers.PARTY_LEADER_CHANGED = function()
 	if not GuildFoundTools.LFG.ownGroupId then return end
 
@@ -1757,7 +1762,7 @@ end)
 -- ============================================================
 
 local partyRolePopup = CreateFrame("Frame", "GuildFoundToolsPartyRolePopup", UIParent, "BasicFrameTemplateWithInset")
-partyRolePopup:SetSize(200, 100)
+partyRolePopup:SetSize(230, 100)
 partyRolePopup:SetPoint("CENTER")
 partyRolePopup:SetFrameStrata("DIALOG")
 partyRolePopup:Hide()
