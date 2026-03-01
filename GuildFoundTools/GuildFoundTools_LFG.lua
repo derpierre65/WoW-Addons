@@ -1271,10 +1271,9 @@ local function UpdateRoleButtons()
 	end
 end
 
--- Container to center all role buttons (3 roles + 1 beginner = 4 buttons)
-local totalRoleWidth = 4 * ROLE_BUTTON_SIZE + 3 * ROLE_BUTTON_SPACING
+-- Container to center all role buttons
 local roleContainer = CreateFrame("Frame", nil, createGroupContent)
-roleContainer:SetSize(totalRoleWidth, ROLE_BUTTON_SIZE)
+roleContainer:SetSize(1, ROLE_BUTTON_SIZE)
 roleContainer:SetPoint("TOP", 0, -8)
 
 for index, roleData in ipairs(roles) do
@@ -1352,6 +1351,23 @@ beginnerFriendlyButton:SetScript("OnEnter", function(self)
 end)
 beginnerFriendlyButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+local function UpdateRoleContainerLayout()
+	local buttonCount = #roleButtons
+	if beginnerFriendlyButton:IsShown() then
+		buttonCount = buttonCount + 1
+	end
+	local totalWidth = buttonCount * ROLE_BUTTON_SIZE + (buttonCount - 1) * ROLE_BUTTON_SPACING
+	roleContainer:SetWidth(totalWidth)
+
+	for index, roleButton in ipairs(roleButtons) do
+		roleButton:ClearAllPoints()
+		roleButton:SetPoint("LEFT", (index - 1) * (ROLE_BUTTON_SIZE + ROLE_BUTTON_SPACING), 0)
+	end
+
+	beginnerFriendlyButton:ClearAllPoints()
+	beginnerFriendlyButton:SetPoint("LEFT", #roleButtons * (ROLE_BUTTON_SIZE + ROLE_BUTTON_SPACING), 0)
+end
+
 local FORM_TOP_OFFSET = -68
 
 -- Category dropdown
@@ -1378,6 +1394,23 @@ UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
 
 local selectedDungeon = ""
 
+local leftButton, rightButton -- forward declarations
+
+local function IsDungeonSelectionValid()
+	local requiresDungeon = (selectedCategory == "Dungeons" or selectedCategory == "Raids")
+	return not requiresDungeon or (selectedDungeon ~= "")
+end
+
+local function UpdateFormValidation()
+	if not rightButton then return end
+
+	if IsDungeonSelectionValid() then
+		rightButton:Enable()
+	else
+		rightButton:Disable()
+	end
+end
+
 local function InitDungeonDropdown(self, level)
 	local dungeons = DUNGEON_LIST[selectedCategory] or {}
 	if #dungeons == 0 then
@@ -1396,6 +1429,7 @@ local function InitDungeonDropdown(self, level)
 			selectedDungeon = dungeon.id
 			UIDropDownMenu_SetText(dungeonDropdown, GetDungeonDisplayText(dungeon))
 			CloseDropDownMenus()
+			UpdateFormValidation()
 		end
 		info.checked = (selectedDungeon == dungeon.id)
 		UIDropDownMenu_AddButton(info)
@@ -1422,6 +1456,7 @@ local function InitCategoryDropdown(self, level)
 			else
 				dungeonDropdown:SetAlpha(1)
 			end
+			UpdateFormValidation()
 		end
 		info.checked = (selectedCategory == category)
 		UIDropDownMenu_AddButton(info)
@@ -1465,12 +1500,12 @@ maxMembersEditBox:SetScript("OnTextChanged", function(self)
 end)
 
 -- Bottom buttons (shared between all states)
-local leftButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
+leftButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
 leftButton:SetSize(140, 26)
 leftButton:SetPoint("BOTTOMLEFT", 0, 0)
 leftButton:SetText(L["ButtonCreate"])
 
-local rightButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
+rightButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTemplate")
 rightButton:SetSize(140, 26)
 rightButton:SetPoint("BOTTOMRIGHT", 0, 0)
 rightButton:Hide()
@@ -1513,6 +1548,7 @@ local function ResetForm()
 	UpdateRoleButtons()
 	selectedBeginnerFriendly = false
 	UpdateBeginnerFriendlyButton()
+	UpdateFormValidation()
 end
 
 local function PopulateFormFromGroup(group)
@@ -1542,6 +1578,7 @@ local function PopulateFormFromGroup(group)
 
 	selectedBeginnerFriendly = group.beginnerFriendly or false
 	UpdateBeginnerFriendlyButton()
+	UpdateFormValidation()
 end
 
 -- State tracking for "Meine Gruppe" tab
@@ -1559,6 +1596,7 @@ local function ShowMyGroupListView(myGroup)
 	leftButton:SetText(L["ButtonRemoveGroup"])
 	leftButton:Show()
 	rightButton:SetText(L["ButtonEdit"])
+	rightButton:Enable()
 	rightButton:Show()
 end
 
@@ -1582,16 +1620,20 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 		GuildFoundTools.UI.SetTabText(2, L["TabMyGroup"])
 
 		if myGroup.leader == playerName then
-			beginnerFriendlyButton:Show()
 			if isEditingMyGroup then
+				beginnerFriendlyButton:Show()
+				UpdateRoleContainerLayout()
 				ShowMyGroupEditView(myGroup)
 			else
+				beginnerFriendlyButton:Hide()
+				UpdateRoleContainerLayout()
 				ShowMyGroupListView(myGroup)
 			end
 		else
 			-- Member: show info text and role selection
 			isEditingMyGroup = false
 			beginnerFriendlyButton:Hide()
+			UpdateRoleContainerLayout()
 			ShowFormElements(false)
 			myGroupInfoText:Hide()
 			leftButton:Hide()
@@ -1607,50 +1649,38 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 		GuildFoundTools.UI.SetTabText(2, L["TabCreateGroup"])
 		isEditingMyGroup = false
 		beginnerFriendlyButton:Show()
+		UpdateRoleContainerLayout()
 		ShowFormElements(true)
 		memberInfoText:Hide()
 		myGroupInfoText:Hide()
-		leftButton:SetText(L["ButtonCreate"])
-		leftButton:Show()
-		rightButton:Hide()
+		leftButton:Hide()
+		rightButton:SetText(L["ButtonCreate"])
+		rightButton:Show()
 		ResetForm()
 	end
 end
 
 leftButton:SetScript("OnClick", function()
 	local myGroup = GuildFoundTools.LFG.GetMyGroup()
+	if not myGroup or myGroup.leader ~= GetPlayerName() then return end
 
-	if myGroup and myGroup.leader == GetPlayerName() then
-		if isEditingMyGroup then
-			-- "Zurück" -> back to list view
-			isEditingMyGroup = false
-			GuildFoundTools.LFG.UpdateCreateGroupTab()
-		else
-			-- "Gruppe entfernen" -> remove group
-			if GuildFoundTools.LFG.ownGroupId then
-				GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
-			end
-		end
+	if isEditingMyGroup then
+		-- "Zurück" -> back to list view
+		isEditingMyGroup = false
+		GuildFoundTools.LFG.UpdateCreateGroupTab()
 	else
-		-- "Erstellen" -> create new group
-		local category = selectedCategory
-		local dungeon = selectedDungeon
-		local description = descriptionEditBox:GetText() or ""
-		local maxMembers = tonumber(maxMembersEditBox:GetText()) or 5
-
-		if maxMembers < 1 then maxMembers = 1 end
-		if maxMembers > 40 then maxMembers = 40 end
-
-		GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+		-- "Gruppe entfernen" -> remove group
+		if GuildFoundTools.LFG.ownGroupId then
+			GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+		end
 	end
 end)
 
 rightButton:SetScript("OnClick", function()
 	local myGroup = GuildFoundTools.LFG.GetMyGroup()
-	if not myGroup or myGroup.leader ~= GetPlayerName() then return end
 
-	if isEditingMyGroup then
-		-- "Speichern" -> save edits
+	if myGroup and myGroup.leader == GetPlayerName() and isEditingMyGroup then
+		-- save edits
 		local category = selectedCategory
 		local dungeon = selectedDungeon
 		local description = descriptionEditBox:GetText() or ""
@@ -1662,10 +1692,21 @@ rightButton:SetScript("OnClick", function()
 		GuildFoundTools.LFG.EditGroup(GuildFoundTools.LFG.ownGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 		isEditingMyGroup = false
 		GuildFoundTools.LFG.UpdateCreateGroupTab()
-	else
-		-- "Bearbeiten" -> switch to edit view
+	elseif myGroup then
+		-- switch to edit view
 		isEditingMyGroup = true
 		GuildFoundTools.LFG.UpdateCreateGroupTab()
+	else
+		-- create new group
+		local category = selectedCategory
+		local dungeon = selectedDungeon
+		local description = descriptionEditBox:GetText() or ""
+		local maxMembers = tonumber(maxMembersEditBox:GetText()) or 5
+
+		if maxMembers < 1 then maxMembers = 1 end
+		if maxMembers > 40 then maxMembers = 40 end
+
+		GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 	end
 end)
 
