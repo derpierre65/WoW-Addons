@@ -1217,21 +1217,29 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 		-- Beginner friendly icon
 		row.beginnerFriendlyIcon:SetShown(group.beginnerFriendly == true)
 
-		-- Role icon slots (right side)
+		-- Build member lists
 		local memberInfoList = {}
 		for memberName, role in pairs(group.members) do
 			table.insert(memberInfoList, { name = memberName, role = role })
 		end
 
-		-- Sort members: leader first, then by role priority (TANK, HEAL, DD)
+		-- Tooltip: leader first, then by role priority
 		local ROLE_SORT_ORDER = { ["TANK"] = 1, ["HEAL"] = 2, ["DD"] = 3 }
 		table.sort(memberInfoList, function(a, b)
 			if a.name == group.leader then return true end
 			if b.name == group.leader then return false end
 			return (ROLE_SORT_ORDER[a.role] or 3) < (ROLE_SORT_ORDER[b.role] or 3)
 		end)
-
 		row.roleArea.members = memberInfoList
+
+		-- Row icons: sorted strictly by role (TANK, HEAL, DD)
+		local iconSortedMembers = {}
+		for memberName, role in pairs(group.members) do
+			table.insert(iconSortedMembers, { name = memberName, role = role })
+		end
+		table.sort(iconSortedMembers, function(a, b)
+			return (ROLE_SORT_ORDER[a.role] or 3) < (ROLE_SORT_ORDER[b.role] or 3)
+		end)
 
 		-- Anchor beginner friendly icon
 		local rightEdgeOffset = -8
@@ -1286,8 +1294,8 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 					slot:SetTexture(ROLE_TEXTURE)
 
 					local memberIndex = maxSlots - slotIndex + 1
-					if memberIndex <= #memberInfoList then
-						local role = memberInfoList[memberIndex].role
+					if memberIndex <= #iconSortedMembers then
+						local role = iconSortedMembers[memberIndex].role
 						slot:SetTexCoord(unpack(ROLE_TEXCOORDS[role] or ROLE_TEXCOORDS["DD"]))
 						slot:SetDesaturated(false)
 						slot:SetAlpha(1)
