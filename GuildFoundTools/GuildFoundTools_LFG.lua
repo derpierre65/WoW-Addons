@@ -994,9 +994,9 @@ local function CreateGroupRow(parent)
 	row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	row:SetScript("OnClick", function(self, button)
 		if button == "RightButton" then
-			if self.groupId == GuildFoundTools.LFG.ownGroupId then return end
 			local group = GuildFoundTools.groups[self.groupId]
 			if not group then return end
+			if group.members[UnitName("player")] then return end
 
 			ShowContextMenu(self, group)
 		else
@@ -1208,9 +1208,11 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 			table.insert(memberInfoList, { name = memberName, role = role })
 		end
 
-		-- Sort members by role priority: TANK first, then HEAL, then DD
+		-- Sort members: leader first, then by role priority (TANK, HEAL, DD)
 		local ROLE_SORT_ORDER = { ["TANK"] = 1, ["HEAL"] = 2, ["DD"] = 3 }
 		table.sort(memberInfoList, function(a, b)
+			if a.name == group.leader then return true end
+			if b.name == group.leader then return false end
 			return (ROLE_SORT_ORDER[a.role] or 3) < (ROLE_SORT_ORDER[b.role] or 3)
 		end)
 
