@@ -294,6 +294,8 @@ GuildFoundTools.MessageHandlers.GROUP_CREATE = function(fields, sender)
 
 	if not groupId then return end
 
+	local isNewGroup = not GuildFoundTools.groups[groupId]
+
 	GuildFoundTools.groups[groupId] = {
 		id = groupId,
 		category = category or "Custom",
@@ -306,8 +308,8 @@ GuildFoundTools.MessageHandlers.GROUP_CREATE = function(fields, sender)
 		createdAt = time(),
 	}
 
-	-- Show role popup if we are in the leader's party
-	if leader ~= GetPlayerName() and GuildFoundTools.LFG.ShowPartyRolePopup then
+	-- Show role popup if we are in the leader's party (only for new groups)
+	if isNewGroup and leader ~= GetPlayerName() and GuildFoundTools.LFG.ShowPartyRolePopup then
 		local numGroupMembers = GetNumGroupMembers()
 		for index = 1, numGroupMembers do
 			local name = GetRaidRosterInfo(index)
