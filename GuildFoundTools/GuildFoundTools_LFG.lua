@@ -435,7 +435,6 @@ end
 
 -- Receive role change from any guild member
 GuildFoundTools.MessageHandlers.LFG_ROLE_CHANGE = function(fields, sender)
-
 	-- LFG_ROLE_CHANGE groupId playerName newRole
 	local groupId = fields[2]
 	local memberName = fields[3]
@@ -464,7 +463,9 @@ function GuildFoundTools.LFG.ChangeMyRole(newRole)
 		SaveGroupToStorage(myGroup)
 	end
 
-	SendGuildMessage(Serialize(MESSAGE_TYPE.LFG_ROLE_CHANGE, myGroup.id, playerName, newRole))
+	GuildFoundTools.Utils.Debounce("LFG_roleChange", 1, function()
+		SendGuildMessage(Serialize(MESSAGE_TYPE.LFG_ROLE_CHANGE, myGroup.id, playerName, newRole))
+	end)
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()

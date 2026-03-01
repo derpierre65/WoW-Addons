@@ -12,6 +12,7 @@ Localization\enUS.lua
 Localization\deDE.lua
 
 GuildFoundTools_Enums.lua
+GuildFoundTools_Utils.lua
 GuildFoundTools.lua
 GuildFoundTools_UI.lua
 GuildFoundTools_Minimap.lua
