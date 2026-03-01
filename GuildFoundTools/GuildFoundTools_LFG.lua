@@ -146,9 +146,7 @@ local function RestoreGroupFromStorage()
 		local name = GetRaidRosterInfo(index)
 		if name then
 			name = strsplit("-", name)
-			if savedMembers[name] then
-				restoredMembers[name] = savedMembers[name] or "DD"
-			end
+			restoredMembers[name] = savedMembers[name] or "DD"
 		end
 	end
 
@@ -493,6 +491,10 @@ GuildFoundTools.MessageHandlers.LFG_ROLE_CHANGE = function(fields, sender)
 	if not group then return end
 
 	group.members[memberName] = newRole
+
+	if group.leader == GetPlayerName() then
+		SaveGroupToStorage(group)
+	end
 
 	if GuildFoundToolsMainFrame:IsShown() and GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
