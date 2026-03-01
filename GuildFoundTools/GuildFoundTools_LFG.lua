@@ -436,6 +436,29 @@ GuildFoundTools.MessageHandlers.GROUP_LIST_ANSWER = function(fields)
 	end
 end
 
+GuildFoundTools.MessageHandlers.GROUP_LEADER_CHANGE = function(fields)
+	local groupId = fields[2]
+	local newLeader = fields[3]
+	if not groupId or not newLeader then return end
+
+	local group = GuildFoundTools.groups[groupId]
+	if not group then return end
+
+	group.leader = newLeader
+
+	-- If I am the new leader, take ownership
+	if newLeader == GetPlayerName() then
+		GuildFoundTools.LFG.ownGroupId = groupId
+		SaveGroupToStorage(group)
+	else
+		ClearGroupFromStorage()
+	end
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
 -- ============================================================
 -- Role change handling
 -- ============================================================
@@ -518,6 +541,38 @@ end
 
 GuildFoundTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
 	HandlePartyRosterUpdate()
+end
+
+GuildFoundTools.EventHandlers.PARTY_LEADER_CHANGED = function()
+	if not GuildFoundTools.LFG.ownGroupId then return end
+
+	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	if not group then return end
+
+	-- Only the old leader (who owns the group) should handle the transfer
+	if group.leader ~= GetPlayerName() then return end
+
+	-- Find the new party leader
+	local numGroupMembers = GetNumGroupMembers()
+	for index = 1, numGroupMembers do
+		local name, rank = GetRaidRosterInfo(index)
+		if name and rank == 2 then
+			name = strsplit("-", name)
+			if name ~= GetPlayerName() then
+				-- Transfer leadership
+				group.leader = name
+				ClearGroupFromStorage()
+				GuildFoundTools.LFG.ownGroupId = nil
+
+				SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LEADER_CHANGE, group.id, name))
+
+				if GuildFoundTools.LFG.UpdateLFGUI then
+					GuildFoundTools.LFG.UpdateLFGUI()
+				end
+			end
+			return
+		end
+	end
 end
 
 -- ============================================================
