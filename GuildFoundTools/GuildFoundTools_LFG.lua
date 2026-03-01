@@ -11,6 +11,33 @@ local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
 local Serialize = GuildFoundTools.Serialize
 local SendGuildMessage = GuildFoundTools.SendGuildMessage
 local GetPlayerName = GuildFoundTools.GetPlayerName
+local DUNGEON = GuildFoundTools.Enums.DUNGEON
+
+-- Constants
+local CATEGORIES = { "Dungeons", "Raids", "Custom" }
+local ROLE_NAMES = { "TANK", "HEAL", "DD" }
+local ROW_HEIGHT = 40
+local ROW_SPACING = 3
+local MAX_ROLE_SLOTS = 5
+local ACTION_BAR_HEIGHT = 30
+local ROLE_BUTTON_SIZE = 48
+local ROLE_BUTTON_SPACING = 8
+local FORM_TOP_OFFSET = -68
+
+-- State variables
+local pendingSignups = {}
+local rowPool = {}
+local activeRows = {}
+local selectedGroupId = nil
+local selectedRole = "DD"
+local selectedBeginnerFriendly = false
+local selectedCategory = "Dungeons"
+local selectedDungeon = ""
+local isEditingMyGroup = false
+local roleButtons = {}
+
+-- Forward declarations
+local leftButton, rightButton
 
 -- Generate a unique group ID
 local function GenerateGroupId()
@@ -236,8 +263,6 @@ end
 -- ============================================================
 -- LFG Message handlers
 -- ============================================================
-
-local pendingSignups = {} -- buffer for GS/GL arriving before GC
 
 GuildFoundTools.MessageHandlers.GROUP_CREATE = function(fields, sender)
 	-- GC groupId category dungeon description maxMembers leader leaderRole beginnerFriendly
@@ -574,10 +599,6 @@ end
 -- Dungeon/Raid data for Classic
 -- ============================================================
 
-local CATEGORIES = { "Dungeons", "Raids", "Custom" }
-
-local DUNGEON = GuildFoundTools.Enums.DUNGEON
-
 local DUNGEON_LOCALE_KEY = {
 	[DUNGEON.RAGEFIRE_CHASM] = "DungeonRagefireChasm",
 	[DUNGEON.WAILING_CAVERNS] = "DungeonWailingCaverns",
@@ -717,8 +738,6 @@ noGroupsText:SetJustifyH("CENTER")
 -- Bottom action bar
 -- ============================================================
 
-local ACTION_BAR_HEIGHT = 30
-
 local actionBar = CreateFrame("Frame", nil, contentFrame)
 actionBar:SetHeight(ACTION_BAR_HEIGHT)
 actionBar:SetPoint("BOTTOMLEFT", 0, 0)
@@ -757,8 +776,6 @@ rolePopup:Hide()
 rolePopup:EnableMouse(true)
 
 rolePopup.groupId = nil
-
-local ROLE_NAMES = { "TANK", "HEAL", "DD" }
 
 for index, roleName in ipairs(ROLE_NAMES) do
 	local button = CreateFrame("Button", nil, rolePopup)
@@ -813,14 +830,6 @@ scrollFrame:SetScrollChild(scrollChild)
 -- ============================================================
 -- Group row pool
 -- ============================================================
-
-local rowPool = {}
-local activeRows = {}
-local selectedGroupId = nil
-
-local ROW_HEIGHT = 40
-local ROW_SPACING = 3
-local MAX_ROLE_SLOTS = 5
 
 -- Right-click context menu using MenuUtil
 local function ShowContextMenu(owner, group)
@@ -1250,16 +1259,11 @@ function GuildFoundTools.LFG.GetMyGroup()
 end
 
 -- Role selection (top of form, large icons)
-local selectedRole = "DD"
-local roleButtons = {}
 local roles = {
 	{ key = "TANK" },
 	{ key = "HEAL" },
 	{ key = "DD" },
 }
-
-local ROLE_BUTTON_SIZE = 48
-local ROLE_BUTTON_SPACING = 8
 
 local function UpdateRoleButtons()
 	for _, roleButton in ipairs(roleButtons) do
@@ -1319,8 +1323,6 @@ for index, roleData in ipairs(roles) do
 end
 
 -- Beginner friendly button (next to role buttons)
-local selectedBeginnerFriendly = false
-
 local beginnerFriendlyButton = CreateFrame("Button", nil, roleContainer)
 beginnerFriendlyButton:SetSize(ROLE_BUTTON_SIZE, ROLE_BUTTON_SIZE)
 beginnerFriendlyButton:SetPoint("LEFT", 3 * (ROLE_BUTTON_SIZE + ROLE_BUTTON_SPACING), 0)
@@ -1372,8 +1374,6 @@ local function UpdateRoleContainerLayout()
 	beginnerFriendlyButton:SetPoint("LEFT", #roleButtons * (ROLE_BUTTON_SIZE + ROLE_BUTTON_SPACING), 0)
 end
 
-local FORM_TOP_OFFSET = -68
-
 -- Category dropdown
 local categoryLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 categoryLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET)
@@ -1384,8 +1384,6 @@ categoryDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 12)
 UIDropDownMenu_SetWidth(categoryDropdown, 140)
 UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
 
-local selectedCategory = "Dungeons"
-
 -- Dungeon dropdown
 local dungeonLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 dungeonLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 42)
@@ -1395,10 +1393,6 @@ local dungeonDropdown = CreateFrame("Frame", "GuildFoundToolsDungeonDropdown", c
 dungeonDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 54)
 UIDropDownMenu_SetWidth(dungeonDropdown, 280)
 UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
-
-local selectedDungeon = ""
-
-local leftButton, rightButton -- forward declarations
 
 local function IsDungeonSelectionValid()
 	local requiresDungeon = (selectedCategory == "Dungeons" or selectedCategory == "Raids")
@@ -1597,9 +1591,6 @@ local function PopulateFormFromGroup(group)
 	UpdateFormValidation()
 end
 
--- State tracking for "Meine Gruppe" tab
-local isEditingMyGroup = false
-
 local function ShowMyGroupListView(myGroup)
 	ShowFormElements(false)
 	memberInfoText:Hide()
@@ -1752,9 +1743,7 @@ local partyRoleLabel = partyRolePopup:CreateFontString(nil, "OVERLAY", "GameFont
 partyRoleLabel:SetPoint("TOP", 0, -30)
 partyRoleLabel:SetText(L["SelectRolePrompt"])
 
-local PARTY_ROLE_NAMES = { "TANK", "HEAL", "DD" }
-
-for index, roleName in ipairs(PARTY_ROLE_NAMES) do
+for index, roleName in ipairs(ROLE_NAMES) do
 	local button = CreateFrame("Button", nil, partyRolePopup)
 	button:SetSize(36, 36)
 	button:SetPoint("BOTTOM", -40 + (index - 1) * 40, 12)
