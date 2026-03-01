@@ -25,7 +25,6 @@ local ROLE_BUTTON_SPACING = 8
 local FORM_TOP_OFFSET = -68
 
 -- State variables
-local pendingSignups = {}
 local rowPool = {}
 local activeRows = {}
 local selectedGroupId = nil
@@ -74,6 +73,53 @@ local function ClearGroupFromStorage()
 	end
 end
 
+-- ============================================================
+-- Party member tracking
+-- ============================================================
+
+GuildFoundTools.LFG.ownGroupId = nil
+
+function GuildFoundTools.LFG.GetMemberCount(group)
+	local count = 0
+	for _ in pairs(group.members) do
+		count = count + 1
+	end
+	return count
+end
+
+local function SyncPartyMembers()
+	if not GuildFoundTools.LFG.ownGroupId then return end
+
+	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	if not group then return end
+
+	local newMembers = {
+		[GetPlayerName()] = group.members[GetPlayerName()] or "DD"
+	}
+	local numGroupMembers = GetNumGroupMembers()
+
+	for index = 1, numGroupMembers do
+		local name = GetRaidRosterInfo(index)
+		if name then
+			name = strsplit("-", name)
+			newMembers[name] = group.members[name] or "DD"
+		end
+	end
+
+	group.members = newMembers
+
+	-- Broadcast full member list to guild
+	local memberParts = {}
+	for memberName, role in pairs(group.members) do
+		table.insert(memberParts, memberName .. ":" .. role)
+	end
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_MEMBERS_SYNC, GuildFoundTools.LFG.ownGroupId, table.concat(memberParts, ",")))
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
 local function RestoreGroupFromStorage()
 	local characterGuid = UnitGUID("player")
 	if not characterGuid or not GuildFoundTools_LFG then return end
@@ -98,52 +144,7 @@ local function RestoreGroupFromStorage()
 
 	-- Broadcast to guild so others know the group exists
 	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_CREATE, group.id, group.category, group.dungeon, group.description, group.maxMembers, group.leader, saved.leaderRole or "DD", group.beginnerFriendly and "1" or "0"))
-
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
-	end
-end
-
--- ============================================================
--- Party member tracking
--- ============================================================
-
-GuildFoundTools.LFG.ownGroupId = nil
-
-function GuildFoundTools.LFG.GetMemberCount(group)
-	local count = 0
-	for _ in pairs(group.members) do
-		count = count + 1
-	end
-	return count
-end
-
-local function SyncPartyMembers()
-	if not GuildFoundTools.LFG.ownGroupId then return end
-
-	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
-	if not group then return end
-	local newMembers = { [GetPlayerName()] = group.members[GetPlayerName()] or "DD" }
-	local numGroupMembers = GetNumGroupMembers()
-
-	for index = 1, numGroupMembers do
-		local name = GetRaidRosterInfo(index)
-		if name then
-			name = strsplit("-", name)
-			if name ~= GetPlayerName() then
-				newMembers[name] = group.members[name] or "DD"
-			end
-		end
-	end
-
-	group.members = newMembers
-
-	-- Broadcast full member list to guild
-	local memberParts = {}
-	for memberName, role in pairs(group.members) do
-		table.insert(memberParts, memberName .. ":" .. role)
-	end
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_MEMBERS_SYNC, GuildFoundTools.LFG.ownGroupId, table.concat(memberParts, ",")))
+	SyncPartyMembers()
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -188,9 +189,9 @@ function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMemb
 	GuildFoundTools.groups[groupId] = group
 	GuildFoundTools.LFG.ownGroupId = groupId
 
-	SaveGroupToStorage(group)
-
 	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_CREATE, groupId, category, dungeon, description, maxMembers, GetPlayerName(), leaderRole or "DD", beginnerFriendly and "1" or "0"))
+	SyncPartyMembers()
+	SaveGroupToStorage(group)
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -289,17 +290,6 @@ GuildFoundTools.MessageHandlers.GROUP_CREATE = function(fields, sender)
 		createdAt = time(),
 	}
 
-	-- Apply any buffered signups
-	if pendingSignups[groupId] then
-		for _, signup in ipairs(pendingSignups[groupId]) do
-			local group = GuildFoundTools.groups[groupId]
-			if not group.members[signup.name] and GuildFoundTools.LFG.GetMemberCount(group) < group.maxMembers then
-				group.members[signup.name] = signup.role or "DD"
-			end
-		end
-		pendingSignups[groupId] = nil
-	end
-
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
@@ -342,15 +332,7 @@ GuildFoundTools.MessageHandlers.GROUP_SIGNUP = function(fields)
 	if not groupId or not memberName then return end
 
 	local group = GuildFoundTools.groups[groupId]
-	if not group then
-		-- Buffer the signup for a short time
-		pendingSignups[groupId] = pendingSignups[groupId] or {}
-		table.insert(pendingSignups[groupId], { name = memberName, role = memberRole })
-		C_Timer.After(5, function()
-			pendingSignups[groupId] = nil
-		end)
-		return
-	end
+	if not group then return end
 
 	if group.members[memberName] then return end
 
