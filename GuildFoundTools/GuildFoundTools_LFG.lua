@@ -306,6 +306,21 @@ GuildFoundTools.MessageHandlers.GROUP_CREATE = function(fields, sender)
 		createdAt = time(),
 	}
 
+	-- Show role popup if we are in the leader's party
+	if leader ~= GetPlayerName() and GuildFoundTools.LFG.ShowPartyRolePopup then
+		local numGroupMembers = GetNumGroupMembers()
+		for index = 1, numGroupMembers do
+			local name = GetRaidRosterInfo(index)
+			if name then
+				name = strsplit("-", name)
+				if name == leader then
+					GuildFoundTools.LFG.ShowPartyRolePopup(groupId)
+					break
+				end
+			end
+		end
+	end
+
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
