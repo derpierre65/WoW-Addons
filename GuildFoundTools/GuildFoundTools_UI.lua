@@ -70,6 +70,7 @@ end
 
 PanelTemplates_SetNumTabs(mainFrame, #TAB_NAMES)
 PanelTemplates_SetTab(mainFrame, 1)
+PanelTemplates_DisableTab(mainFrame, 3)
 
 function GuildFoundTools.UI.SetTabText(tabIndex, text)
 	local tabButton = tabButtons[tabIndex]
