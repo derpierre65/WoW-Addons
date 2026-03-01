@@ -1258,13 +1258,6 @@ function GuildFoundTools.LFG.GetMyGroup()
 	return nil
 end
 
--- Role selection (top of form, large icons)
-local roles = {
-	{ key = "TANK" },
-	{ key = "HEAL" },
-	{ key = "DD" },
-}
-
 local function UpdateRoleButtons()
 	for _, roleButton in ipairs(roleButtons) do
 		if roleButton.roleKey == selectedRole then
@@ -1282,16 +1275,16 @@ local roleContainer = CreateFrame("Frame", nil, createGroupContent)
 roleContainer:SetSize(1, ROLE_BUTTON_SIZE)
 roleContainer:SetPoint("TOP", 0, -8)
 
-for index, roleData in ipairs(roles) do
+for index, roleName in ipairs(ROLE_NAMES) do
 	local roleButton = CreateFrame("Button", nil, roleContainer)
 	roleButton:SetSize(ROLE_BUTTON_SIZE, ROLE_BUTTON_SIZE)
 	roleButton:SetPoint("LEFT", (index - 1) * (ROLE_BUTTON_SIZE + ROLE_BUTTON_SPACING), 0)
-	roleButton.roleKey = roleData.key
+	roleButton.roleKey = roleName
 
 	roleButton.icon = roleButton:CreateTexture(nil, "ARTWORK")
 	roleButton.icon:SetAllPoints()
 	roleButton.icon:SetTexture(ROLE_TEXTURE)
-	roleButton.icon:SetTexCoord(unpack(ROLE_TEXCOORDS[roleData.key]))
+	roleButton.icon:SetTexCoord(unpack(ROLE_TEXCOORDS[roleName]))
 
 	roleButton:SetScript("OnClick", function(self)
 		if selectedRole == self.roleKey then return end
