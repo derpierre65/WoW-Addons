@@ -695,19 +695,31 @@ for roleName, coords in pairs(ROLE_TEXCOORDS) do
 	)
 end
 
--- Guild roster lookup for class color and level
-local function GetGuildMemberInfo(name)
+-- Guild roster lookup cache (rebuilt once per UI update)
+local guildMemberCache = {}
+
+local function BuildGuildMemberCache()
+	wipe(guildMemberCache)
 	local memberCount = GetNumGuildMembers()
 	for index = 1, memberCount do
-		local fullName, _, _, level, _, _, _, _, _, _, classFileName = GetGuildRosterInfo(index)
+		local fullName, _, _, level, _, _, _, _, online, _, classFileName = GetGuildRosterInfo(index)
 		if fullName then
 			local shortName = strsplit("-", fullName)
-			if shortName == name then
-				return classFileName, level
-			end
+			guildMemberCache[shortName] = {
+				classFileName = classFileName,
+				level = level,
+				online = online,
+			}
 		end
 	end
-	return nil, nil
+end
+
+local function GetGuildMemberInfo(name)
+	local info = guildMemberCache[name]
+	if info then
+		return info.classFileName, info.level, info.online
+	end
+	return nil, nil, false
 end
 
 -- ============================================================
@@ -1236,6 +1248,7 @@ end)
 -- ============================================================
 
 function GuildFoundTools.LFG.UpdateLFGUI()
+	BuildGuildMemberCache()
 	ReleaseRows()
 
 	local groups = GuildFoundTools.groups
