@@ -435,6 +435,7 @@ end
 
 -- Receive role change from any guild member
 GuildFoundTools.MessageHandlers.LFG_ROLE_CHANGE = function(fields, sender)
+
 	-- LFG_ROLE_CHANGE groupId playerName newRole
 	local groupId = fields[2]
 	local memberName = fields[3]
@@ -1288,14 +1289,16 @@ for index, roleData in ipairs(roles) do
 	roleButton.icon:SetTexCoord(unpack(ROLE_TEXCOORDS[roleData.key]))
 
 	roleButton:SetScript("OnClick", function(self)
+		if selectedRole == self.roleKey then return end
 		selectedRole = self.roleKey
-		UpdateRoleButtons()
 
 		-- In "Meine Gruppe" mode (not editing, not creating): change role immediately
 		local myGroup = GuildFoundTools.LFG.GetMyGroup and GuildFoundTools.LFG.GetMyGroup()
 		if myGroup and not isEditingMyGroup then
 			GuildFoundTools.LFG.ChangeMyRole(self.roleKey)
 		end
+
+		UpdateRoleButtons()
 	end)
 
 	roleButton:SetScript("OnEnter", function(self)
@@ -1509,6 +1512,18 @@ rightButton = CreateFrame("Button", nil, createGroupContent, "UIPanelButtonTempl
 rightButton:SetSize(140, 26)
 rightButton:SetPoint("BOTTOMRIGHT", 0, 0)
 rightButton:Hide()
+rightButton:SetMotionScriptsWhileDisabled(true)
+rightButton:SetScript("OnEnter", function(self)
+	if self:IsEnabled() then return end
+	GameTooltip:SetOwner(self, "ANCHOR_TOP")
+	if selectedCategory == "Dungeons" then
+		GameTooltip:SetText(L["ValidationNoDungeonSelected"])
+	elseif selectedCategory == "Raids" then
+		GameTooltip:SetText(L["ValidationNoRaidSelected"])
+	end
+	GameTooltip:Show()
+end)
+rightButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 -- Placeholder text for "Meine Gruppe" list view (when no signups yet)
 local myGroupInfoText = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
@@ -1703,7 +1718,7 @@ rightButton:SetScript("OnClick", function()
 		local description = descriptionEditBox:GetText() or ""
 		local maxMembers = tonumber(maxMembersEditBox:GetText()) or 5
 
-		if maxMembers < 1 then maxMembers = 1 end
+		if maxMembers < 2 then maxMembers = 2 end
 		if maxMembers > 40 then maxMembers = 40 end
 
 		GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
