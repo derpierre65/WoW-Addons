@@ -1,5 +1,7 @@
 GuildFoundTools = GuildFoundTools or {}
 
+GuildFoundTools.debugMode = true
+
 local AceComm = LibStub("AceComm-3.0")
 local ADDON_PREFIX = "GFTools"
 
