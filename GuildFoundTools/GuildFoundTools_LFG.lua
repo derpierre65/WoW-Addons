@@ -574,46 +574,136 @@ end
 
 local CATEGORIES = { "Dungeons", "Raids", "Custom" }
 
+local DUNGEON = GuildFoundTools.Enums.DUNGEON
+
+local DUNGEON_LOCALE_KEY = {
+	[DUNGEON.RAGEFIRE_CHASM] = "DungeonRagefireChasm",
+	[DUNGEON.WAILING_CAVERNS] = "DungeonWailingCaverns",
+	[DUNGEON.THE_DEADMINES] = "DungeonTheDeadmines",
+	[DUNGEON.SHADOWFANG_KEEP] = "DungeonShadowfangKeep",
+	[DUNGEON.BLACKFATHOM_DEEPS] = "DungeonBlackfathomDeeps",
+	[DUNGEON.THE_STOCKADE] = "DungeonTheStockade",
+	[DUNGEON.GNOMEREGAN] = "DungeonGnomeregan",
+	[DUNGEON.RAZORFEN_KRAUL] = "DungeonRazorfenKraul",
+	[DUNGEON.SCARLET_MONASTERY_GRAVEYARD] = "DungeonScarletMonasteryGraveyard",
+	[DUNGEON.SCARLET_MONASTERY_LIBRARY] = "DungeonScarletMonasteryLibrary",
+	[DUNGEON.SCARLET_MONASTERY_ARMORY] = "DungeonScarletMonasteryArmory",
+	[DUNGEON.SCARLET_MONASTERY_CATHEDRAL] = "DungeonScarletMonasteryCathedral",
+	[DUNGEON.RAZORFEN_DOWNS] = "DungeonRazorfenDowns",
+	[DUNGEON.ULDAMAN] = "DungeonUldaman",
+	[DUNGEON.ZULFARRAK] = "DungeonZulFarrak",
+	[DUNGEON.MARAUDON] = "DungeonMaraudon",
+	[DUNGEON.THE_TEMPLE_OF_ATALHAKKAR] = "DungeonTheTempleOfAtalHakkar",
+	[DUNGEON.BLACKROCK_DEPTHS] = "DungeonBlackrockDepths",
+	[DUNGEON.LOWER_BLACKROCK_SPIRE] = "DungeonLowerBlackrockSpire",
+	[DUNGEON.UPPER_BLACKROCK_SPIRE] = "DungeonUpperBlackrockSpire",
+	[DUNGEON.DIRE_MAUL_EAST] = "DungeonDireMaulEast",
+	[DUNGEON.DIRE_MAUL_WEST] = "DungeonDireMaulWest",
+	[DUNGEON.DIRE_MAUL_NORTH] = "DungeonDireMaulNorth",
+	[DUNGEON.SCHOLOMANCE] = "DungeonScholomance",
+	[DUNGEON.STRATHOLME_MAIN_GATE] = "DungeonStratholmeMainGate",
+	[DUNGEON.STRATHOLME_SERVICE_GATE] = "DungeonStratholmeServiceGate",
+	[DUNGEON.MOLTEN_CORE] = "RaidMoltenCore",
+	[DUNGEON.ONYXIAS_LAIR] = "RaidOnyxiasLair",
+	[DUNGEON.BLACKWING_LAIR] = "RaidBlackwingLair",
+	[DUNGEON.ZULGURUB] = "RaidZulGurub",
+	[DUNGEON.RUINS_OF_AHNQIRAJ] = "RaidRuinsOfAhnQiraj",
+	[DUNGEON.TEMPLE_OF_AHNQIRAJ] = "RaidTempleOfAhnQiraj",
+	[DUNGEON.NAXXRAMAS] = "RaidNaxxramas",
+}
+
+local function GetDungeonName(dungeonId)
+	local localeKey = DUNGEON_LOCALE_KEY[dungeonId]
+	if localeKey then
+		return L[localeKey]
+	end
+	return dungeonId
+end
+
 local DUNGEON_LIST = {
 	["Dungeons"] = {
-		"Ragefire Chasm",
-		"Wailing Caverns",
-		"The Deadmines",
-		"Shadowfang Keep",
-		"The Stockade",
-		"Blackfathom Deeps",
-		"Gnomeregan",
-		"Razorfen Kraul",
-		"Scarlet Monastery - Graveyard",
-		"Scarlet Monastery - Library",
-		"Scarlet Monastery - Armory",
-		"Scarlet Monastery - Cathedral",
-		"Razorfen Downs",
-		"Uldaman",
-		"Zul'Farrak",
-		"Maraudon",
-		"Temple of Atal'Hakkar",
-		"Blackrock Depths",
-		"Lower Blackrock Spire",
-		"Upper Blackrock Spire",
-		"Dire Maul East",
-		"Dire Maul West",
-		"Dire Maul North",
-		"Stratholme - Living",
-		"Stratholme - Undead",
-		"Scholomance",
+		{ id = DUNGEON.RAGEFIRE_CHASM, minLevel = 13, maxLevel = 18 },
+		{ id = DUNGEON.WAILING_CAVERNS, minLevel = 17, maxLevel = 24 },
+		{ id = DUNGEON.THE_DEADMINES, minLevel = 17, maxLevel = 26 },
+		{ id = DUNGEON.SHADOWFANG_KEEP, minLevel = 22, maxLevel = 30 },
+		{ id = DUNGEON.BLACKFATHOM_DEEPS, minLevel = 24, maxLevel = 32 },
+		{ id = DUNGEON.THE_STOCKADE, minLevel = 24, maxLevel = 32 },
+		{ id = DUNGEON.GNOMEREGAN, minLevel = 29, maxLevel = 38 },
+		{ id = DUNGEON.RAZORFEN_KRAUL, minLevel = 29, maxLevel = 38 },
+		{ id = DUNGEON.SCARLET_MONASTERY_GRAVEYARD, minLevel = 26, maxLevel = 36 },
+		{ id = DUNGEON.SCARLET_MONASTERY_LIBRARY, minLevel = 29, maxLevel = 39 },
+		{ id = DUNGEON.SCARLET_MONASTERY_ARMORY, minLevel = 32, maxLevel = 42 },
+		{ id = DUNGEON.SCARLET_MONASTERY_CATHEDRAL, minLevel = 35, maxLevel = 45 },
+		{ id = DUNGEON.RAZORFEN_DOWNS, minLevel = 37, maxLevel = 46 },
+		{ id = DUNGEON.ULDAMAN, minLevel = 41, maxLevel = 51 },
+		{ id = DUNGEON.ZULFARRAK, minLevel = 44, maxLevel = 54 },
+		{ id = DUNGEON.MARAUDON, minLevel = 46, maxLevel = 55 },
+		{ id = DUNGEON.THE_TEMPLE_OF_ATALHAKKAR, minLevel = 50, maxLevel = 60 },
+		{ id = DUNGEON.BLACKROCK_DEPTHS, minLevel = 52, maxLevel = 60 },
+		{ id = DUNGEON.LOWER_BLACKROCK_SPIRE, minLevel = 55, maxLevel = 60 },
+		{ id = DUNGEON.UPPER_BLACKROCK_SPIRE, minLevel = 55, maxLevel = 60 },
+		{ id = DUNGEON.DIRE_MAUL_EAST, minLevel = 55, maxLevel = 60 },
+		{ id = DUNGEON.DIRE_MAUL_WEST, minLevel = 55, maxLevel = 60 },
+		{ id = DUNGEON.DIRE_MAUL_NORTH, minLevel = 58, maxLevel = 60 },
+		{ id = DUNGEON.SCHOLOMANCE, minLevel = 58, maxLevel = 60 },
+		{ id = DUNGEON.STRATHOLME_MAIN_GATE, minLevel = 58, maxLevel = 60 },
+		{ id = DUNGEON.STRATHOLME_SERVICE_GATE, minLevel = 58, maxLevel = 60 },
 	},
 	["Raids"] = {
-		"Molten Core",
-		"Onyxia's Lair",
-		"Blackwing Lair",
-		"Zul'Gurub",
-		"Ruins of Ahn'Qiraj",
-		"Temple of Ahn'Qiraj",
-		"Naxxramas",
+		{ id = DUNGEON.MOLTEN_CORE, minLevel = 60, maxLevel = 60 },
+		{ id = DUNGEON.ONYXIAS_LAIR, minLevel = 60, maxLevel = 60 },
+		{ id = DUNGEON.BLACKWING_LAIR, minLevel = 60, maxLevel = 60 },
+		{ id = DUNGEON.ZULGURUB, minLevel = 60, maxLevel = 60 },
+		{ id = DUNGEON.RUINS_OF_AHNQIRAJ, minLevel = 60, maxLevel = 60 },
+		{ id = DUNGEON.TEMPLE_OF_AHNQIRAJ, minLevel = 60, maxLevel = 60 },
+		{ id = DUNGEON.NAXXRAMAS, minLevel = 60, maxLevel = 60 },
 	},
 	["Custom"] = {},
 }
+
+local function GetDungeonLevelColor(playerLevel, minLevel, maxLevel)
+	if playerLevel < minLevel then
+		-- Player is below dungeon range, color based on minLevel
+		local diff = minLevel - playerLevel
+		if diff >= 5 then
+			return 1, 0, 0 -- red
+		elseif diff >= 3 then
+			return 1, 0.5, 0 -- orange
+		end
+	elseif playerLevel > maxLevel then
+		return 0.5, 0.5, 0.5 -- gray
+	end
+
+	-- Player is within dungeon range
+	return 1, 1, 0 -- yellow
+end
+
+local function GetDungeonDisplayText(dungeon)
+	local dungeonName = GetDungeonName(dungeon.id)
+	local playerLevel = UnitLevel("player") or 60
+	local red, green, blue = GetDungeonLevelColor(playerLevel, dungeon.minLevel, dungeon.maxLevel)
+	local colorCode = string.format("|cff%02x%02x%02x", red * 255, green * 255, blue * 255)
+	local isGray = (red == 0.5 and green == 0.5 and blue == 0.5)
+	if isGray then
+		return colorCode .. dungeonName .. " (" .. dungeon.minLevel .. " - " .. dungeon.maxLevel .. ")|r"
+	end
+	return dungeonName .. " " .. colorCode .. "(" .. dungeon.minLevel .. " - " .. dungeon.maxLevel .. ")|r"
+end
+
+local DUNGEON_BY_ID = {}
+for _, category in pairs(DUNGEON_LIST) do
+	for _, dungeon in ipairs(category) do
+		DUNGEON_BY_ID[dungeon.id] = dungeon
+	end
+end
+
+local function GetDungeonDisplayTextById(dungeonId)
+	local dungeon = DUNGEON_BY_ID[dungeonId]
+	if dungeon then
+		return GetDungeonDisplayText(dungeon)
+	end
+	return GetDungeonName(dungeonId)
+end
 
 -- No groups hint
 local noGroupsText = contentFrame:CreateFontString(nil, "OVERLAY", "GameFontDisable")
@@ -1024,7 +1114,7 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 		-- Dungeon/description line (bottom left)
 		local descriptionLine = ""
 		if group.dungeon and group.dungeon ~= "" then
-			descriptionLine = group.dungeon
+			descriptionLine = GetDungeonDisplayTextById(group.dungeon)
 		elseif group.description and group.description ~= "" then
 			descriptionLine = group.description
 		else
@@ -1301,13 +1391,13 @@ local function InitDungeonDropdown(self, level)
 
 	for _, dungeon in ipairs(dungeons) do
 		local info = UIDropDownMenu_CreateInfo()
-		info.text = dungeon
+		info.text = GetDungeonDisplayText(dungeon)
 		info.func = function()
-			selectedDungeon = dungeon
-			UIDropDownMenu_SetText(dungeonDropdown, dungeon)
+			selectedDungeon = dungeon.id
+			UIDropDownMenu_SetText(dungeonDropdown, GetDungeonDisplayText(dungeon))
 			CloseDropDownMenus()
 		end
-		info.checked = (selectedDungeon == dungeon)
+		info.checked = (selectedDungeon == dungeon.id)
 		UIDropDownMenu_AddButton(info)
 	end
 end
@@ -1433,7 +1523,7 @@ local function PopulateFormFromGroup(group)
 
 	selectedDungeon = group.dungeon or ""
 	if selectedDungeon ~= "" then
-		UIDropDownMenu_SetText(dungeonDropdown, selectedDungeon)
+		UIDropDownMenu_SetText(dungeonDropdown, GetDungeonDisplayTextById(selectedDungeon))
 	else
 		UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
 	end
