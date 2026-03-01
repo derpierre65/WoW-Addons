@@ -1825,7 +1825,7 @@ local function UpdateApplicantsList(group, isLeader)
 		row.roleIcon:SetTexCoord(unpack(texCoords))
 
 		-- Name with class color
-		local classFileName, level = GetGuildMemberInfo(applicantInfo.name)
+		local classFileName, level, online = GetGuildMemberInfo(applicantInfo.name)
 		local red, green, blue = 1, 1, 1
 		if classFileName and RAID_CLASS_COLORS[classFileName] then
 			red = RAID_CLASS_COLORS[classFileName].r
@@ -1836,6 +1836,9 @@ local function UpdateApplicantsList(group, isLeader)
 		local nameDisplay = applicantInfo.name
 		if level and level > 0 then
 			nameDisplay = nameDisplay .. " |cff888888(" .. level .. ")|r"
+		end
+		if not online then
+			nameDisplay = nameDisplay .. " |cffff0000(offline)|r"
 		end
 		row.nameText:SetText(nameDisplay)
 		row.nameText:SetTextColor(red, green, blue)
