@@ -59,7 +59,7 @@ local function SaveGroupToStorage(group)
 		description = group.description,
 		maxMembers = group.maxMembers,
 		beginnerFriendly = group.beginnerFriendly,
-		leaderRole = group.members[group.leader] or "DD",
+		members = group.members,
 		createdAt = group.createdAt,
 	}
 end
@@ -87,6 +87,23 @@ function GuildFoundTools.LFG.GetMemberCount(group)
 	return count
 end
 
+local function BroadcastMemberSync()
+	if not GuildFoundTools.LFG.ownGroupId then return end
+
+	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	if not group then return end
+
+	local memberParts = {}
+	for memberName, role in pairs(group.members) do
+		table.insert(memberParts, memberName .. ":" .. role)
+	end
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_MEMBERS_SYNC, GuildFoundTools.LFG.ownGroupId, table.concat(memberParts, ",")))
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
+	end
+end
+
 local function SyncPartyMembers()
 	if not GuildFoundTools.LFG.ownGroupId then return end
 
@@ -107,17 +124,8 @@ local function SyncPartyMembers()
 	end
 
 	group.members = newMembers
-
-	-- Broadcast full member list to guild
-	local memberParts = {}
-	for memberName, role in pairs(group.members) do
-		table.insert(memberParts, memberName .. ":" .. role)
-	end
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_MEMBERS_SYNC, GuildFoundTools.LFG.ownGroupId, table.concat(memberParts, ",")))
-
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
-	end
+	SaveGroupToStorage(group)
+	BroadcastMemberSync()
 end
 
 local function RestoreGroupFromStorage()
@@ -127,6 +135,23 @@ local function RestoreGroupFromStorage()
 	local saved = GuildFoundTools_LFG[characterGuid]
 	if not saved then return end
 
+	-- Restore members from storage, filtered by current party
+	local savedMembers = saved.members or {}
+	local restoredMembers = {
+		[GetPlayerName()] = savedMembers[GetPlayerName()] or "DD"
+	}
+
+	local numGroupMembers = GetNumGroupMembers()
+	for index = 1, numGroupMembers do
+		local name = GetRaidRosterInfo(index)
+		if name then
+			name = strsplit("-", name)
+			if savedMembers[name] then
+				restoredMembers[name] = savedMembers[name] or "DD"
+			end
+		end
+	end
+
 	local group = {
 		id = saved.id,
 		category = saved.category or "Custom",
@@ -135,7 +160,7 @@ local function RestoreGroupFromStorage()
 		maxMembers = saved.maxMembers or 5,
 		beginnerFriendly = saved.beginnerFriendly or false,
 		leader = GetPlayerName(),
-		members = { [GetPlayerName()] = saved.leaderRole or "DD" },
+		members = restoredMembers,
 		createdAt = saved.createdAt or time(),
 	}
 
@@ -143,12 +168,9 @@ local function RestoreGroupFromStorage()
 	GuildFoundTools.LFG.ownGroupId = group.id
 
 	-- Broadcast to guild so others know the group exists
-	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_CREATE, group.id, group.category, group.dungeon, group.description, group.maxMembers, group.leader, saved.leaderRole or "DD", group.beginnerFriendly and "1" or "0"))
-	SyncPartyMembers()
-
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
-	end
+	local leaderRole = restoredMembers[GetPlayerName()] or "DD"
+	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_CREATE, group.id, group.category, group.dungeon, group.description, group.maxMembers, group.leader, leaderRole, group.beginnerFriendly and "1" or "0"))
+	BroadcastMemberSync()
 end
 
 local function HandlePartyRosterUpdate()
@@ -192,10 +214,6 @@ function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMemb
 	SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_CREATE, groupId, category, dungeon, description, maxMembers, GetPlayerName(), leaderRole or "DD", beginnerFriendly and "1" or "0"))
 	SyncPartyMembers()
 	SaveGroupToStorage(group)
-
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
-	end
 
 	return groupId
 end
