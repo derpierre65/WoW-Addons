@@ -1290,7 +1290,7 @@ for index, roleName in ipairs(ROLE_NAMES) do
 		if selectedRole == self.roleKey then return end
 		selectedRole = self.roleKey
 
-		-- In "Meine Gruppe" mode (not editing, not creating): change role immediately
+		-- In "My Group" mode (not editing, not creating): change role immediately
 		local myGroup = GuildFoundTools.LFG.GetMyGroup and GuildFoundTools.LFG.GetMyGroup()
 		if myGroup and not isEditingMyGroup then
 			GuildFoundTools.LFG.ChangeMyRole(self.roleKey)
@@ -1513,7 +1513,7 @@ rightButton:SetScript("OnEnter", function(self)
 end)
 rightButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
--- Placeholder text for "Meine Gruppe" list view (when no signups yet)
+-- Placeholder text for "My Group" list view (when no signups yet)
 local myGroupInfoText = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
 myGroupInfoText:SetPoint("CENTER", 0, 0)
 myGroupInfoText:SetJustifyH("CENTER")
@@ -1665,11 +1665,11 @@ leftButton:SetScript("OnClick", function()
 	if not myGroup or myGroup.leader ~= GetPlayerName() then return end
 
 	if isEditingMyGroup then
-		-- "Zurück" -> back to list view
+		-- Back to list view
 		isEditingMyGroup = false
 		GuildFoundTools.LFG.UpdateCreateGroupTab()
 	else
-		-- "Gruppe entfernen" -> remove group
+		-- Remove group
 		if GuildFoundTools.LFG.ownGroupId then
 			GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
 		end
