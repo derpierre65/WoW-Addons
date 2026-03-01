@@ -584,34 +584,31 @@ GuildFoundTools.EventHandlers.GROUP_LEFT = function()
 end
 
 GuildFoundTools.EventHandlers.PARTY_LEADER_CHANGED = function()
-	if not GuildFoundTools.LFG.ownGroupId then return end
+	if GuildFoundTools.LFG.ownGroupId then
+		local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+		if group and group.leader == GetPlayerName() then
+			-- Find the new party leader
+			local numGroupMembers = GetNumGroupMembers()
+			for index = 1, numGroupMembers do
+				local name, rank = GetRaidRosterInfo(index)
+				if name and rank == 2 then
+					name = strsplit("-", name)
+					if name ~= GetPlayerName() then
+						-- Transfer leadership
+						group.leader = name
+						ClearGroupFromStorage()
+						GuildFoundTools.LFG.ownGroupId = nil
 
-	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
-	if not group then return end
-
-	-- Only the old leader (who owns the group) should handle the transfer
-	if group.leader ~= GetPlayerName() then return end
-
-	-- Find the new party leader
-	local numGroupMembers = GetNumGroupMembers()
-	for index = 1, numGroupMembers do
-		local name, rank = GetRaidRosterInfo(index)
-		if name and rank == 2 then
-			name = strsplit("-", name)
-			if name ~= GetPlayerName() then
-				-- Transfer leadership
-				group.leader = name
-				ClearGroupFromStorage()
-				GuildFoundTools.LFG.ownGroupId = nil
-
-				SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LEADER_CHANGE, group.id, name))
-
-				if GuildFoundTools.LFG.UpdateLFGUI then
-					GuildFoundTools.LFG.UpdateLFGUI()
+						SendGuildMessage(Serialize(MESSAGE_TYPE.GROUP_LEADER_CHANGE, group.id, name))
+					end
+					break
 				end
 			end
-			return
 		end
+	end
+
+	if GuildFoundTools.LFG.UpdateLFGUI then
+		GuildFoundTools.LFG.UpdateLFGUI()
 	end
 end
 
@@ -1705,6 +1702,7 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 
 	if myGroup then
 		GuildFoundTools.UI.SetTabText(2, L["TabMyGroup"])
+		GuildFoundTools.UI.SetTabEnabled(2, true)
 
 		if myGroup.leader == playerName then
 			if isEditingMyGroup then
@@ -1735,6 +1733,10 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 	else
 		GuildFoundTools.UI.SetTabText(2, L["TabCreateGroup"])
 		isEditingMyGroup = false
+
+		local isInPartyAsNonLeader = GetNumGroupMembers() > 0 and not UnitIsGroupLeader("player")
+		GuildFoundTools.UI.SetTabEnabled(2, not isInPartyAsNonLeader, L["TabCreateGroupDisabled"])
+
 		beginnerFriendlyButton:Show()
 		UpdateRoleContainerLayout()
 		ShowFormElements(true)

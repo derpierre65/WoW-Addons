@@ -79,6 +79,38 @@ function GuildFoundTools.UI.SetTabText(tabIndex, text)
 	end
 end
 
+function GuildFoundTools.UI.SetTabEnabled(tabIndex, enabled, disabledTooltip)
+	local tabButton = tabButtons[tabIndex]
+	if not tabButton then return end
+
+	tabButton.disabledTooltip = disabledTooltip
+
+	if not tabButton.tooltipInitialized then
+		tabButton:HookScript("OnEnter", function(self)
+			if self.disabledTooltip and not self:IsEnabled() then
+				GameTooltip:SetOwner(self, "ANCHOR_TOP")
+				GameTooltip:SetText(self.disabledTooltip)
+				GameTooltip:Show()
+			end
+		end)
+		tabButton:HookScript("OnLeave", function()
+			GameTooltip:Hide()
+		end)
+		tabButton.tooltipInitialized = true
+	end
+
+	if enabled then
+		PanelTemplates_EnableTab(mainFrame, tabIndex)
+	else
+		PanelTemplates_DisableTab(mainFrame, tabIndex)
+		-- If the disabled tab is currently selected, switch to tab 1
+		if PanelTemplates_GetSelectedTab(mainFrame) == tabIndex then
+			PanelTemplates_SetTab(mainFrame, 1)
+			GuildFoundTools.UI.ShowTab(1)
+		end
+	end
+end
+
 function GuildFoundTools.UI.ShowTab(tabIndex)
 	for index, contentFrame in ipairs(contentFrames) do
 		if index == tabIndex then
