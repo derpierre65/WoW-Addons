@@ -897,12 +897,6 @@ signupButton:SetPoint("LEFT", 0, 0)
 signupButton:SetText(L["ButtonSignUp"])
 signupButton:Hide()
 
-local leaveButton = CreateFrame("Button", nil, actionBar, "UIPanelButtonTemplate")
-leaveButton:SetSize(120, 24)
-leaveButton:SetPoint("LEFT", 0, 0)
-leaveButton:SetText(L["ButtonLeave"])
-leaveButton:Hide()
-
 -- ============================================================
 -- Role selection popup (for signup)
 -- ============================================================
@@ -1196,7 +1190,6 @@ pendingText:Hide()
 
 local function UpdateActionBar()
 	signupButton:Hide()
-	leaveButton:Hide()
 	withdrawButton:Hide()
 	pendingText:Hide()
 
@@ -1207,9 +1200,7 @@ local function UpdateActionBar()
 	if selectedGroupId and selectedGroupId ~= ownGroupId then
 		local group = GuildFoundTools.groups[selectedGroupId]
 		if group then
-			if group.members[playerName] then
-				leaveButton:Show()
-			elseif group.applicants and group.applicants[playerName] then
+			if group.applicants and group.applicants[playerName] then
 				withdrawButton:Show()
 				pendingText:Show()
 			else
@@ -1227,11 +1218,6 @@ signupButton:SetScript("OnClick", function(self)
 	rolePopup:ClearAllPoints()
 	rolePopup:SetPoint("BOTTOM", self, "TOP", 0, 4)
 	rolePopup:Show()
-end)
-
-leaveButton:SetScript("OnClick", function()
-	if not selectedGroupId then return end
-	GuildFoundTools.LFG.LeaveGroup(selectedGroupId)
 end)
 
 withdrawButton:SetScript("OnClick", function()
