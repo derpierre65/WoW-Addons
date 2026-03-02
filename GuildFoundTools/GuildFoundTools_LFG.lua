@@ -1826,7 +1826,11 @@ local function UpdateApplicantsList(group, isLeader)
 
 	if #applicantList == 0 then
 		applicantsScrollFrame:Hide()
-		myGroupInfoText:SetText(L["NoApplicantsYet"])
+		if isLeader then
+			myGroupInfoText:SetText(L["NoApplicantsYet"])
+		else
+			myGroupInfoText:SetText(string.format(L["MemberOfGroup"], group.leader) .. "\n" .. L["NoApplicantsYet"])
+		end
 		myGroupInfoText:Show()
 		return
 	end
@@ -1891,12 +1895,6 @@ local function UpdateApplicantsList(group, isLeader)
 	end
 end
 
--- Member info text (shown when player is member of someone else's group)
-local memberInfoText = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-memberInfoText:SetPoint("CENTER", 0, 0)
-memberInfoText:SetJustifyH("CENTER")
-memberInfoText:Hide()
-
 -- Form elements to show/hide together
 local formElements = { categoryLabel, categoryDropdown, dungeonLabel, dungeonDropdown, descriptionLabel, descriptionEditBox, maxMembersLabel, maxMembersEditBox }
 
@@ -1957,7 +1955,6 @@ end
 
 local function ShowMyGroupListView(myGroup)
 	ShowFormElements(false)
-	memberInfoText:Hide()
 
 	-- Show current role selection
 	selectedRole = myGroup.members[GetPlayerName()] or "DD"
@@ -1975,7 +1972,6 @@ end
 
 local function ShowMyGroupEditView(myGroup)
 	ShowFormElements(true)
-	memberInfoText:Hide()
 	myGroupInfoText:Hide()
 	applicantsScrollFrame:Hide()
 	ReleaseApplicantRows()
@@ -2014,9 +2010,7 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 			myGroupInfoText:Hide()
 			leftButton:Hide()
 			rightButton:Hide()
-			memberInfoText:SetText(string.format(L["MemberOfGroup"], myGroup.leader))
-			memberInfoText:Show()
-
+	
 			-- Set role from group data and show role buttons
 			selectedRole = myGroup.members[playerName] or "DD"
 			UpdateRoleButtons()
@@ -2034,7 +2028,6 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 		beginnerFriendlyButton:Show()
 		UpdateRoleContainerLayout()
 		ShowFormElements(true)
-		memberInfoText:Hide()
 		myGroupInfoText:Hide()
 		applicantsScrollFrame:Hide()
 		ReleaseApplicantRows()
