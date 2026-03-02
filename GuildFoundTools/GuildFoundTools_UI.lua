@@ -84,7 +84,7 @@ function GuildFoundTools.UI.SetTabEnabled(tabIndex, enabled, disabledTooltip)
 	local tabButton = tabButtons[tabIndex]
 	if not tabButton then return end
 
-	tabButton.disabledTooltip = disabledTooltip
+	tabButton.disabledTooltip = not enabled and disabledTooltip or nil
 
 	if not tabButton.tooltipInitialized then
 		tabButton:HookScript("OnEnter", function(self)
