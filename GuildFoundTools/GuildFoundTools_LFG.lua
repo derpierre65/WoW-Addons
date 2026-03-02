@@ -1135,30 +1135,6 @@ local function CreateGroupRow(parent)
 			GameTooltip:AddLine(string.format(L["TooltipMembersSummary"], #self.roleArea.members, self.groupMaxMembers or "?", tankCount, healCount, ddCount))
 		end
 
-		-- Applicants section
-		if self.roleArea.applicantsList and #self.roleArea.applicantsList > 0 then
-			GameTooltip:AddLine(" ")
-			GameTooltip:AddLine(L["ApplicantsHeader"], 1, 0.82, 0)
-			for _, applicantInfo in ipairs(self.roleArea.applicantsList) do
-				local roleIcon = ROLE_ICON_MARKUP[applicantInfo.role] or ROLE_ICON_MARKUP["DD"]
-				local classFileName, level = GetGuildMemberInfo(applicantInfo.name)
-
-				local red, green, blue = 1, 1, 1
-				if classFileName and RAID_CLASS_COLORS[classFileName] then
-					red = RAID_CLASS_COLORS[classFileName].r
-					green = RAID_CLASS_COLORS[classFileName].g
-					blue = RAID_CLASS_COLORS[classFileName].b
-				end
-
-				local levelText = ""
-				if level and level > 0 then
-					levelText = " |cff888888Lvl " .. level .. "|r"
-				end
-
-				GameTooltip:AddLine(roleIcon .. " " .. applicantInfo.name .. levelText, red, green, blue)
-			end
-		end
-
 		-- Description (if exists)
 		if self.groupDescription and self.groupDescription ~= "" then
 			GameTooltip:AddLine(" ")
@@ -1340,18 +1316,6 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 			return (ROLE_SORT_ORDER[a.role] or 3) < (ROLE_SORT_ORDER[b.role] or 3)
 		end)
 		row.roleArea.members = memberInfoList
-
-		-- Build applicants list for tooltip
-		local applicantInfoList = {}
-		if group.applicants then
-			for applicantName, role in pairs(group.applicants) do
-				table.insert(applicantInfoList, { name = applicantName, role = role })
-			end
-			table.sort(applicantInfoList, function(a, b)
-				return (ROLE_SORT_ORDER[a.role] or 3) < (ROLE_SORT_ORDER[b.role] or 3)
-			end)
-		end
-		row.roleArea.applicantsList = applicantInfoList
 
 		-- Row icons: sorted strictly by role (TANK, HEAL, DD)
 		local iconSortedMembers = {}
