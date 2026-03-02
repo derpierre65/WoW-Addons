@@ -623,6 +623,13 @@ GuildFoundTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
 	if not group then return end
 
 	UpdateGroupMembers()
+
+	-- Auto-remove group from browser when maxMembers is reached
+	if group.leader == GetPlayerName() and GuildFoundTools.LFG.GetMemberCount(group) >= group.maxMembers then
+		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+		return
+	end
+
 	SaveGroupToStorage(group)
 	BroadcastMemberSync()
 end
