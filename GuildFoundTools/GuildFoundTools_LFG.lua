@@ -623,6 +623,11 @@ end
 
 GuildFoundTools.EventHandlers.GROUP_LEFT = function()
 	if not GuildFoundTools.LFG.ownGroupId then return end
+
+	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	-- Don't remove the group if the player is the leader (e.g. party dissolved after a failed invite)
+	if group and group.leader == GetPlayerName() then return end
+
 	GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
 end
 
