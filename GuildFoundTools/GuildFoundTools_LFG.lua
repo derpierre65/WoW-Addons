@@ -359,6 +359,12 @@ GuildFoundTools.MessageHandlers.GROUP_REMOVE = function(data)
 
 	GuildFoundTools.groups[data.id] = nil
 
+	-- Hide the role popup if it was shown for this group
+	local rolePopup = _G["GuildFoundToolsPartyRolePopup"]
+	if rolePopup and rolePopup.groupId == data.id then
+		rolePopup:Hide()
+	end
+
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
