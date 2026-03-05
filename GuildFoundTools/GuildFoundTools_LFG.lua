@@ -9,6 +9,7 @@ GuildFoundTools.LFG = GuildFoundTools.LFG or {}
 local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
 local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
 local SendGuildMessage = GuildFoundTools.SendGuildMessage
+local SendWhisperMessage = GuildFoundTools.SendWhisperMessage
 local GetPlayerName = GuildFoundTools.GetPlayerName
 local DUNGEON = GuildFoundTools.Enums.DUNGEON
 
@@ -33,6 +34,12 @@ local selectedCategory = "Dungeons"
 local selectedDungeon = ""
 local isEditingMyGroup = false
 local roleButtons = {}
+local pendingInviteFromLeader = nil
+local guildMemberCache = {}
+local applicantRowPool = {}
+local activeApplicantRows = {}
+local ROLE_ICON_MARKUP = {}
+local DUNGEON_BY_ID = {}
 
 -- Forward declarations
 local leftButton, rightButton
@@ -276,8 +283,11 @@ function GuildFoundTools.LFG.AcceptApplicant(groupId, applicantName)
 	if group.leader ~= GetPlayerName() then return end
 	if not group.applicants or not group.applicants[applicantName] then return end
 
-	-- Send party invite; applicant stays in applicants until they join the party
-	C_PartyInfo.InviteUnit(applicantName)
+	-- Send whisper to applicant requesting confirmation before inviting
+	SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_REQUEST, applicantName, {
+		groupId = groupId,
+		leaderName = GetPlayerName(),
+	})
 end
 
 function GuildFoundTools.LFG.DeclineApplicant(groupId, applicantName)
@@ -527,6 +537,121 @@ GuildFoundTools.MessageHandlers.GROUP_LEADER_CHANGE = function(data)
 end
 
 -- ============================================================
+-- Invite confirmation popup (shown to applicant when leader accepts)
+-- ============================================================
+
+local inviteConfirmPopup = CreateFrame("Frame", "GuildFoundToolsInviteConfirmPopup", UIParent, "BasicFrameTemplateWithInset")
+inviteConfirmPopup:SetSize(300, 150)
+inviteConfirmPopup:SetPoint("CENTER")
+inviteConfirmPopup:SetFrameStrata("DIALOG")
+inviteConfirmPopup:Hide()
+inviteConfirmPopup:EnableMouse(true)
+
+inviteConfirmPopup.title = inviteConfirmPopup:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+inviteConfirmPopup.title:SetPoint("CENTER", inviteConfirmPopup.TitleBg, "CENTER", 0, 0)
+inviteConfirmPopup.title:SetText(L["InviteConfirmTitle"])
+
+inviteConfirmPopup.leaderName = nil
+
+inviteConfirmPopup.text = inviteConfirmPopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+inviteConfirmPopup.text:SetPoint("TOP", 0, -32)
+inviteConfirmPopup.text:SetPoint("LEFT", 16, 0)
+inviteConfirmPopup.text:SetPoint("RIGHT", -16, 0)
+inviteConfirmPopup.text:SetJustifyH("CENTER")
+inviteConfirmPopup.text:SetWordWrap(true)
+
+inviteConfirmPopup.warning = inviteConfirmPopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+inviteConfirmPopup.warning:SetPoint("TOP", inviteConfirmPopup.text, "BOTTOM", 0, -8)
+inviteConfirmPopup.warning:SetPoint("LEFT", 16, 0)
+inviteConfirmPopup.warning:SetPoint("RIGHT", -16, 0)
+inviteConfirmPopup.warning:SetJustifyH("CENTER")
+inviteConfirmPopup.warning:SetTextColor(1, 0.5, 0)
+inviteConfirmPopup.warning:SetWordWrap(true)
+
+local inviteAcceptButton = CreateFrame("Button", nil, inviteConfirmPopup, "UIPanelButtonTemplate")
+inviteAcceptButton:SetSize(120, 26)
+inviteAcceptButton:SetPoint("BOTTOMLEFT", 16, 8)
+inviteAcceptButton:SetText(L["ButtonAcceptInvite"])
+
+local inviteDeclineButton = CreateFrame("Button", nil, inviteConfirmPopup, "UIPanelButtonTemplate")
+inviteDeclineButton:SetSize(120, 26)
+inviteDeclineButton:SetPoint("BOTTOMRIGHT", -16, 8)
+inviteDeclineButton:SetText(L["ButtonDeclineInvite"])
+
+inviteAcceptButton:SetScript("OnClick", function()
+	local leaderName = inviteConfirmPopup.leaderName
+	if leaderName then
+		if GetNumGroupMembers() > 0 then
+			LeaveParty()
+		end
+		pendingInviteFromLeader = leaderName
+		SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_ACCEPT, leaderName)
+	end
+	inviteConfirmPopup:Hide()
+end)
+
+inviteDeclineButton:SetScript("OnClick", function()
+	local leaderName = inviteConfirmPopup.leaderName
+	if leaderName then
+		SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_DECLINE, leaderName)
+	end
+	inviteConfirmPopup:Hide()
+end)
+
+tinsert(UISpecialFrames, "GuildFoundToolsInviteConfirmPopup")
+
+-- ============================================================
+-- Invite confirmation message handlers
+-- ============================================================
+
+-- Received by applicant: leader wants to invite
+GuildFoundTools.MessageHandlers.GROUP_INVITE_REQUEST = function(data, sender)
+	if not data or not data.leaderName then return end
+
+	inviteConfirmPopup.leaderName = data.leaderName
+	inviteConfirmPopup.text:SetText(string.format(L["InviteConfirmText"], data.leaderName))
+
+	if GetNumGroupMembers() > 0 then
+		inviteConfirmPopup.warning:SetText(L["InviteConfirmLeaveWarning"])
+		inviteConfirmPopup.warning:Show()
+	else
+		inviteConfirmPopup.warning:SetText("")
+		inviteConfirmPopup.warning:Hide()
+	end
+
+	inviteConfirmPopup:Show()
+end
+
+-- Received by leader: applicant accepted the invite
+GuildFoundTools.MessageHandlers.GROUP_INVITE_ACCEPT = function(data, sender)
+	if not GuildFoundTools.LFG.ownGroupId then return end
+
+	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	if not group then return end
+	if not group.applicants or not group.applicants[sender] then return end
+
+	C_PartyInfo.InviteUnit(sender)
+end
+
+-- Received by leader: applicant declined the invite
+GuildFoundTools.MessageHandlers.GROUP_INVITE_DECLINE = function(data, sender)
+	print("|cff00ccffGuildFound Tools:|r " .. string.format(L["InviteDeclinedMessage"], sender))
+end
+
+-- Auto-accept WoW party invite from the expected leader
+GuildFoundTools.EventHandlers.PARTY_INVITE_REQUEST = function(inviterName)
+	if not pendingInviteFromLeader then return end
+
+	local shortName = strsplit("-", inviterName)
+	if shortName == pendingInviteFromLeader then
+		AcceptGroup()
+		pendingInviteFromLeader = nil
+		-- Hide the default invite popup
+		StaticPopup_Hide("PARTY_INVITE")
+	end
+end
+
+-- ============================================================
 -- Role change handling
 -- ============================================================
 
@@ -705,7 +830,6 @@ else
 end
 
 -- Inline role icon markup for tooltips (|T...texture escape)
-local ROLE_ICON_MARKUP = {}
 for roleName, coords in pairs(ROLE_TEXCOORDS) do
 	ROLE_ICON_MARKUP[roleName] = string.format(
 		"|T%s:14:14:0:0:1024:1024:%d:%d:%d:%d|t",
@@ -716,7 +840,6 @@ for roleName, coords in pairs(ROLE_TEXCOORDS) do
 end
 
 -- Guild roster lookup cache (rebuilt once per UI update)
-local guildMemberCache = {}
 
 local function BuildGuildMemberCache()
 	wipe(guildMemberCache)
@@ -860,7 +983,6 @@ local function GetDungeonDisplayText(dungeon)
 	return dungeonName .. " " .. colorCode .. "(" .. dungeon.minLevel .. " - " .. dungeon.maxLevel .. ")|r"
 end
 
-local DUNGEON_BY_ID = {}
 for _, category in pairs(DUNGEON_LIST) do
 	for _, dungeon in ipairs(category) do
 		DUNGEON_BY_ID[dungeon.id] = dungeon
@@ -1712,8 +1834,6 @@ applicantsScrollChild:SetSize(applicantsScrollFrame:GetWidth(), 1)
 applicantsScrollFrame:SetScrollChild(applicantsScrollChild)
 
 -- Applicant row pool
-local applicantRowPool = {}
-local activeApplicantRows = {}
 
 local function CreateApplicantRow(parent)
 	local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")

@@ -58,6 +58,14 @@ L["ApplicationPending"] = "Bewerbung ausstehend..."
 L["SelectRoleTitle"] = "Rolle wählen"
 L["SelectRolePrompt"] = "Welche Rolle möchtest du spielen?"
 
+-- Invite Confirmation
+L["InviteConfirmTitle"] = "Gruppeneinladung"
+L["InviteConfirmText"] = "%s möchte dich in die Gruppe einladen."
+L["InviteConfirmLeaveWarning"] = "Du verlässt deine aktuelle Gruppe wenn du akzeptierst."
+L["InviteDeclinedMessage"] = "%s hat die Einladung abgelehnt."
+L["ButtonAcceptInvite"] = "Beitreten"
+L["ButtonDeclineInvite"] = "Ablehnen"
+
 -- Chat Messages
 L["AlreadyHaveGroup"] = "Du hast bereits eine Gruppe erstellt."
 L["GroupRemovedJoinedOther"] = "Deine Gruppe wurde entfernt, da du einer anderen Gruppe beigetreten bist."

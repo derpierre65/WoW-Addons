@@ -69,6 +69,19 @@ function GuildFoundTools.SendGuildMessage(messageType, data)
 	AceComm:SendCommMessage(ADDON_PREFIX, message, "GUILD")
 end
 
+-- Send a whisper message to a specific player (via AceComm)
+function GuildFoundTools.SendWhisperMessage(messageType, target, data)
+	if not IsInGuild() then return end
+
+	local message = AceSerializer:Serialize(messageType, data or false)
+
+	if GuildFoundTools.debugMode then
+		print("GFT W->", target, messageType, data)
+	end
+
+	AceComm:SendCommMessage(ADDON_PREFIX, message, "WHISPER", target)
+end
+
 -- ============================================================
 -- Event handlers
 -- ============================================================

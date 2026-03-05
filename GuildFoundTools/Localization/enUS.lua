@@ -58,6 +58,14 @@ L["ApplicationPending"] = "Application pending..."
 L["SelectRoleTitle"] = "Select Role"
 L["SelectRolePrompt"] = "Which role do you want to play?"
 
+-- Invite Confirmation
+L["InviteConfirmTitle"] = "Group Invite"
+L["InviteConfirmText"] = "%s wants to invite you to their group."
+L["InviteConfirmLeaveWarning"] = "You will leave your current group if you accept."
+L["InviteDeclinedMessage"] = "%s has declined the invite."
+L["ButtonAcceptInvite"] = "Join"
+L["ButtonDeclineInvite"] = "Decline"
+
 -- Chat Messages
 L["AlreadyHaveGroup"] = "You already have a group created."
 L["GroupRemovedJoinedOther"] = "Your group was removed because you joined another group."
