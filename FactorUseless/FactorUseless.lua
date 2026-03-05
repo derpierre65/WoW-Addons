@@ -442,6 +442,8 @@ local FACTS = {
             "A typical banana travels 4,000 miles before being eaten.",
             "Pearls melt in vinegar.",
             "In Tibet, a common drink is butter tea made from yak butter, salt, and tea.",
+            "A honeydew melon is about 0.0000035 soccer fields in size.",
+            "About 280,000 honeydew melons fit on a soccer field.",
         },
         language = {
             "The word „salary“ comes from the Latin „salarium“, as Roman soldiers were sometimes paid in salt, which was extremely valuable.",
@@ -1436,6 +1438,8 @@ local FACTS = {
             "Eine typische Banane reist 6.400 Kilometer, bevor sie gegessen wird.",
             "Perlen lösen sich in Essig auf.",
             "In Tibet ist ein beliebtes Getränk Buttertee, hergestellt aus Yakbutter, Salz und Tee.",
+            "Eine Honigmelone ist etwa 0,0000035 Fußballfelder groß.",
+            "Auf ein Fußballfeld passen ungefähr 280.000 Honigmelonen.",
         },
         language = {
             "Das Wort „Salär“ (Gehalt) kommt vom lateinischen „salarium“, da römische Soldaten manchmal in Salz bezahlt wurden, das extrem wertvoll war.",
