@@ -24,9 +24,9 @@ local ROLE_BUTTON_SIZE = 48
 local ROLE_BUTTON_SPACING = 8
 local FORM_TOP_OFFSET = -68
 
+local CreatePool = GuildFoundTools.Utils.CreatePool
+
 -- State variables
-local rowPool = {}
-local activeRows = {}
 local selectedGroupId = nil
 local selectedRole = "DD"
 local selectedBeginnerFriendly = false
@@ -36,8 +36,6 @@ local isEditingMyGroup = false
 local roleButtons = {}
 local pendingInviteFromLeader = nil
 local guildMemberCache = {}
-local applicantRowPool = {}
-local activeApplicantRows = {}
 local ROLE_ICON_MARKUP = {}
 local DUNGEON_BY_ID = {}
 
@@ -1274,26 +1272,10 @@ local function CreateGroupRow(parent)
 	return row
 end
 
-local function AcquireRow()
-	local row = table.remove(rowPool)
-	if not row then
-		row = CreateGroupRow(scrollChild)
-	end
-	row:SetParent(scrollChild)
-	row:ClearAllPoints()
-	row:Show()
-	return row
-end
-
-local function ReleaseRows()
-	for _, row in ipairs(activeRows) do
-		row:Hide()
-		row.selectedTexture:Hide()
-		row.hoverTexture:Hide()
-		table.insert(rowPool, row)
-	end
-	wipe(activeRows)
-end
+local groupRowPool = CreatePool(scrollChild, CreateGroupRow, function(row)
+	row.selectedTexture:Hide()
+	row.hoverTexture:Hide()
+end)
 
 -- ============================================================
 -- Update action bar based on selected group
@@ -1353,7 +1335,7 @@ end)
 
 function GuildFoundTools.LFG.UpdateLFGUI()
 	BuildGuildMemberCache()
-	ReleaseRows()
+	groupRowPool:ReleaseAll()
 
 	local groups = GuildFoundTools.groups
 
@@ -1388,7 +1370,7 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 	local yOffset = 0
 
 	for _, group in ipairs(sortedGroups) do
-		local row = AcquireRow()
+		local row = groupRowPool:Acquire()
 		row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
 		row:SetPoint("RIGHT", scrollChild, "RIGHT", 0, 0)
 		row.groupId = group.id
@@ -1511,7 +1493,6 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 			end
 		end
 
-		table.insert(activeRows, row)
 		yOffset = yOffset + ROW_HEIGHT + ROW_SPACING
 	end
 
@@ -1874,27 +1855,10 @@ local function CreateApplicantRow(parent)
 	return row
 end
 
-local function ReleaseApplicantRows()
-	for _, row in ipairs(activeApplicantRows) do
-		row:Hide()
-		table.insert(applicantRowPool, row)
-	end
-	wipe(activeApplicantRows)
-end
-
-local function AcquireApplicantRow()
-	local row = table.remove(applicantRowPool)
-	if not row then
-		row = CreateApplicantRow(applicantsScrollChild)
-	end
-	row:SetParent(applicantsScrollChild)
-	row:ClearAllPoints()
-	row:Show()
-	return row
-end
+local applicantRowPool = CreatePool(applicantsScrollChild, CreateApplicantRow)
 
 local function UpdateApplicantsList(group, isLeader)
-	ReleaseApplicantRows()
+	applicantRowPool:ReleaseAll()
 
 	local applicants = group.applicants or {}
 	local applicantList = {}
@@ -1923,7 +1887,7 @@ local function UpdateApplicantsList(group, isLeader)
 
 	local yOffset = 0
 	for _, applicantInfo in ipairs(applicantList) do
-		local row = AcquireApplicantRow()
+		local row = applicantRowPool:Acquire()
 		row:SetPoint("TOPLEFT", applicantsScrollChild, "TOPLEFT", 0, -yOffset)
 		row:SetPoint("RIGHT", applicantsScrollChild, "RIGHT", 0, 0)
 
@@ -1965,7 +1929,6 @@ local function UpdateApplicantsList(group, isLeader)
 			row.declineButton:Hide()
 		end
 
-		table.insert(activeApplicantRows, row)
 		yOffset = yOffset + 33
 	end
 
@@ -2057,7 +2020,7 @@ local function ShowMyGroupEditView(myGroup)
 	ShowFormElements(true)
 	myGroupInfoText:Hide()
 	applicantsScrollFrame:Hide()
-	ReleaseApplicantRows()
+	applicantRowPool:ReleaseAll()
 	PopulateFormFromGroup(myGroup)
 
 	leftButton:SetText(L["ButtonBack"])
@@ -2113,7 +2076,7 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 		ShowFormElements(true)
 		myGroupInfoText:Hide()
 		applicantsScrollFrame:Hide()
-		ReleaseApplicantRows()
+		applicantRowPool:ReleaseAll()
 		leftButton:Hide()
 		rightButton:SetText(L["ButtonCreate"])
 		rightButton:Show()
