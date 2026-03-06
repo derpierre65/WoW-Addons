@@ -711,38 +711,35 @@ end
 -- Register LFG event handlers
 GuildFoundTools.EventHandlers.GROUP_JOINED = function()
 	if GuildFoundTools.LFG.ownGroupId then
-		-- If we joined someone else's party, remove our own tool group
-		C_Timer.After(0.5, function()
-			if not UnitIsGroupLeader("player") then
-				GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
-				print("|cff00ccffGuildFound Tools:|r " .. L["GroupRemovedJoinedOther"])
-			end
-		end)
-	else
-		-- Check if anyone in the party is a tool group leader -> show role popup
-		C_Timer.After(0.5, function()
-			local numGroupMembers = GetNumGroupMembers()
-			for index = 1, numGroupMembers do
-				local name = GetRaidRosterInfo(index)
-				if name then
-					name = strsplit("-", name)
-					for _, group in pairs(GuildFoundTools.groups) do
-						if group.leader == name then
-							-- Skip role popup if the player already signed up or is a member of this group
-							local playerName = GetPlayerName()
-							if (group.applicants and group.applicants[playerName]) or (group.members and group.members[playerName]) then
-								return
-							end
-							if GuildFoundTools.LFG.ShowPartyRolePopup then
-								GuildFoundTools.LFG.ShowPartyRolePopup(group.id)
-							end
+		-- If we joined someone else's party, remove our own tool group immediately
+		-- (before PARTY_LEADER_CHANGED can transfer leadership)
+		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+		print("|cff00ccffGuildFound Tools:|r " .. L["GroupRemovedJoinedOther"])
+	end
+
+	-- Check if anyone in the party is a tool group leader -> show role popup
+	C_Timer.After(0.5, function()
+		local numGroupMembers = GetNumGroupMembers()
+		for index = 1, numGroupMembers do
+			local name = GetRaidRosterInfo(index)
+			if name then
+				name = strsplit("-", name)
+				for _, group in pairs(GuildFoundTools.groups) do
+					if group.leader == name then
+						-- Skip role popup if the player already signed up or is a member of this group
+						local playerName = GetPlayerName()
+						if (group.applicants and group.applicants[playerName]) or (group.members and group.members[playerName]) then
 							return
 						end
+						if GuildFoundTools.LFG.ShowPartyRolePopup then
+							GuildFoundTools.LFG.ShowPartyRolePopup(group.id)
+						end
+						return
 					end
 				end
 			end
-		end)
-	end
+		end
+	end)
 end
 
 GuildFoundTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
