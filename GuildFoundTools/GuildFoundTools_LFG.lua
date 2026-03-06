@@ -1386,14 +1386,16 @@ end)
 -- Update group listing
 -- ============================================================
 
-function GuildFoundTools.LFG.UpdateLFGUI()
+function GuildFoundTools.LFG.UpdateLFGUI(skipCreateGroupTab)
 	BuildGuildMemberCache()
 	groupRowPool:ReleaseAll()
 
 	local groups = GuildFoundTools.groups
 
 	-- Update tab 2 text based on group state
-	GuildFoundTools.LFG.UpdateCreateGroupTab()
+	if not skipCreateGroupTab then
+		GuildFoundTools.LFG.UpdateCreateGroupTab()
+	end
 
 	-- Validate selected group still exists
 	if selectedGroupId and not groups[selectedGroupId] then

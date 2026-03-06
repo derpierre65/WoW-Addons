@@ -51,7 +51,7 @@ UIDropDownMenu_Initialize(settingsDropdownFrame, function()
 	info.func = function(_, _, _, checked)
 		GuildFoundTools.UI.showAllLevelRanges = checked
 		if GuildFoundTools.LFG and GuildFoundTools.LFG.UpdateLFGUI then
-			GuildFoundTools.LFG.UpdateLFGUI()
+			GuildFoundTools.LFG.UpdateLFGUI(true)
 		end
 	end
 	UIDropDownMenu_AddButton(info)
