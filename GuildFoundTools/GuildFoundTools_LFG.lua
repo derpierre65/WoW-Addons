@@ -728,8 +728,9 @@ GuildFoundTools.EventHandlers.GROUP_JOINED = function()
 					name = strsplit("-", name)
 					for _, group in pairs(GuildFoundTools.groups) do
 						if group.leader == name then
-							-- Skip role popup if the player already signed up for this group
-							if group.applicants and group.applicants[GetPlayerName()] then
+							-- Skip role popup if the player already signed up or is a member of this group
+							local playerName = GetPlayerName()
+							if (group.applicants and group.applicants[playerName]) or (group.members and group.members[playerName]) then
 								return
 							end
 							if GuildFoundTools.LFG.ShowPartyRolePopup then
