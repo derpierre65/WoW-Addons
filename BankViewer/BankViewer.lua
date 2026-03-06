@@ -1,6 +1,8 @@
 BankViewer = BankViewer or {}
 BankViewer.version = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)("BankViewer", "Version")
 
+--test
+
 -- Detect retail 11.2+ tab-based bank system
 local isRetailBankTabs = Enum.BagIndex and Enum.BagIndex.CharacterBankTab_1 ~= nil
 BankViewer.isRetailBankTabs = isRetailBankTabs
