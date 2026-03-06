@@ -188,6 +188,7 @@ function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMemb
 		description = description or "",
 		maxMembers = maxMembers or 5,
 		beginnerFriendly = beginnerFriendly or false,
+		leaderLevel = UnitLevel("player") or 60,
 		leader = GetPlayerName(),
 		members = { [GetPlayerName()] = leaderRole or "DD" },
 		applicants = {},
@@ -231,6 +232,7 @@ function GuildFoundTools.LFG.EditGroup(groupId, category, dungeon, description, 
 	group.description = description or group.description
 	group.maxMembers = maxMembers or group.maxMembers
 	group.beginnerFriendly = beginnerFriendly
+	group.leaderLevel = UnitLevel("player") or 60
 	group.members[group.leader] = leaderRole or "DD"
 
 	SaveGroupToStorage(group)
@@ -241,6 +243,7 @@ function GuildFoundTools.LFG.EditGroup(groupId, category, dungeon, description, 
 		description = group.description,
 		maxMembers = group.maxMembers,
 		beginnerFriendly = group.beginnerFriendly,
+		leaderLevel = group.leaderLevel,
 	})
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
@@ -356,6 +359,7 @@ GuildFoundTools.MessageHandlers.GROUP_EDIT = function(data, sender)
 	group.description = data.description or group.description
 	group.maxMembers = data.maxMembers or group.maxMembers
 	group.beginnerFriendly = data.beginnerFriendly or false
+	group.leaderLevel = data.leaderLevel or group.leaderLevel
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -490,6 +494,7 @@ GuildFoundTools.MessageHandlers.GROUP_LIST_REQUEST = function(data, sender)
 		description = group.description,
 		maxMembers = group.maxMembers,
 		leader = group.leader,
+		leaderLevel = group.leaderLevel,
 		members = group.members,
 		beginnerFriendly = group.beginnerFriendly,
 		applicants = group.applicants,
@@ -986,6 +991,26 @@ local function IsDungeonVisible(dungeon)
 	return GuildFoundTools.UI.showAllLevelRanges or not IsDungeonRed(dungeon)
 end
 
+local function IsLevelRed(level)
+	local playerLevel = UnitLevel("player") or 60
+	return playerLevel < level and level - playerLevel >= 5
+end
+
+local function IsGroupVisible(group)
+	if GuildFoundTools.UI.showAllLevelRanges then return true end
+
+	local dungeon = group.dungeon and group.dungeon ~= "" and DUNGEON_BY_ID[group.dungeon]
+	if dungeon then
+		return not IsDungeonRed(dungeon)
+	end
+
+	if group.leaderLevel then
+		return not IsLevelRed(group.leaderLevel)
+	end
+
+	return true
+end
+
 local function GetVisibleDungeons(category)
 	local dungeons = DUNGEON_LIST[category] or {}
 	local visible = {}
@@ -1378,8 +1403,7 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 	-- Filter and sort groups by member count (most members first)
 	local sortedGroups = {}
 	for _, group in pairs(groups) do
-		local dungeon = group.dungeon and group.dungeon ~= "" and DUNGEON_BY_ID[group.dungeon]
-		if not dungeon or IsDungeonVisible(dungeon) then
+		if IsGroupVisible(group) then
 			table.insert(sortedGroups, group)
 		end
 	end
