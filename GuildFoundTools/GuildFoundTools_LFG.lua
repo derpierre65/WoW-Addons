@@ -622,6 +622,7 @@ GuildFoundTools.MessageHandlers.GROUP_INVITE_REQUEST = function(data, sender)
 	end
 
 	inviteConfirmPopup:Show()
+	PlaySound(SOUNDKIT.READY_CHECK)
 end
 
 -- Received by leader: applicant accepted the invite
