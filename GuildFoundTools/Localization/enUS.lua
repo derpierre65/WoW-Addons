@@ -3,6 +3,7 @@ if not L then return end
 
 -- General
 L["AddonTitle"] = "GuildFound Tools"
+L["SettingsShowAllLevelRanges"] = "Show all level ranges"
 L["MinimapTooltip"] = "Click to open the window"
 L["NotInGuild"] = "You are not in a guild."
 

@@ -976,6 +976,27 @@ local function GetDungeonLevelColor(playerLevel, minLevel, maxLevel)
 	return 1, 1, 0 -- yellow
 end
 
+local function IsDungeonRed(dungeon)
+	local playerLevel = UnitLevel("player") or 60
+
+	return playerLevel < dungeon.minLevel and (dungeon.minLevel - playerLevel) >= 5
+end
+
+local function IsDungeonVisible(dungeon)
+	return GuildFoundTools.UI.showAllLevelRanges or not IsDungeonRed(dungeon)
+end
+
+local function GetVisibleDungeons(category)
+	local dungeons = DUNGEON_LIST[category] or {}
+	local visible = {}
+	for _, dungeon in ipairs(dungeons) do
+		if IsDungeonVisible(dungeon) then
+			table.insert(visible, dungeon)
+		end
+	end
+	return visible
+end
+
 local function GetDungeonDisplayText(dungeon)
 	local dungeonName = GetDungeonName(dungeon.id)
 	local playerLevel = UnitLevel("player") or 60
@@ -1354,10 +1375,13 @@ function GuildFoundTools.LFG.UpdateLFGUI()
 		selectedGroupId = nil
 	end
 
-	-- Sort groups by member count (most members first)
+	-- Filter and sort groups by member count (most members first)
 	local sortedGroups = {}
 	for _, group in pairs(groups) do
-		table.insert(sortedGroups, group)
+		local dungeon = group.dungeon and group.dungeon ~= "" and DUNGEON_BY_ID[group.dungeon]
+		if not dungeon or IsDungeonVisible(dungeon) then
+			table.insert(sortedGroups, group)
+		end
 	end
 	table.sort(sortedGroups, function(a, b)
 		return GuildFoundTools.LFG.GetMemberCount(a) > GuildFoundTools.LFG.GetMemberCount(b)
@@ -1689,7 +1713,7 @@ local function UpdateFormValidation()
 end
 
 local function InitDungeonDropdown(self, level)
-	local dungeons = DUNGEON_LIST[selectedCategory] or {}
+	local dungeons = GetVisibleDungeons(selectedCategory)
 	if #dungeons == 0 then
 		local info = UIDropDownMenu_CreateInfo()
 		info.text = L["DropdownFreetext"]

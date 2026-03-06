@@ -29,6 +29,38 @@ mainFrame:SetScript("OnDragStop", mainFrame.StopMovingOrSizing)
 
 tinsert(UISpecialFrames, "GuildFoundToolsMainFrame")
 
+-- Settings gear button (left of the close button)
+GuildFoundTools.UI.showAllLevelRanges = false
+
+local settingsButton = CreateFrame("Button", nil, mainFrame)
+settingsButton:SetSize(20, 20)
+settingsButton:SetPoint("RIGHT", mainFrame.CloseButton, "LEFT", 4, 0)
+settingsButton:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
+settingsButton:SetHighlightTexture("Interface\\Buttons\\UI-OptionsButton")
+settingsButton:GetHighlightTexture():SetAlpha(0.4)
+
+local settingsDropdownFrame = CreateFrame("Frame", "GuildFoundToolsSettingsDropdown", mainFrame, "UIDropDownMenuTemplate")
+settingsDropdownFrame:Hide()
+
+UIDropDownMenu_Initialize(settingsDropdownFrame, function()
+	local info = UIDropDownMenu_CreateInfo()
+	info.text = L["SettingsShowAllLevelRanges"]
+	info.isNotRadio = true
+	info.keepShownOnClick = true
+	info.checked = GuildFoundTools.UI.showAllLevelRanges
+	info.func = function(_, _, _, checked)
+		GuildFoundTools.UI.showAllLevelRanges = checked
+		if GuildFoundTools.LFG and GuildFoundTools.LFG.UpdateLFGUI then
+			GuildFoundTools.LFG.UpdateLFGUI()
+		end
+	end
+	UIDropDownMenu_AddButton(info)
+end, "MENU")
+
+settingsButton:SetScript("OnClick", function(self)
+	ToggleDropDownMenu(1, nil, settingsDropdownFrame, self, 0, 0)
+end)
+
 -- ============================================================
 -- Tab system
 -- ============================================================
