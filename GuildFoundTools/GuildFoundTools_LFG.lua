@@ -539,11 +539,15 @@ end
 -- ============================================================
 
 local inviteConfirmPopup = CreateFrame("Frame", "GuildFoundToolsInviteConfirmPopup", UIParent, "BasicFrameTemplateWithInset")
-inviteConfirmPopup:SetSize(300, 150)
+inviteConfirmPopup:SetSize(300, 110)
 inviteConfirmPopup:SetPoint("CENTER")
 inviteConfirmPopup:SetFrameStrata("DIALOG")
 inviteConfirmPopup:Hide()
 inviteConfirmPopup:EnableMouse(true)
+inviteConfirmPopup:SetMovable(true)
+inviteConfirmPopup:RegisterForDrag("LeftButton")
+inviteConfirmPopup:SetScript("OnDragStart", inviteConfirmPopup.StartMoving)
+inviteConfirmPopup:SetScript("OnDragStop", inviteConfirmPopup.StopMovingOrSizing)
 
 inviteConfirmPopup.title = inviteConfirmPopup:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 inviteConfirmPopup.title:SetPoint("CENTER", inviteConfirmPopup.TitleBg, "CENTER", 0, 0)
@@ -2152,6 +2156,10 @@ partyRolePopup:SetPoint("CENTER")
 partyRolePopup:SetFrameStrata("DIALOG")
 partyRolePopup:Hide()
 partyRolePopup:EnableMouse(true)
+partyRolePopup:SetMovable(true)
+partyRolePopup:RegisterForDrag("LeftButton")
+partyRolePopup:SetScript("OnDragStart", partyRolePopup.StartMoving)
+partyRolePopup:SetScript("OnDragStop", partyRolePopup.StopMovingOrSizing)
 
 partyRolePopup.title = partyRolePopup:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 partyRolePopup.title:SetPoint("CENTER", partyRolePopup.TitleBg, "CENTER", 0, 0)
