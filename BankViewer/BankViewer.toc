@@ -9,4 +9,3 @@ Localization.lua
 BankViewer.lua
 BankViewer_UI.lua
 BankViewer_Minimap.lua
-
