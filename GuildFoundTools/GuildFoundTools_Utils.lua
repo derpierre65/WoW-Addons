@@ -43,3 +43,4 @@ function GuildFoundTools.Utils.Debounce(key, delay, callback)
 		callback()
 	end)
 end
+
