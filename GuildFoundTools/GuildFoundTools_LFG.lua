@@ -579,11 +579,15 @@ inviteDeclineButton:SetText(L["ButtonDeclineInvite"])
 inviteAcceptButton:SetScript("OnClick", function()
 	local leaderName = inviteConfirmPopup.leaderName
 	if leaderName then
+		pendingInviteFromLeader = leaderName
 		if GetNumGroupMembers() > 0 then
 			LeaveParty()
+			C_Timer.After(0.5, function()
+				SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_ACCEPT, leaderName)
+			end)
+		else
+			SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_ACCEPT, leaderName)
 		end
-		pendingInviteFromLeader = leaderName
-		SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_ACCEPT, leaderName)
 	end
 	inviteConfirmPopup:Hide()
 end)
@@ -2056,7 +2060,7 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 			myGroupInfoText:Hide()
 			leftButton:Hide()
 			rightButton:Hide()
-	
+
 			-- Set role from group data and show role buttons
 			selectedRole = myGroup.members[playerName] or "DD"
 			UpdateRoleButtons()
