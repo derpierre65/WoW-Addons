@@ -36,7 +36,7 @@ overlay:SetPoint("TOPLEFT")
 
 local icon = minimapButton:CreateTexture(nil, "BACKGROUND")
 icon:SetSize(21, 21)
-icon:SetTexture("Interface\\Icons\\INV_Tabard_GuildTabard")
+icon:SetTexture("Interface\\Icons\\Achievement_GuildPerk_EverybodysFriend")
 icon:SetPoint("CENTER", 0, 1)
 minimapButton.icon = icon
 
