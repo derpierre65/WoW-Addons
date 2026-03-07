@@ -382,9 +382,10 @@ GuildFoundTools.MessageHandlers.GROUP_REMOVE = function(data)
 		rolePopup:Hide()
 	end
 
-	-- Hide the invite confirm popup if it was shown for this group
+	-- Remove from invite queue and hide popup if shown for this group
+	RemoveFromInviteQueue(data.id)
 	if inviteConfirmPopup.groupId == data.id then
-		inviteConfirmPopup:Hide()
+		ShowNextInvite()
 	end
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
@@ -444,9 +445,12 @@ GuildFoundTools.MessageHandlers.GROUP_DECLINE = function(data)
 	group.applicants = group.applicants or {}
 	group.applicants[applicantName] = nil
 
-	-- Hide the invite confirm popup if the current player was declined
-	if applicantName == GetPlayerName() and inviteConfirmPopup.groupId == groupId then
-		inviteConfirmPopup:Hide()
+	-- Remove from invite queue and hide popup if the current player was declined
+	if applicantName == GetPlayerName() then
+		RemoveFromInviteQueue(groupId)
+		if inviteConfirmPopup.groupId == groupId then
+			ShowNextInvite()
+		end
 	end
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
@@ -573,6 +577,47 @@ inviteConfirmPopup.title:SetPoint("CENTER", inviteConfirmPopup.TitleBg, "CENTER"
 inviteConfirmPopup.title:SetText(L["InviteConfirmTitle"])
 
 inviteConfirmPopup.leaderName = nil
+inviteConfirmPopup.groupId = nil
+
+local inviteQueue = {}
+
+local function ShowNextInvite()
+	if #inviteQueue == 0 then
+		inviteConfirmPopup:Hide()
+		return
+	end
+
+	local invite = table.remove(inviteQueue, 1)
+	inviteConfirmPopup.groupId = invite.groupId
+	inviteConfirmPopup.leaderName = invite.leaderName
+	inviteConfirmPopup.text:SetText(string.format(L["InviteConfirmText"], invite.leaderName))
+
+	if GetNumGroupMembers() > 0 then
+		inviteConfirmPopup.warning:SetText(L["InviteConfirmLeaveWarning"])
+		inviteConfirmPopup.warning:Show()
+	else
+		inviteConfirmPopup.warning:SetText("")
+		inviteConfirmPopup.warning:Hide()
+	end
+
+	inviteConfirmPopup:Show()
+	PlaySound(SOUNDKIT.READY_CHECK)
+end
+
+local function DeclineAllQueuedInvites()
+	for _, invite in ipairs(inviteQueue) do
+		SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_DECLINE, invite.leaderName)
+	end
+	inviteQueue = {}
+end
+
+local function RemoveFromInviteQueue(groupId)
+	for index = #inviteQueue, 1, -1 do
+		if inviteQueue[index].groupId == groupId then
+			table.remove(inviteQueue, index)
+		end
+	end
+end
 
 inviteConfirmPopup.text = inviteConfirmPopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 inviteConfirmPopup.text:SetPoint("TOP", 0, -32)
@@ -612,6 +657,7 @@ inviteAcceptButton:SetScript("OnClick", function()
 			SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_ACCEPT, leaderName)
 		end
 	end
+	DeclineAllQueuedInvites()
 	inviteConfirmPopup:Hide()
 end)
 
@@ -620,7 +666,7 @@ inviteDeclineButton:SetScript("OnClick", function()
 	if leaderName then
 		SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_DECLINE, leaderName)
 	end
-	inviteConfirmPopup:Hide()
+	ShowNextInvite()
 end)
 
 tinsert(UISpecialFrames, "GuildFoundToolsInviteConfirmPopup")
@@ -633,20 +679,13 @@ tinsert(UISpecialFrames, "GuildFoundToolsInviteConfirmPopup")
 GuildFoundTools.MessageHandlers.GROUP_INVITE_REQUEST = function(data, sender)
 	if not data or not data.leaderName then return end
 
-	inviteConfirmPopup.groupId = data.groupId
-	inviteConfirmPopup.leaderName = data.leaderName
-	inviteConfirmPopup.text:SetText(string.format(L["InviteConfirmText"], data.leaderName))
+	local invite = { groupId = data.groupId, leaderName = data.leaderName }
 
-	if GetNumGroupMembers() > 0 then
-		inviteConfirmPopup.warning:SetText(L["InviteConfirmLeaveWarning"])
-		inviteConfirmPopup.warning:Show()
-	else
-		inviteConfirmPopup.warning:SetText("")
-		inviteConfirmPopup.warning:Hide()
+	table.insert(inviteQueue, invite)
+
+	if not inviteConfirmPopup:IsShown() then
+		ShowNextInvite()
 	end
-
-	inviteConfirmPopup:Show()
-	PlaySound(SOUNDKIT.READY_CHECK)
 end
 
 -- Received by leader: applicant accepted the invite
