@@ -1,5 +1,3 @@
--- Minimap button (adapted from BankViewer)
-
 local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
 local DEFAULT_ANGLE = 200
 
@@ -48,7 +46,7 @@ end
 -- Dragging
 minimapButton:RegisterForDrag("LeftButton")
 minimapButton:SetScript("OnDragStart", function(self)
-	self:SetScript("OnUpdate", function(self)
+	self:SetScript("OnUpdate", function()
 		local minimapX, minimapY = Minimap:GetCenter()
 		local cursorX, cursorY = GetCursorPosition()
 		local scale = Minimap:GetEffectiveScale()
