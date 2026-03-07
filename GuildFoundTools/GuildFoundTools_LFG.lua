@@ -260,7 +260,11 @@ function GuildFoundTools.LFG.SignupForGroup(groupId, role)
 		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
 	end
 
-	SendGuildMessage(MESSAGE_TYPE.GROUP_SIGNUP, { groupId = groupId, name = GetPlayerName(), role = role or "DD" })
+	SendGuildMessage(MESSAGE_TYPE.GROUP_SIGNUP, {
+		groupId = groupId,
+		name = GetPlayerName(),
+		role = role or "DD",
+	})
 end
 
 function GuildFoundTools.LFG.LeaveGroup(groupId)
@@ -378,6 +382,11 @@ GuildFoundTools.MessageHandlers.GROUP_REMOVE = function(data)
 		rolePopup:Hide()
 	end
 
+	-- Hide the invite confirm popup if it was shown for this group
+	if inviteConfirmPopup.groupId == data.id then
+		inviteConfirmPopup:Hide()
+	end
+
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
 	end
@@ -386,11 +395,10 @@ end
 GuildFoundTools.MessageHandlers.GROUP_SIGNUP = function(data)
 	if not data or not data.groupId or not data.name then return end
 
-	local groupId = data.groupId
 	local memberName = data.name
 	local memberRole = data.role or "DD"
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = GuildFoundTools.groups[data.groupId]
 	if not group then return end
 
 	if group.members[memberName] then return end
@@ -435,6 +443,11 @@ GuildFoundTools.MessageHandlers.GROUP_DECLINE = function(data)
 
 	group.applicants = group.applicants or {}
 	group.applicants[applicantName] = nil
+
+	-- Hide the invite confirm popup if the current player was declined
+	if applicantName == GetPlayerName() and inviteConfirmPopup.groupId == groupId then
+		inviteConfirmPopup:Hide()
+	end
 
 	if GuildFoundTools.LFG.UpdateLFGUI then
 		GuildFoundTools.LFG.UpdateLFGUI()
@@ -620,6 +633,7 @@ tinsert(UISpecialFrames, "GuildFoundToolsInviteConfirmPopup")
 GuildFoundTools.MessageHandlers.GROUP_INVITE_REQUEST = function(data, sender)
 	if not data or not data.leaderName then return end
 
+	inviteConfirmPopup.groupId = data.groupId
 	inviteConfirmPopup.leaderName = data.leaderName
 	inviteConfirmPopup.text:SetText(string.format(L["InviteConfirmText"], data.leaderName))
 
