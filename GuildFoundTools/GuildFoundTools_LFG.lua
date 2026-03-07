@@ -20,6 +20,7 @@ local ROW_HEIGHT = 40
 local ROW_SPACING = 3
 local MAX_ROLE_SLOTS = 5
 local ACTION_BAR_HEIGHT = 30
+local ROLE_SORT_ORDER = { ["TANK"] = 1, ["HEAL"] = 2, ["DD"] = 3 }
 local ROLE_BUTTON_SIZE = 48
 local ROLE_BUTTON_SPACING = 8
 local FORM_TOP_OFFSET = -68
@@ -1463,7 +1464,6 @@ function GuildFoundTools.LFG.UpdateLFGUI(skipCreateGroupTab)
 		end
 
 		-- Tooltip: leader first, then by role priority
-		local ROLE_SORT_ORDER = { ["TANK"] = 1, ["HEAL"] = 2, ["DD"] = 3 }
 		table.sort(memberInfoList, function(a, b)
 			if a.name == group.leader then return true end
 			if b.name == group.leader then return false end
@@ -1923,7 +1923,6 @@ local function UpdateApplicantsList(group, isLeader)
 		table.insert(applicantList, { name = applicantName, role = role })
 	end
 
-	local ROLE_SORT_ORDER = { ["TANK"] = 1, ["HEAL"] = 2, ["DD"] = 3 }
 	table.sort(applicantList, function(a, b)
 		return (ROLE_SORT_ORDER[a.role] or 3) < (ROLE_SORT_ORDER[b.role] or 3)
 	end)
