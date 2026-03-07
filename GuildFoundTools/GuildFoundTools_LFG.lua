@@ -1728,15 +1728,6 @@ end
 
 local function InitDungeonDropdown(self, level)
 	local dungeons = GetVisibleDungeons(selectedCategory)
-	if #dungeons == 0 then
-		local info = UIDropDownMenu_CreateInfo()
-		info.text = L["DropdownFreetext"]
-		info.disabled = true
-		info.notCheckable = true
-		UIDropDownMenu_AddButton(info)
-		return
-	end
-
 	for _, dungeon in ipairs(dungeons) do
 		local info = UIDropDownMenu_CreateInfo()
 		info.text = GetDungeonDisplayText(dungeon)
@@ -1765,11 +1756,10 @@ local function InitCategoryDropdown(self, level)
 			UIDropDownMenu_Initialize(dungeonDropdown, InitDungeonDropdown)
 			CloseDropDownMenus()
 
-			-- Show/hide dungeon dropdown based on category
 			if category == "Custom" then
-				dungeonDropdown:SetAlpha(0.5)
+				UIDropDownMenu_DisableDropDown(dungeonDropdown)
 			else
-				dungeonDropdown:SetAlpha(1)
+				UIDropDownMenu_EnableDropDown(dungeonDropdown)
 			end
 			UpdateFormValidation()
 		end
@@ -2003,7 +1993,7 @@ local function ResetForm()
 	selectedDungeon = ""
 	UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
 	UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
-	dungeonDropdown:SetAlpha(1)
+	UIDropDownMenu_EnableDropDown(dungeonDropdown)
 	descriptionEditBox:SetText("")
 	maxMembersEditBox:SetText("5")
 	selectedRole = "DD"
@@ -2027,9 +2017,9 @@ local function PopulateFormFromGroup(group)
 	end
 
 	if selectedCategory == "Custom" then
-		dungeonDropdown:SetAlpha(0.5)
+		UIDropDownMenu_DisableDropDown(dungeonDropdown)
 	else
-		dungeonDropdown:SetAlpha(1)
+		UIDropDownMenu_EnableDropDown(dungeonDropdown)
 	end
 
 	descriptionEditBox:SetText(group.description or "")

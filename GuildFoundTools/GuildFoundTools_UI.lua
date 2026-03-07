@@ -102,7 +102,6 @@ end
 
 PanelTemplates_SetNumTabs(mainFrame, #TAB_NAMES)
 PanelTemplates_SetTab(mainFrame, 1)
-PanelTemplates_DisableTab(mainFrame, 3)
 
 function GuildFoundTools.UI.SetTabText(tabIndex, text)
 	local tabButton = tabButtons[tabIndex]
@@ -143,6 +142,8 @@ function GuildFoundTools.UI.SetTabEnabled(tabIndex, enabled, disabledTooltip)
 		end
 	end
 end
+
+GuildFoundTools.UI.SetTabEnabled(3, false, L["TabProfessionsDisabled"])
 
 function GuildFoundTools.UI.ShowTab(tabIndex)
 	for index, contentFrame in ipairs(contentFrames) do
