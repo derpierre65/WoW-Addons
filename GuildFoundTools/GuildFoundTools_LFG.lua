@@ -965,31 +965,32 @@ local DUNGEON_LIST = {
 	["Custom"] = {},
 }
 
-local function GetDungeonLevelColor(playerLevel, minLevel, maxLevel)
-	if playerLevel < minLevel then
-		-- Player is below dungeon range, color based on minLevel
-		local diff = minLevel - playerLevel
-		if diff >= 5 then
-			return 1, 0, 0 -- red
-		elseif diff >= 3 then
-			return 1, 0.5, 0 -- orange
-		end
-	elseif playerLevel > maxLevel then
-		return 0.5, 0.5, 0.5 -- gray
-	end
-
-	-- Player is within dungeon range
-	return 1, 1, 0 -- yellow
-end
-
 local function IsDungeonRed(dungeon)
 	local playerLevel = UnitLevel("player") or 60
-
 	return playerLevel < dungeon.minLevel and (dungeon.minLevel - playerLevel) >= 5
 end
 
+local function IsDungeonGray(dungeon)
+	return (UnitLevel("player") or 60) > dungeon.maxLevel
+end
+
+local function GetDungeonLevelColor(dungeon)
+	if IsDungeonRed(dungeon) then
+		return 1, 0, 0 -- red
+	elseif IsDungeonGray(dungeon) then
+		return 0.5, 0.5, 0.5 -- gray
+	end
+
+	local playerLevel = UnitLevel("player") or 60
+	if playerLevel < dungeon.minLevel and (dungeon.minLevel - playerLevel) >= 3 then
+		return 1, 0.5, 0 -- orange
+	end
+
+	return 1, 1, 0 -- yellow
+end
+
 local function IsDungeonVisible(dungeon)
-	return GuildFoundTools.UI.showAllLevelRanges or not IsDungeonRed(dungeon)
+	return GuildFoundTools.UI.showAllLevelRanges or (not IsDungeonRed(dungeon) and not IsDungeonGray(dungeon))
 end
 
 local function IsLevelRed(level)
@@ -1020,16 +1021,16 @@ local function GetVisibleDungeons(category)
 			table.insert(visible, dungeon)
 		end
 	end
+
 	return visible
 end
 
 local function GetDungeonDisplayText(dungeon)
 	local dungeonName = GetDungeonName(dungeon.id)
-	local playerLevel = UnitLevel("player") or 60
-	local red, green, blue = GetDungeonLevelColor(playerLevel, dungeon.minLevel, dungeon.maxLevel)
+	local red, green, blue = GetDungeonLevelColor(dungeon)
 	local colorCode = string.format("|cff%02x%02x%02x", red * 255, green * 255, blue * 255)
-	local isGray = (red == 0.5 and green == 0.5 and blue == 0.5)
-	if isGray then
+
+	if IsDungeonGray(dungeon) then
 		return colorCode .. dungeonName .. " (" .. dungeon.minLevel .. " - " .. dungeon.maxLevel .. ")|r"
 	end
 	return dungeonName .. " " .. colorCode .. "(" .. dungeon.minLevel .. " - " .. dungeon.maxLevel .. ")|r"
@@ -1046,6 +1047,7 @@ local function GetDungeonDisplayTextById(dungeonId)
 	if dungeon then
 		return GetDungeonDisplayText(dungeon)
 	end
+
 	return GetDungeonName(dungeonId)
 end
 
