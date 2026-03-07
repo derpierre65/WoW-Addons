@@ -1111,13 +1111,7 @@ for index, roleName in ipairs(ROLE_NAMES) do
 
 	button:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		if roleName == "TANK" then
-			GameTooltip:SetText(L["RoleTank"])
-		elseif roleName == "HEAL" then
-			GameTooltip:SetText(L["RoleHealer"])
-		else
-			GameTooltip:SetText(L["RoleDamageDealer"])
-		end
+		GameTooltip:SetText(L[roleName])
 		GameTooltip:Show()
 	end)
 	button:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1637,13 +1631,7 @@ for index, roleName in ipairs(ROLE_NAMES) do
 
 	roleButton:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		if self.roleKey == "TANK" then
-			GameTooltip:SetText(L["RoleTank"])
-		elseif self.roleKey == "HEAL" then
-			GameTooltip:SetText(L["RoleHealer"])
-		else
-			GameTooltip:SetText(L["RoleDamageDealer"])
-		end
+		GameTooltip:SetText(L[self.roleKey])
 		GameTooltip:Show()
 	end)
 	roleButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2241,13 +2229,7 @@ for index, roleName in ipairs(ROLE_NAMES) do
 
 	button:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		if roleName == "TANK" then
-			GameTooltip:SetText(L["RoleTank"])
-		elseif roleName == "HEAL" then
-			GameTooltip:SetText(L["RoleHealer"])
-		else
-			GameTooltip:SetText(L["RoleDamageDealer"])
-		end
+		GameTooltip:SetText(L[roleName])
 		GameTooltip:Show()
 	end)
 	button:SetScript("OnLeave", function() GameTooltip:Hide() end)

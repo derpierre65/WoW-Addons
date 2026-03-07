@@ -7,9 +7,9 @@ L["MinimapTooltip"] = "Klicken um das Fenster zu öffnen"
 L["NotInGuild"] = "Du bist in keiner Gilde."
 
 -- Roles
-L["RoleTank"] = "Tank"
-L["RoleHealer"] = "Heiler"
-L["RoleDamageDealer"] = "Damage Dealer"
+L["TANK"] = "Tank"
+L["HEAL"] = "Heiler"
+L["DD"] = "Damage Dealer"
 L["BeginnerFriendly"] = "Neulinge willkommen"
 L["BeginnerFriendlyTooltip"] = "Zeigt an, dass du neue Spieler in deiner Gruppe willkommen heißt und bereit bist, ihnen als Guide zu helfen."
 
