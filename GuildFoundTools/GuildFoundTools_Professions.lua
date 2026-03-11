@@ -14,21 +14,21 @@ local SendGuildMessage = GuildFoundTools.SendGuildMessage
 -- Profession scanning (Classic: GetNumSkillLines/GetSkillLineInfo)
 -- ============================================================
 
-local KNOWN_PROFESSIONS = {
-	["Alchemy"] = true, ["Alchimie"] = true,
-	["Blacksmithing"] = true, ["Schmiedekunst"] = true,
-	["Enchanting"] = true, ["Verzauberkunst"] = true,
-	["Engineering"] = true, ["Ingenieurskunst"] = true,
-	["Herbalism"] = true, ["Kraeuterkunde"] = true,
-	["Leatherworking"] = true, ["Lederverarbeitung"] = true,
-	["Mining"] = true, ["Bergbau"] = true,
-	["Skinning"] = true, ["Kuerschnerei"] = true,
-	["Tailoring"] = true, ["Schneiderei"] = true,
-	["Cooking"] = true, ["Kochkunst"] = true,
-	["First Aid"] = true, ["Erste Hilfe"] = true,
-	["Fishing"] = true, ["Angeln"] = true,
-	["Jewelcrafting"] = true, ["Juwelenschleifen"] = true,
-	["Inscription"] = true, ["Inschriftenkunde"] = true,
+local PROFESSION_NAME_TO_ID = {
+	["Alchemy"] = 171, ["Alchimie"] = 171,
+	["Blacksmithing"] = 164, ["Schmiedekunst"] = 164,
+	["Enchanting"] = 333, ["Verzauberkunst"] = 333, ["Verzaubern"] = 333,
+	["Engineering"] = 202, ["Ingenieurskunst"] = 202,
+	["Herbalism"] = 182, ["Kraeuterkunde"] = 182,
+	["Leatherworking"] = 165, ["Lederverarbeitung"] = 165,
+	["Mining"] = 186, ["Bergbau"] = 186,
+	["Skinning"] = 393, ["Kuerschnerei"] = 393,
+	["Tailoring"] = 197, ["Schneiderei"] = 197,
+	["Cooking"] = 185, ["Kochkunst"] = 185,
+	["First Aid"] = 129, ["Erste Hilfe"] = 129,
+	["Fishing"] = 356, ["Angeln"] = 356,
+	["Jewelcrafting"] = 755, ["Juwelenschleifen"] = 755,
+	["Inscription"] = 773, ["Inschriftenkunde"] = 773,
 }
 
 function GuildFoundTools.Professions.ScanProfessions()
@@ -38,7 +38,7 @@ function GuildFoundTools.Professions.ScanProfessions()
 
 	for index = 1, GetNumSkillLines() do
 		local skillName, isHeader, _, skillRank, _, _, skillMaxRank = GetSkillLineInfo(index)
-		if skillName and not isHeader and KNOWN_PROFESSIONS[skillName] then
+		if skillName and not isHeader and PROFESSION_NAME_TO_ID[skillName] then
 			table.insert(result, {
 				name = skillName,
 				rank = skillRank or 0,
@@ -54,13 +54,21 @@ end
 -- Recipe scanning (when tradeskill window is open)
 -- ============================================================
 
-local scannedRecipes = {} -- [professionName] = { { itemId = number, name = string }, ... }
+local function GetPlayerRecipes()
+	GuildFoundToolsProfessions = GuildFoundToolsProfessions or {}
+	local guid = UnitGUID("player")
+	GuildFoundToolsProfessions[guid] = GuildFoundToolsProfessions[guid] or {}
+	return GuildFoundToolsProfessions[guid]
+end
 
 local function ScanCurrentTradeSkill()
 	if not GetTradeSkillLine or not GetNumTradeSkills then return end
 
 	local tradeSkillName = GetTradeSkillLine()
 	if not tradeSkillName or tradeSkillName == "UNKNOWN" then return end
+
+	local professionId = PROFESSION_NAME_TO_ID[tradeSkillName]
+	if not professionId then return end
 
 	local recipes = {}
 	for index = 1, GetNumTradeSkills() do
@@ -73,16 +81,16 @@ local function ScanCurrentTradeSkill()
 			end
 			table.insert(recipes, {
 				itemId = itemId,
-				name = recipeName,
 			})
 		end
 	end
 
-	scannedRecipes[tradeSkillName] = recipes
+	local playerRecipes = GetPlayerRecipes()
+	playerRecipes[professionId] = recipes
 end
 
 function GuildFoundTools.Professions.GetScannedRecipes()
-	return scannedRecipes
+	return GetPlayerRecipes()
 end
 
 -- ============================================================
@@ -148,11 +156,19 @@ GuildFoundTools.MessageHandlers.PROFESSION_ANSWER = function(data, sender)
 end
 
 -- Register profession event handlers
+local function OnTradeSkillUpdate()
+	GuildFoundTools.Utils.Debounce("TradeSkillUpdate", 1, ScanCurrentTradeSkill)
+end
+
 GuildFoundTools.EventHandlers.TRADE_SKILL_SHOW = function()
-	ScanCurrentTradeSkill()
+	OnTradeSkillUpdate()
+	GuildFoundTools.EventHandlers.TRADE_SKILL_UPDATE = OnTradeSkillUpdate
+	GuildFoundTools.EventHandlers.CRAFT_UPDATE = OnTradeSkillUpdate
 end
 
 GuildFoundTools.EventHandlers.TRADE_SKILL_CLOSE = function()
+	GuildFoundTools.UnregisterEventHandler("TRADE_SKILL_UPDATE", OnTradeSkillUpdate)
+	GuildFoundTools.UnregisterEventHandler("CRAFT_UPDATE", OnTradeSkillUpdate)
 	ScanCurrentTradeSkill()
 end
 

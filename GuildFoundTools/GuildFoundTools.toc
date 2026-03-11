@@ -3,7 +3,7 @@
 ## Notes: Tools for Guilds, especially for GuildFound.
 ## Author: derpierre65
 ## Version: 1.0.0
-## SavedVariables: GuildFoundToolsDB, GuildFoundTools_LFG
+## SavedVariables: GuildFoundToolsDB, GuildFoundTools_LFG, GuildFoundToolsProfessions
 
 Libs\AceComm-3.0\AceComm-3.0.xml
 Libs\AceSerializer-3.0\AceSerializer-3.0.xml

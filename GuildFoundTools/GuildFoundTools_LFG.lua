@@ -36,7 +36,6 @@ local selectedDungeon = ""
 local isEditingMyGroup = false
 local roleButtons = {}
 local pendingInviteFromLeader = nil
-local guildMemberCache = {}
 local ROLE_ICON_MARKUP = {}
 local DUNGEON_BY_ID = {}
 
@@ -903,26 +902,8 @@ for roleName, coords in pairs(ROLE_TEXCOORDS) do
 	)
 end
 
--- Guild roster lookup cache (rebuilt once per UI update)
-
-local function BuildGuildMemberCache()
-	wipe(guildMemberCache)
-	local memberCount = GetNumGuildMembers()
-	for index = 1, memberCount do
-		local fullName, _, _, level, _, _, _, _, online, _, classFileName = GetGuildRosterInfo(index)
-		if fullName then
-			local shortName = strsplit("-", fullName)
-			guildMemberCache[shortName] = {
-				classFileName = classFileName,
-				level = level,
-				online = online,
-			}
-		end
-	end
-end
-
 local function GetGuildMemberInfo(name)
-	local info = guildMemberCache[name]
+	local info = GuildFoundTools.guildMemberCache[name]
 	if info then
 		return info.classFileName, info.level, info.online
 	end
@@ -1437,7 +1418,7 @@ end)
 -- ============================================================
 
 function GuildFoundTools.LFG.UpdateLFGUI(skipCreateGroupTab)
-	BuildGuildMemberCache()
+	GuildFoundTools.BuildGuildMemberCache()
 	groupRowPool:ReleaseAll()
 
 	local groups = GuildFoundTools.groups

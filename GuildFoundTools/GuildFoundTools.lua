@@ -6,6 +6,26 @@ local AceComm = LibStub("AceComm-3.0")
 local AceSerializer = LibStub("AceSerializer-3.0")
 local ADDON_PREFIX = "GFTools"
 
+-- Guild member cache (shared across modules)
+GuildFoundTools.guildMemberCache = {}
+
+function GuildFoundTools.BuildGuildMemberCache()
+	wipe(GuildFoundTools.guildMemberCache)
+	local memberCount = GetNumGuildMembers()
+	for index = 1, memberCount do
+		local fullName, _, _, level, _, _, _, _, online, _, classFileName, _, _, _, _, _, guid = GetGuildRosterInfo(index)
+		if fullName then
+			local shortName = strsplit("-", fullName)
+			GuildFoundTools.guildMemberCache[shortName] = {
+				guid = guid,
+				classFileName = classFileName,
+				level = level,
+				online = online,
+			}
+		end
+	end
+end
+
 -- Global event handler system (supports multiple handlers per event)
 local eventFrame = CreateFrame("Frame")
 local eventHandlers = {}
@@ -19,6 +39,22 @@ GuildFoundTools.EventHandlers = setmetatable({}, {
 		table.insert(eventHandlers[event], handler)
 	end,
 })
+
+function GuildFoundTools.UnregisterEventHandler(event, handler)
+	local handlers = eventHandlers[event]
+	if not handlers then return end
+
+	for index = #handlers, 1, -1 do
+		if handlers[index] == handler then
+			table.remove(handlers, index)
+		end
+	end
+
+	if #handlers == 0 then
+		eventHandlers[event] = nil
+		eventFrame:UnregisterEvent(event)
+	end
+end
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
 	local handlers = eventHandlers[event]
