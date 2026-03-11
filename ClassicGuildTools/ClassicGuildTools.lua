@@ -1,22 +1,22 @@
-GuildFoundTools = GuildFoundTools or {}
+ClassicGuildTools = ClassicGuildTools or {}
 
-GuildFoundTools.debugMode = true
+ClassicGuildTools.debugMode = true
 
 local AceComm = LibStub("AceComm-3.0")
 local AceSerializer = LibStub("AceSerializer-3.0")
-local ADDON_PREFIX = "GFTools"
+local ADDON_PREFIX = "CGTools"
 
 -- Guild member cache (shared across modules)
-GuildFoundTools.guildMemberCache = {}
+ClassicGuildTools.guildMemberCache = {}
 
-function GuildFoundTools.BuildGuildMemberCache()
-	wipe(GuildFoundTools.guildMemberCache)
+function ClassicGuildTools.BuildGuildMemberCache()
+	wipe(ClassicGuildTools.guildMemberCache)
 	local memberCount = GetNumGuildMembers()
 	for index = 1, memberCount do
 		local fullName, _, _, level, _, _, _, _, online, _, classFileName, _, _, _, _, _, guid = GetGuildRosterInfo(index)
 		if fullName then
 			local shortName = strsplit("-", fullName)
-			GuildFoundTools.guildMemberCache[shortName] = {
+			ClassicGuildTools.guildMemberCache[shortName] = {
 				guid = guid,
 				classFileName = classFileName,
 				level = level,
@@ -30,7 +30,7 @@ end
 local eventFrame = CreateFrame("Frame")
 local eventHandlers = {}
 
-GuildFoundTools.EventHandlers = setmetatable({}, {
+ClassicGuildTools.EventHandlers = setmetatable({}, {
 	__newindex = function(self, event, handler)
 		if not eventHandlers[event] then
 			eventHandlers[event] = {}
@@ -40,7 +40,7 @@ GuildFoundTools.EventHandlers = setmetatable({}, {
 	end,
 })
 
-function GuildFoundTools.UnregisterEventHandler(event, handler)
+function ClassicGuildTools.UnregisterEventHandler(event, handler)
 	local handlers = eventHandlers[event]
 	if not handlers then return end
 
@@ -68,7 +68,7 @@ end)
 -- Global message handler system (supports multiple handlers per message type)
 local messageHandlers = {}
 
-GuildFoundTools.MessageHandlers = setmetatable({}, {
+ClassicGuildTools.MessageHandlers = setmetatable({}, {
 	__newindex = function(self, messageType, handler)
 		if not messageHandlers[messageType] then
 			messageHandlers[messageType] = {}
@@ -78,14 +78,14 @@ GuildFoundTools.MessageHandlers = setmetatable({}, {
 })
 
 -- In-memory state
-GuildFoundTools.groups = {}
-GuildFoundTools.professions = {}
+ClassicGuildTools.groups = {}
+ClassicGuildTools.professions = {}
 
 -- Local player info (populated on login)
 local playerName = nil
 local playerRealm = nil
 
-function GuildFoundTools.GetPlayerName()
+function ClassicGuildTools.GetPlayerName()
 	if not playerName then
 		playerName = UnitName("player")
 	end
@@ -93,12 +93,12 @@ function GuildFoundTools.GetPlayerName()
 end
 
 -- Send a message to the guild channel (via AceComm for automatic chunking)
-function GuildFoundTools.SendGuildMessage(messageType, data)
+function ClassicGuildTools.SendGuildMessage(messageType, data)
 	if not IsInGuild() then return end
 
 	local message = AceSerializer:Serialize(messageType, data or false)
 
-	if GuildFoundTools.debugMode then
+	if ClassicGuildTools.debugMode then
 		print("GFT ->", messageType, data)
 	end
 
@@ -106,12 +106,12 @@ function GuildFoundTools.SendGuildMessage(messageType, data)
 end
 
 -- Send a whisper message to a specific player (via AceComm)
-function GuildFoundTools.SendWhisperMessage(messageType, target, data)
+function ClassicGuildTools.SendWhisperMessage(messageType, target, data)
 	if not IsInGuild() then return end
 
 	local message = AceSerializer:Serialize(messageType, data or false)
 
-	if GuildFoundTools.debugMode then
+	if ClassicGuildTools.debugMode then
 		print("GFT W->", target, messageType, data)
 	end
 
@@ -122,13 +122,13 @@ end
 -- Event handlers
 -- ============================================================
 
-GuildFoundTools.EventHandlers.ADDON_LOADED = function(addonName)
-	if addonName ~= "GuildFoundTools" then return end
-	GuildFoundToolsDB = GuildFoundToolsDB or {}
-	GuildFoundToolsDB.minimap = GuildFoundToolsDB.minimap or {}
+ClassicGuildTools.EventHandlers.ADDON_LOADED = function(addonName)
+	if addonName ~= "ClassicGuildTools" then return end
+	ClassicGuildToolsDB = ClassicGuildToolsDB or {}
+	ClassicGuildToolsDB.minimap = ClassicGuildToolsDB.minimap or {}
 end
 
-GuildFoundTools.EventHandlers.PLAYER_LOGIN = function()
+ClassicGuildTools.EventHandlers.PLAYER_LOGIN = function()
 	playerName = UnitName("player")
 	playerRealm = GetRealmName()
 end
@@ -140,7 +140,7 @@ AceComm:RegisterComm(ADDON_PREFIX, function(prefix, message, distribution, sende
 
 	sender = strsplit("-", sender)
 
-	if GuildFoundTools.debugMode then
+	if ClassicGuildTools.debugMode then
 		print("GFT <-", distribution, sender, messageType, data)
 	end
 
@@ -156,8 +156,8 @@ end)
 -- Slash commands
 -- ============================================================
 
-SLASH_GUILDFOUNDTOOLS1 = "/gft"
-SLASH_GUILDFOUNDTOOLS2 = "/guildfoundtools"
-SlashCmdList["GUILDFOUNDTOOLS"] = function()
-	GuildFoundTools.UI.Toggle()
+SLASH_GUILDTOOLS1 = "/gt"
+SLASH_GUILDTOOLS2 = "/guildtools"
+SlashCmdList["GUILDTOOLS"] = function()
+	ClassicGuildTools.UI.Toggle()
 end

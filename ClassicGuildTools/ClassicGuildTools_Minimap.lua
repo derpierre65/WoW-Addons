@@ -1,4 +1,4 @@
-local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
+local L = LibStub("AceLocale-3.0"):GetLocale("ClassicGuildTools")
 local DEFAULT_ANGLE = 200
 
 local function IsSquareMinimap()
@@ -20,7 +20,7 @@ local function GetMinimapButtonPosition(angle)
 	return cos * radius, sin * radius
 end
 
-local minimapButton = CreateFrame("Button", "GuildFoundToolsMinimapButton", Minimap)
+local minimapButton = CreateFrame("Button", "ClassicGuildToolsMinimapButton", Minimap)
 minimapButton:SetSize(33, 33)
 minimapButton:SetFrameStrata("MEDIUM")
 minimapButton:SetFrameLevel(8)
@@ -52,8 +52,8 @@ minimapButton:SetScript("OnDragStart", function(self)
 		local scale = Minimap:GetEffectiveScale()
 		cursorX, cursorY = cursorX / scale, cursorY / scale
 		local angle = math.deg(math.atan2(cursorY - minimapY, cursorX - minimapX))
-		GuildFoundToolsDB.minimap = GuildFoundToolsDB.minimap or {}
-		GuildFoundToolsDB.minimap.angle = angle
+		ClassicGuildToolsDB.minimap = ClassicGuildToolsDB.minimap or {}
+		ClassicGuildToolsDB.minimap.angle = angle
 		UpdatePosition(angle)
 	end)
 end)
@@ -63,7 +63,7 @@ minimapButton:SetScript("OnDragStop", function(self)
 end)
 
 minimapButton:SetScript("OnClick", function()
-	GuildFoundTools.UI.Toggle()
+	ClassicGuildTools.UI.Toggle()
 end)
 
 minimapButton:SetScript("OnEnter", function(self)
@@ -78,9 +78,9 @@ minimapButton:SetScript("OnLeave", function()
 end)
 
 -- Initialize position after DB is loaded
-GuildFoundTools.EventHandlers.PLAYER_LOGIN = function()
-	GuildFoundToolsDB.minimap = GuildFoundToolsDB.minimap or {}
-	local angle = GuildFoundToolsDB.minimap.angle or DEFAULT_ANGLE
+ClassicGuildTools.EventHandlers.PLAYER_LOGIN = function()
+	ClassicGuildToolsDB.minimap = ClassicGuildToolsDB.minimap or {}
+	local angle = ClassicGuildToolsDB.minimap.angle or DEFAULT_ANGLE
 	minimapButton:ClearAllPoints()
 	UpdatePosition(angle)
 end

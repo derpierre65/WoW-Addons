@@ -4,14 +4,14 @@
 -- LFG Logic
 -- ============================================================
 
-GuildFoundTools.LFG = GuildFoundTools.LFG or {}
+ClassicGuildTools.LFG = ClassicGuildTools.LFG or {}
 
-local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
-local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
-local SendGuildMessage = GuildFoundTools.SendGuildMessage
-local SendWhisperMessage = GuildFoundTools.SendWhisperMessage
-local GetPlayerName = GuildFoundTools.GetPlayerName
-local DUNGEON = GuildFoundTools.Enums.DUNGEON
+local L = LibStub("AceLocale-3.0"):GetLocale("ClassicGuildTools")
+local MESSAGE_TYPE = ClassicGuildTools.MESSAGE_TYPE
+local SendGuildMessage = ClassicGuildTools.SendGuildMessage
+local SendWhisperMessage = ClassicGuildTools.SendWhisperMessage
+local GetPlayerName = ClassicGuildTools.GetPlayerName
+local DUNGEON = ClassicGuildTools.Enums.DUNGEON
 
 -- Constants
 local CATEGORIES = { "Dungeons", "Raids", "Custom" }
@@ -25,7 +25,7 @@ local ROLE_BUTTON_SIZE = 48
 local ROLE_BUTTON_SPACING = 8
 local FORM_TOP_OFFSET = -68
 
-local CreatePool = GuildFoundTools.Utils.CreatePool
+local CreatePool = ClassicGuildTools.Utils.CreatePool
 
 -- State variables
 local selectedGroupId = nil
@@ -55,16 +55,16 @@ local function SaveGroupToStorage(group)
 	local characterGuid = UnitGUID("player")
 	if not characterGuid then return end
 
-	GuildFoundTools_LFG = GuildFoundTools_LFG or {}
-	GuildFoundTools_LFG[characterGuid] = group
+	ClassicGuildTools_LFG = ClassicGuildTools_LFG or {}
+	ClassicGuildTools_LFG[characterGuid] = group
 end
 
 local function ClearGroupFromStorage()
 	local characterGuid = UnitGUID("player")
 	if not characterGuid then return end
 
-	if GuildFoundTools_LFG then
-		GuildFoundTools_LFG[characterGuid] = nil
+	if ClassicGuildTools_LFG then
+		ClassicGuildTools_LFG[characterGuid] = nil
 	end
 end
 
@@ -72,9 +72,9 @@ end
 -- Party member tracking
 -- ============================================================
 
-GuildFoundTools.LFG.ownGroupId = nil
+ClassicGuildTools.LFG.ownGroupId = nil
 
-function GuildFoundTools.LFG.GetMemberCount(group)
+function ClassicGuildTools.LFG.GetMemberCount(group)
 	local count = 0
 	for _ in pairs(group.members) do
 		count = count + 1
@@ -83,22 +83,22 @@ function GuildFoundTools.LFG.GetMemberCount(group)
 end
 
 local function BroadcastMemberSync()
-	if not GuildFoundTools.LFG.ownGroupId then return end
+	if not ClassicGuildTools.LFG.ownGroupId then return end
 
-	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 	if not group then return end
 
-	SendGuildMessage(MESSAGE_TYPE.GROUP_MEMBERS_SYNC, { groupId = GuildFoundTools.LFG.ownGroupId, members = group.members })
+	SendGuildMessage(MESSAGE_TYPE.GROUP_MEMBERS_SYNC, { groupId = ClassicGuildTools.LFG.ownGroupId, members = group.members })
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
 local function UpdateGroupMembers()
-	if not GuildFoundTools.LFG.ownGroupId then return end
+	if not ClassicGuildTools.LFG.ownGroupId then return end
 
-	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 	if not group then return end
 
 	local newMembers = {
@@ -124,9 +124,9 @@ end
 
 local function RestoreGroupFromStorage()
 	local characterGuid = UnitGUID("player")
-	if not characterGuid or not GuildFoundTools_LFG then return end
+	if not characterGuid or not ClassicGuildTools_LFG then return end
 
-	local saved = GuildFoundTools_LFG[characterGuid]
+	local saved = ClassicGuildTools_LFG[characterGuid]
 	if not saved then return end
 
 	-- Restore members from storage, filtered by current party
@@ -157,8 +157,8 @@ local function RestoreGroupFromStorage()
 		createdAt = saved.createdAt or time(),
 	}
 
-	GuildFoundTools.groups[group.id] = group
-	GuildFoundTools.LFG.ownGroupId = group.id
+	ClassicGuildTools.groups[group.id] = group
+	ClassicGuildTools.LFG.ownGroupId = group.id
 
 	-- Broadcast to guild so others know the group exists
 	SendGuildMessage(MESSAGE_TYPE.GROUP_CREATE, group)
@@ -168,15 +168,15 @@ end
 -- Group management API
 -- ============================================================
 
-function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
+function ClassicGuildTools.LFG.CreateGroup(category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
 	if not IsInGuild() then
-		print("|cff00ccffGuildFound Tools:|r " .. L["NotInGuild"])
+		print("|cff00ccffClassic Guild Tools:|r " .. L["NotInGuild"])
 		return
 	end
 
 	-- Only one group per player allowed
-	if GuildFoundTools.LFG.ownGroupId then
-		print("|cff00ccffGuildFound Tools:|r " .. L["AlreadyHaveGroup"])
+	if ClassicGuildTools.LFG.ownGroupId then
+		print("|cff00ccffClassic Guild Tools:|r " .. L["AlreadyHaveGroup"])
 		return
 	end
 
@@ -195,8 +195,8 @@ function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMemb
 		createdAt = time(),
 	}
 
-	GuildFoundTools.groups[groupId] = group
-	GuildFoundTools.LFG.ownGroupId = groupId
+	ClassicGuildTools.groups[groupId] = group
+	ClassicGuildTools.LFG.ownGroupId = groupId
 
 	UpdateGroupMembers()
 	SendGuildMessage(MESSAGE_TYPE.GROUP_CREATE, group)
@@ -205,25 +205,25 @@ function GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMemb
 	return groupId
 end
 
-function GuildFoundTools.LFG.RemoveGroup(groupId)
-	local group = GuildFoundTools.groups[groupId]
+function ClassicGuildTools.LFG.RemoveGroup(groupId)
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 	if group.leader ~= GetPlayerName() then return end
 
-	GuildFoundTools.groups[groupId] = nil
-	GuildFoundTools.LFG.ownGroupId = nil
+	ClassicGuildTools.groups[groupId] = nil
+	ClassicGuildTools.LFG.ownGroupId = nil
 
 	ClearGroupFromStorage()
 
 	SendGuildMessage(MESSAGE_TYPE.GROUP_REMOVE, { id = groupId })
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-function GuildFoundTools.LFG.EditGroup(groupId, category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
-	local group = GuildFoundTools.groups[groupId]
+function ClassicGuildTools.LFG.EditGroup(groupId, category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 	if group.leader ~= GetPlayerName() then return end
 
@@ -246,17 +246,17 @@ function GuildFoundTools.LFG.EditGroup(groupId, category, dungeon, description, 
 		leaderLevel = group.leaderLevel,
 	})
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-function GuildFoundTools.LFG.SignupForGroup(groupId, role)
+function ClassicGuildTools.LFG.SignupForGroup(groupId, role)
 	if not IsInGuild() then return end
 
 	-- If the player is a group leader, remove their group first
-	if GuildFoundTools.LFG.ownGroupId then
-		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+	if ClassicGuildTools.LFG.ownGroupId then
+		ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
 	end
 
 	SendGuildMessage(MESSAGE_TYPE.GROUP_SIGNUP, {
@@ -266,10 +266,10 @@ function GuildFoundTools.LFG.SignupForGroup(groupId, role)
 	})
 end
 
-function GuildFoundTools.LFG.LeaveGroup(groupId)
+function ClassicGuildTools.LFG.LeaveGroup(groupId)
 	if not IsInGuild() then return end
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 
 	local playerName = GetPlayerName()
@@ -280,10 +280,10 @@ function GuildFoundTools.LFG.LeaveGroup(groupId)
 	end
 end
 
-function GuildFoundTools.LFG.AcceptApplicant(groupId, applicantName)
+function ClassicGuildTools.LFG.AcceptApplicant(groupId, applicantName)
 	if not IsInGuild() then return end
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 	if group.leader ~= GetPlayerName() then return end
 	if not group.applicants or not group.applicants[applicantName] then return end
@@ -295,10 +295,10 @@ function GuildFoundTools.LFG.AcceptApplicant(groupId, applicantName)
 	})
 end
 
-function GuildFoundTools.LFG.DeclineApplicant(groupId, applicantName)
+function ClassicGuildTools.LFG.DeclineApplicant(groupId, applicantName)
 	if not IsInGuild() then return end
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 	if group.leader ~= GetPlayerName() then return end
 	if not group.applicants or not group.applicants[applicantName] then return end
@@ -308,12 +308,12 @@ function GuildFoundTools.LFG.DeclineApplicant(groupId, applicantName)
 
 	SendGuildMessage(MESSAGE_TYPE.GROUP_DECLINE, { groupId = groupId, name = applicantName })
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-function GuildFoundTools.LFG.RequestGroupList()
+function ClassicGuildTools.LFG.RequestGroupList()
 	if not IsInGuild() then return end
 
 	SendGuildMessage(MESSAGE_TYPE.GROUP_LIST_REQUEST)
@@ -323,39 +323,39 @@ end
 -- LFG Message handlers
 -- ============================================================
 
-GuildFoundTools.MessageHandlers.GROUP_CREATE = function(data, sender)
+ClassicGuildTools.MessageHandlers.GROUP_CREATE = function(data, sender)
 	if not data or not data.id then return end
 
-	local isNewGroup = not GuildFoundTools.groups[data.id]
+	local isNewGroup = not ClassicGuildTools.groups[data.id]
 
 	data.leader = data.leader or sender
 	data.createdAt = time()
-	GuildFoundTools.groups[data.id] = data
+	ClassicGuildTools.groups[data.id] = data
 
 	-- Show role popup if we are in the leader's party (only for new groups)
-	if isNewGroup and data.leader ~= GetPlayerName() and GuildFoundTools.LFG.ShowPartyRolePopup then
+	if isNewGroup and data.leader ~= GetPlayerName() and ClassicGuildTools.LFG.ShowPartyRolePopup then
 		local numGroupMembers = GetNumGroupMembers()
 		for index = 1, numGroupMembers do
 			local name = GetRaidRosterInfo(index)
 			if name then
 				name = strsplit("-", name)
 				if name == data.leader then
-					GuildFoundTools.LFG.ShowPartyRolePopup(data.id)
+					ClassicGuildTools.LFG.ShowPartyRolePopup(data.id)
 					break
 				end
 			end
 		end
 	end
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_EDIT = function(data, sender)
+ClassicGuildTools.MessageHandlers.GROUP_EDIT = function(data, sender)
 	if not data or not data.id then return end
 
-	local group = GuildFoundTools.groups[data.id]
+	local group = ClassicGuildTools.groups[data.id]
 	if not group then return end
 
 	group.category = data.category or group.category
@@ -365,18 +365,18 @@ GuildFoundTools.MessageHandlers.GROUP_EDIT = function(data, sender)
 	group.beginnerFriendly = data.beginnerFriendly or false
 	group.leaderLevel = data.leaderLevel or group.leaderLevel
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_REMOVE = function(data)
+ClassicGuildTools.MessageHandlers.GROUP_REMOVE = function(data)
 	if not data or not data.id then return end
 
-	GuildFoundTools.groups[data.id] = nil
+	ClassicGuildTools.groups[data.id] = nil
 
 	-- Hide the role popup if it was shown for this group
-	local rolePopup = _G["GuildFoundToolsPartyRolePopup"]
+	local rolePopup = _G["ClassicGuildToolsPartyRolePopup"]
 	if rolePopup and rolePopup.groupId == data.id then
 		rolePopup:Hide()
 	end
@@ -387,18 +387,18 @@ GuildFoundTools.MessageHandlers.GROUP_REMOVE = function(data)
 		ShowNextInvite()
 	end
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_SIGNUP = function(data)
+ClassicGuildTools.MessageHandlers.GROUP_SIGNUP = function(data)
 	if not data or not data.groupId or not data.name then return end
 
 	local memberName = data.name
 	local memberRole = data.role or "DD"
 
-	local group = GuildFoundTools.groups[data.groupId]
+	local group = ClassicGuildTools.groups[data.groupId]
 	if not group then return end
 
 	if group.members[memberName] then return end
@@ -411,34 +411,34 @@ GuildFoundTools.MessageHandlers.GROUP_SIGNUP = function(data)
 		SaveGroupToStorage(group)
 	end
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_LEAVE = function(data)
+ClassicGuildTools.MessageHandlers.GROUP_LEAVE = function(data)
 	if not data or not data.groupId or not data.name then return end
 
 	local groupId = data.groupId
 	local memberName = data.name
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 
 	group.members[memberName] = nil
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_DECLINE = function(data)
+ClassicGuildTools.MessageHandlers.GROUP_DECLINE = function(data)
 	if not data or not data.groupId or not data.name then return end
 
 	local groupId = data.groupId
 	local applicantName = data.name
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 
 	group.applicants = group.applicants or {}
@@ -452,18 +452,18 @@ GuildFoundTools.MessageHandlers.GROUP_DECLINE = function(data)
 		end
 	end
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_WITHDRAW = function(data)
+ClassicGuildTools.MessageHandlers.GROUP_WITHDRAW = function(data)
 	if not data or not data.groupId or not data.name then return end
 
 	local groupId = data.groupId
 	local applicantName = data.name
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 
 	group.applicants = group.applicants or {}
@@ -473,15 +473,15 @@ GuildFoundTools.MessageHandlers.GROUP_WITHDRAW = function(data)
 		SaveGroupToStorage(group)
 	end
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_MEMBERS_SYNC = function(data)
+ClassicGuildTools.MessageHandlers.GROUP_MEMBERS_SYNC = function(data)
 	if not data or not data.groupId then return end
 
-	local group = GuildFoundTools.groups[data.groupId]
+	local group = ClassicGuildTools.groups[data.groupId]
 	if not group then return end
 
 	group.members = data.members or {}
@@ -493,19 +493,19 @@ GuildFoundTools.MessageHandlers.GROUP_MEMBERS_SYNC = function(data)
 		end
 	end
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_LIST_REQUEST = function(data, sender)
-	if not GuildFoundTools.LFG.ownGroupId then return end
+ClassicGuildTools.MessageHandlers.GROUP_LIST_REQUEST = function(data, sender)
+	if not ClassicGuildTools.LFG.ownGroupId then return end
 
-	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 	if not group then return end
 
 	SendGuildMessage(MESSAGE_TYPE.GROUP_LIST_ANSWER, {
-		id = GuildFoundTools.LFG.ownGroupId,
+		id = ClassicGuildTools.LFG.ownGroupId,
 		category = group.category,
 		dungeon = group.dungeon,
 		description = group.description,
@@ -518,41 +518,41 @@ GuildFoundTools.MessageHandlers.GROUP_LIST_REQUEST = function(data, sender)
 	})
 end
 
-GuildFoundTools.MessageHandlers.GROUP_LIST_ANSWER = function(data)
+ClassicGuildTools.MessageHandlers.GROUP_LIST_ANSWER = function(data)
 	if not data or not data.id then return end
 
 	-- Don't overwrite if we already have it
-	if GuildFoundTools.groups[data.id] then return end
+	if ClassicGuildTools.groups[data.id] then return end
 
 	data.createdAt = time()
-	GuildFoundTools.groups[data.id] = data
+	ClassicGuildTools.groups[data.id] = data
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
-GuildFoundTools.MessageHandlers.GROUP_LEADER_CHANGE = function(data)
+ClassicGuildTools.MessageHandlers.GROUP_LEADER_CHANGE = function(data)
 	if not data or not data.groupId or not data.newLeader then return end
 
 	local groupId = data.groupId
 	local newLeader = data.newLeader
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 
 	group.leader = newLeader
 
 	-- If I am the new leader, take ownership
 	if newLeader == GetPlayerName() then
-		GuildFoundTools.LFG.ownGroupId = groupId
+		ClassicGuildTools.LFG.ownGroupId = groupId
 		SaveGroupToStorage(group)
 	else
 		ClearGroupFromStorage()
 	end
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
@@ -560,7 +560,7 @@ end
 -- Invite confirmation popup (shown to applicant when leader accepts)
 -- ============================================================
 
-local inviteConfirmPopup = CreateFrame("Frame", "GuildFoundToolsInviteConfirmPopup", UIParent, "BasicFrameTemplateWithInset")
+local inviteConfirmPopup = CreateFrame("Frame", "ClassicGuildToolsInviteConfirmPopup", UIParent, "BasicFrameTemplateWithInset")
 inviteConfirmPopup:SetSize(300, 110)
 inviteConfirmPopup:SetPoint("CENTER")
 inviteConfirmPopup:SetFrameStrata("DIALOG")
@@ -668,14 +668,14 @@ inviteDeclineButton:SetScript("OnClick", function()
 	ShowNextInvite()
 end)
 
-tinsert(UISpecialFrames, "GuildFoundToolsInviteConfirmPopup")
+tinsert(UISpecialFrames, "ClassicGuildToolsInviteConfirmPopup")
 
 -- ============================================================
 -- Invite confirmation message handlers
 -- ============================================================
 
 -- Received by applicant: leader wants to invite
-GuildFoundTools.MessageHandlers.GROUP_INVITE_REQUEST = function(data, sender)
+ClassicGuildTools.MessageHandlers.GROUP_INVITE_REQUEST = function(data, sender)
 	if not data or not data.leaderName then return end
 
 	local invite = { groupId = data.groupId, leaderName = data.leaderName }
@@ -688,10 +688,10 @@ GuildFoundTools.MessageHandlers.GROUP_INVITE_REQUEST = function(data, sender)
 end
 
 -- Received by leader: applicant accepted the invite
-GuildFoundTools.MessageHandlers.GROUP_INVITE_ACCEPT = function(data, sender)
-	if not GuildFoundTools.LFG.ownGroupId then return end
+ClassicGuildTools.MessageHandlers.GROUP_INVITE_ACCEPT = function(data, sender)
+	if not ClassicGuildTools.LFG.ownGroupId then return end
 
-	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 	if not group then return end
 	if not group.applicants or not group.applicants[sender] then return end
 
@@ -699,12 +699,12 @@ GuildFoundTools.MessageHandlers.GROUP_INVITE_ACCEPT = function(data, sender)
 end
 
 -- Received by leader: applicant declined the invite
-GuildFoundTools.MessageHandlers.GROUP_INVITE_DECLINE = function(data, sender)
-	print("|cff00ccffGuildFound Tools:|r " .. string.format(L["InviteDeclinedMessage"], sender))
+ClassicGuildTools.MessageHandlers.GROUP_INVITE_DECLINE = function(data, sender)
+	print("|cff00ccffClassic Guild Tools:|r " .. string.format(L["InviteDeclinedMessage"], sender))
 end
 
 -- Auto-accept WoW party invite from the expected leader
-GuildFoundTools.EventHandlers.PARTY_INVITE_REQUEST = function(inviterName)
+ClassicGuildTools.EventHandlers.PARTY_INVITE_REQUEST = function(inviterName)
 	if not pendingInviteFromLeader then return end
 
 	local shortName = strsplit("-", inviterName)
@@ -721,14 +721,14 @@ end
 -- ============================================================
 
 -- Receive role change from any guild member
-GuildFoundTools.MessageHandlers.LFG_ROLE_CHANGE = function(data, sender)
+ClassicGuildTools.MessageHandlers.LFG_ROLE_CHANGE = function(data, sender)
 	if not data or not data.groupId or not data.name or not data.role then return end
 
 	local groupId = data.groupId
 	local memberName = data.name
 	local newRole = data.role
 
-	local group = GuildFoundTools.groups[groupId]
+	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 
 	group.members[memberName] = newRole
@@ -737,14 +737,14 @@ GuildFoundTools.MessageHandlers.LFG_ROLE_CHANGE = function(data, sender)
 		SaveGroupToStorage(group)
 	end
 
-	if GuildFoundToolsMainFrame:IsShown() and GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildToolsMainFrame:IsShown() and ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
 -- Change the player's own role in their group
-function GuildFoundTools.LFG.ChangeMyRole(newRole)
-	local myGroup = GuildFoundTools.LFG.GetMyGroup and GuildFoundTools.LFG.GetMyGroup()
+function ClassicGuildTools.LFG.ChangeMyRole(newRole)
+	local myGroup = ClassicGuildTools.LFG.GetMyGroup and ClassicGuildTools.LFG.GetMyGroup()
 	if not myGroup then return end
 
 	local playerName = GetPlayerName()
@@ -754,29 +754,29 @@ function GuildFoundTools.LFG.ChangeMyRole(newRole)
 		SaveGroupToStorage(myGroup)
 	end
 
-	GuildFoundTools.Utils.Debounce("LFG_roleChange", 1, function()
+	ClassicGuildTools.Utils.Debounce("LFG_roleChange", 1, function()
 		SendGuildMessage(MESSAGE_TYPE.LFG_ROLE_CHANGE, { groupId = myGroup.id, name = playerName, role = newRole })
 	end)
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
 -- Restore group session after login/reload
-GuildFoundTools.EventHandlers.PLAYER_LOGIN = function()
+ClassicGuildTools.EventHandlers.PLAYER_LOGIN = function()
 	C_Timer.After(2, function()
 		RestoreGroupFromStorage()
 	end)
 end
 
 -- Register LFG event handlers
-GuildFoundTools.EventHandlers.GROUP_JOINED = function()
-	if GuildFoundTools.LFG.ownGroupId then
+ClassicGuildTools.EventHandlers.GROUP_JOINED = function()
+	if ClassicGuildTools.LFG.ownGroupId then
 		-- If we joined someone else's party, remove our own tool group immediately
 		-- (before PARTY_LEADER_CHANGED can transfer leadership)
-		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
-		print("|cff00ccffGuildFound Tools:|r " .. L["GroupRemovedJoinedOther"])
+		ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
+		print("|cff00ccffClassic Guild Tools:|r " .. L["GroupRemovedJoinedOther"])
 	end
 
 	-- Check if anyone in the party is a tool group leader -> show role popup
@@ -786,15 +786,15 @@ GuildFoundTools.EventHandlers.GROUP_JOINED = function()
 			local name = GetRaidRosterInfo(index)
 			if name then
 				name = strsplit("-", name)
-				for _, group in pairs(GuildFoundTools.groups) do
+				for _, group in pairs(ClassicGuildTools.groups) do
 					if group.leader == name then
 						-- Skip role popup if the player already signed up or is a member of this group
 						local playerName = GetPlayerName()
 						if (group.applicants and group.applicants[playerName]) or (group.members and group.members[playerName]) then
 							return
 						end
-						if GuildFoundTools.LFG.ShowPartyRolePopup then
-							GuildFoundTools.LFG.ShowPartyRolePopup(group.id)
+						if ClassicGuildTools.LFG.ShowPartyRolePopup then
+							ClassicGuildTools.LFG.ShowPartyRolePopup(group.id)
 						end
 						return
 					end
@@ -804,17 +804,17 @@ GuildFoundTools.EventHandlers.GROUP_JOINED = function()
 	end)
 end
 
-GuildFoundTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
-	if not GuildFoundTools.LFG.ownGroupId then return end
+ClassicGuildTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
+	if not ClassicGuildTools.LFG.ownGroupId then return end
 
-	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 	if not group then return end
 
 	UpdateGroupMembers()
 
 	-- Auto-remove group from browser when maxMembers is reached
-	if group.leader == GetPlayerName() and GuildFoundTools.LFG.GetMemberCount(group) >= group.maxMembers then
-		GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+	if group.leader == GetPlayerName() and ClassicGuildTools.LFG.GetMemberCount(group) >= group.maxMembers then
+		ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
 		return
 	end
 
@@ -822,19 +822,19 @@ GuildFoundTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
 	BroadcastMemberSync()
 end
 
-GuildFoundTools.EventHandlers.GROUP_LEFT = function()
-	if not GuildFoundTools.LFG.ownGroupId then return end
+ClassicGuildTools.EventHandlers.GROUP_LEFT = function()
+	if not ClassicGuildTools.LFG.ownGroupId then return end
 
-	local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+	local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 	-- Don't remove the group if the player is the leader (e.g. party dissolved after a failed invite)
 	if group and group.leader == GetPlayerName() then return end
 
-	GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+	ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
 end
 
-GuildFoundTools.EventHandlers.PARTY_LEADER_CHANGED = function()
-	if GuildFoundTools.LFG.ownGroupId then
-		local group = GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+ClassicGuildTools.EventHandlers.PARTY_LEADER_CHANGED = function()
+	if ClassicGuildTools.LFG.ownGroupId then
+		local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 		if group and group.leader == GetPlayerName() then
 			-- Find the new party leader
 			local numGroupMembers = GetNumGroupMembers()
@@ -846,7 +846,7 @@ GuildFoundTools.EventHandlers.PARTY_LEADER_CHANGED = function()
 						-- Transfer leadership
 						group.leader = name
 						ClearGroupFromStorage()
-						GuildFoundTools.LFG.ownGroupId = nil
+						ClassicGuildTools.LFG.ownGroupId = nil
 
 						SendGuildMessage(MESSAGE_TYPE.GROUP_LEADER_CHANGE, { groupId = group.id, newLeader = name })
 					end
@@ -856,8 +856,8 @@ GuildFoundTools.EventHandlers.PARTY_LEADER_CHANGED = function()
 		end
 	end
 
-	if GuildFoundTools.LFG.UpdateLFGUI then
-		GuildFoundTools.LFG.UpdateLFGUI()
+	if ClassicGuildTools.LFG.UpdateLFGUI then
+		ClassicGuildTools.LFG.UpdateLFGUI()
 	end
 end
 
@@ -865,7 +865,7 @@ end
 -- LFG UI
 -- ============================================================
 
-local contentFrame = GuildFoundTools.UI.GetContentFrame(1)
+local contentFrame = ClassicGuildTools.UI.GetContentFrame(1)
 
 -- ============================================================
 -- Role icons
@@ -903,7 +903,7 @@ for roleName, coords in pairs(ROLE_TEXCOORDS) do
 end
 
 local function GetGuildMemberInfo(name)
-	local info = GuildFoundTools.guildMemberCache[name]
+	local info = ClassicGuildTools.guildMemberCache[name]
 	if info then
 		return info.classFileName, info.level, info.online
 	end
@@ -1024,7 +1024,7 @@ local function GetDungeonLevelColor(dungeon)
 end
 
 local function IsDungeonVisible(dungeon)
-	return GuildFoundTools.UI.showAllLevelRanges or (not IsDungeonRed(dungeon) and not IsDungeonGray(dungeon))
+	return ClassicGuildTools.UI.showAllLevelRanges or (not IsDungeonRed(dungeon) and not IsDungeonGray(dungeon))
 end
 
 local function IsLevelRed(level)
@@ -1033,7 +1033,7 @@ local function IsLevelRed(level)
 end
 
 local function IsGroupVisible(group)
-	if GuildFoundTools.UI.showAllLevelRanges then return true end
+	if ClassicGuildTools.UI.showAllLevelRanges then return true end
 
 	local dungeon = group.dungeon and group.dungeon ~= "" and DUNGEON_BY_ID[group.dungeon]
 	if dungeon then
@@ -1111,7 +1111,7 @@ signupButton:Hide()
 -- Role selection popup (for signup)
 -- ============================================================
 
-local rolePopup = CreateFrame("Frame", "GuildFoundToolsRolePopup", UIParent, "BackdropTemplate")
+local rolePopup = CreateFrame("Frame", "ClassicGuildToolsRolePopup", UIParent, "BackdropTemplate")
 rolePopup:SetSize(130, 50)
 rolePopup:SetFrameStrata("DIALOG")
 rolePopup:SetBackdrop({
@@ -1140,7 +1140,7 @@ for index, roleName in ipairs(ROLE_NAMES) do
 
 	button:SetScript("OnClick", function()
 		if rolePopup.groupId then
-			GuildFoundTools.LFG.SignupForGroup(rolePopup.groupId, roleName)
+			ClassicGuildTools.LFG.SignupForGroup(rolePopup.groupId, roleName)
 		end
 		rolePopup:Hide()
 	end)
@@ -1153,22 +1153,22 @@ for index, roleName in ipairs(ROLE_NAMES) do
 	button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
-tinsert(UISpecialFrames, "GuildFoundToolsRolePopup")
+tinsert(UISpecialFrames, "ClassicGuildToolsRolePopup")
 
 -- ============================================================
 -- Scroll frame for group listing
 -- ============================================================
 
-local scrollFrame = CreateFrame("ScrollFrame", "GuildFoundToolsLFGScrollFrame", contentFrame, "UIPanelScrollFrameTemplate")
+local scrollFrame = CreateFrame("ScrollFrame", "ClassicGuildToolsLFGScrollFrame", contentFrame, "UIPanelScrollFrameTemplate")
 scrollFrame:SetPoint("TOPLEFT", 0, 0)
 scrollFrame:SetPoint("BOTTOMRIGHT", -16, ACTION_BAR_HEIGHT)
 
-local scrollBar = scrollFrame.ScrollBar or _G["GuildFoundToolsLFGScrollFrameScrollBar"]
+local scrollBar = scrollFrame.ScrollBar or _G["ClassicGuildToolsLFGScrollFrameScrollBar"]
 scrollBar:ClearAllPoints()
 scrollBar:SetPoint("TOPLEFT", scrollFrame, "TOPRIGHT", 0, -16)
 scrollBar:SetPoint("BOTTOMLEFT", scrollFrame, "BOTTOMRIGHT", 0, -16)
 
-local scrollChild = CreateFrame("Frame", "GuildFoundToolsLFGScrollChild", scrollFrame)
+local scrollChild = CreateFrame("Frame", "ClassicGuildToolsLFGScrollChild", scrollFrame)
 scrollChild:SetSize(scrollFrame:GetWidth(), 1)
 scrollFrame:SetScrollChild(scrollChild)
 
@@ -1187,8 +1187,8 @@ local function ShowContextMenu(owner, group)
 		end)
 
 		-- Group invite (only for leader, only if target is alone)
-		if group.leader ~= playerName and GuildFoundTools.LFG.GetMemberCount(group) == 1 then
-			if GuildFoundTools.LFG.ownGroupId then
+		if group.leader ~= playerName and ClassicGuildTools.LFG.GetMemberCount(group) == 1 then
+			if ClassicGuildTools.LFG.ownGroupId then
 				rootDescription:CreateButton(L["ContextMenuInvitePlayer"], function()
 					C_PartyInfo.InviteUnit(group.leader)
 				end)
@@ -1277,14 +1277,14 @@ local function CreateGroupRow(parent)
 	row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	row:SetScript("OnClick", function(self, button)
 		if button == "RightButton" then
-			local group = GuildFoundTools.groups[self.groupId]
+			local group = ClassicGuildTools.groups[self.groupId]
 			if not group then return end
 			if group.members[UnitName("player")] then return end
 
 			ShowContextMenu(self, group)
 		else
 			selectedGroupId = self.groupId
-			GuildFoundTools.LFG.UpdateLFGUI()
+			ClassicGuildTools.LFG.UpdateLFGUI()
 		end
 	end)
 
@@ -1382,18 +1382,18 @@ local function UpdateActionBar()
 	pendingText:Hide()
 
 	local playerName = UnitName("player")
-	local ownGroupId = GuildFoundTools.LFG.ownGroupId
+	local ownGroupId = ClassicGuildTools.LFG.ownGroupId
 
 	-- Selection-based buttons (only for non-own groups)
 	if selectedGroupId and selectedGroupId ~= ownGroupId then
-		local group = GuildFoundTools.groups[selectedGroupId]
+		local group = ClassicGuildTools.groups[selectedGroupId]
 		if group then
 			if group.applicants and group.applicants[playerName] then
 				withdrawButton:Show()
 				pendingText:Show()
 			else
 				signupButton:Show()
-				signupButton:SetEnabled(GuildFoundTools.LFG.GetMemberCount(group) < group.maxMembers)
+				signupButton:SetEnabled(ClassicGuildTools.LFG.GetMemberCount(group) < group.maxMembers)
 			end
 		end
 	end
@@ -1410,22 +1410,22 @@ end)
 
 withdrawButton:SetScript("OnClick", function()
 	if not selectedGroupId then return end
-	GuildFoundTools.LFG.LeaveGroup(selectedGroupId)
+	ClassicGuildTools.LFG.LeaveGroup(selectedGroupId)
 end)
 
 -- ============================================================
 -- Update group listing
 -- ============================================================
 
-function GuildFoundTools.LFG.UpdateLFGUI(skipCreateGroupTab)
-	GuildFoundTools.BuildGuildMemberCache()
+function ClassicGuildTools.LFG.UpdateLFGUI(skipCreateGroupTab)
+	ClassicGuildTools.BuildGuildMemberCache()
 	groupRowPool:ReleaseAll()
 
-	local groups = GuildFoundTools.groups
+	local groups = ClassicGuildTools.groups
 
 	-- Update tab 2 text based on group state
 	if not skipCreateGroupTab then
-		GuildFoundTools.LFG.UpdateCreateGroupTab()
+		ClassicGuildTools.LFG.UpdateCreateGroupTab()
 	end
 
 	-- Validate selected group still exists
@@ -1441,7 +1441,7 @@ function GuildFoundTools.LFG.UpdateLFGUI(skipCreateGroupTab)
 		end
 	end
 	table.sort(sortedGroups, function(a, b)
-		return GuildFoundTools.LFG.GetMemberCount(a) > GuildFoundTools.LFG.GetMemberCount(b)
+		return ClassicGuildTools.LFG.GetMemberCount(a) > ClassicGuildTools.LFG.GetMemberCount(b)
 	end)
 
 	local hasGroups = #sortedGroups > 0
@@ -1590,22 +1590,22 @@ end
 
 -- Initial update when tab 1 is shown
 contentFrame:SetScript("OnShow", function()
-	GuildFoundTools.LFG.UpdateLFGUI()
+	ClassicGuildTools.LFG.UpdateLFGUI()
 end)
 
 -- ============================================================
 -- Create Group / My Group Tab (Tab 2)
 -- ============================================================
 
-local createGroupContent = GuildFoundTools.UI.GetContentFrame(2)
+local createGroupContent = ClassicGuildTools.UI.GetContentFrame(2)
 
 -- Helper: find the group the player belongs to (own or as member)
-function GuildFoundTools.LFG.GetMyGroup()
-	if GuildFoundTools.LFG.ownGroupId then
-		return GuildFoundTools.groups[GuildFoundTools.LFG.ownGroupId]
+function ClassicGuildTools.LFG.GetMyGroup()
+	if ClassicGuildTools.LFG.ownGroupId then
+		return ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 	end
 	local playerName = GetPlayerName()
-	for _, group in pairs(GuildFoundTools.groups) do
+	for _, group in pairs(ClassicGuildTools.groups) do
 		if group.members[playerName] then
 			return group
 		end
@@ -1614,9 +1614,9 @@ function GuildFoundTools.LFG.GetMyGroup()
 end
 
 -- Check if player is an applicant to any group
-function GuildFoundTools.LFG.GetMyApplicationGroup()
+function ClassicGuildTools.LFG.GetMyApplicationGroup()
 	local playerName = GetPlayerName()
-	for _, group in pairs(GuildFoundTools.groups) do
+	for _, group in pairs(ClassicGuildTools.groups) do
 		if group.applicants and group.applicants[playerName] then
 			return group
 		end
@@ -1657,9 +1657,9 @@ for index, roleName in ipairs(ROLE_NAMES) do
 		selectedRole = self.roleKey
 
 		-- In "My Group" mode (not editing, not creating): change role immediately
-		local myGroup = GuildFoundTools.LFG.GetMyGroup and GuildFoundTools.LFG.GetMyGroup()
+		local myGroup = ClassicGuildTools.LFG.GetMyGroup and ClassicGuildTools.LFG.GetMyGroup()
 		if myGroup and not isEditingMyGroup then
-			GuildFoundTools.LFG.ChangeMyRole(self.roleKey)
+			ClassicGuildTools.LFG.ChangeMyRole(self.roleKey)
 		end
 
 		UpdateRoleButtons()
@@ -1732,7 +1732,7 @@ local categoryLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameF
 categoryLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET)
 categoryLabel:SetText(L["LabelCategory"])
 
-local categoryDropdown = CreateFrame("Frame", "GuildFoundToolsCategoryDropdown", createGroupContent, "UIDropDownMenuTemplate")
+local categoryDropdown = CreateFrame("Frame", "ClassicGuildToolsCategoryDropdown", createGroupContent, "UIDropDownMenuTemplate")
 categoryDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 12)
 UIDropDownMenu_SetWidth(categoryDropdown, 140)
 UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
@@ -1742,7 +1742,7 @@ local dungeonLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFo
 dungeonLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 42)
 dungeonLabel:SetText(L["LabelDungeonRaid"])
 
-local dungeonDropdown = CreateFrame("Frame", "GuildFoundToolsDungeonDropdown", createGroupContent, "UIDropDownMenuTemplate")
+local dungeonDropdown = CreateFrame("Frame", "ClassicGuildToolsDungeonDropdown", createGroupContent, "UIDropDownMenuTemplate")
 dungeonDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 54)
 UIDropDownMenu_SetWidth(dungeonDropdown, 280)
 UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
@@ -1811,7 +1811,7 @@ local descriptionLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "Ga
 descriptionLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 86)
 descriptionLabel:SetText(L["LabelDescription"])
 
-local descriptionEditBox = CreateFrame("EditBox", "GuildFoundToolsDescriptionEditBox", createGroupContent, "InputBoxTemplate")
+local descriptionEditBox = CreateFrame("EditBox", "ClassicGuildToolsDescriptionEditBox", createGroupContent, "InputBoxTemplate")
 descriptionEditBox:SetSize(290, 24)
 descriptionEditBox:SetPoint("TOPLEFT", 9, FORM_TOP_OFFSET - 100)
 descriptionEditBox:SetAutoFocus(false)
@@ -1824,7 +1824,7 @@ local maxMembersLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "Gam
 maxMembersLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 132)
 maxMembersLabel:SetText(L["LabelMaxMembers"])
 
-local maxMembersEditBox = CreateFrame("EditBox", "GuildFoundToolsMaxMembersEditBox", createGroupContent, "InputBoxTemplate")
+local maxMembersEditBox = CreateFrame("EditBox", "ClassicGuildToolsMaxMembersEditBox", createGroupContent, "InputBoxTemplate")
 maxMembersEditBox:SetSize(50, 24)
 maxMembersEditBox:SetPoint("TOPLEFT", 9, FORM_TOP_OFFSET - 146)
 maxMembersEditBox:SetAutoFocus(false)
@@ -1871,17 +1871,17 @@ myGroupInfoText:SetText(L["NoApplicantsYet"])
 myGroupInfoText:Hide()
 
 -- Applicants scroll frame for "My Group" tab
-local applicantsScrollFrame = CreateFrame("ScrollFrame", "GuildFoundToolsApplicantsScrollFrame", createGroupContent, "UIPanelScrollFrameTemplate")
+local applicantsScrollFrame = CreateFrame("ScrollFrame", "ClassicGuildToolsApplicantsScrollFrame", createGroupContent, "UIPanelScrollFrameTemplate")
 applicantsScrollFrame:SetPoint("TOPLEFT", 0, FORM_TOP_OFFSET)
 applicantsScrollFrame:SetPoint("BOTTOMRIGHT", -16, 30)
 applicantsScrollFrame:Hide()
 
-local applicantsScrollBar = applicantsScrollFrame.ScrollBar or _G["GuildFoundToolsApplicantsScrollFrameScrollBar"]
+local applicantsScrollBar = applicantsScrollFrame.ScrollBar or _G["ClassicGuildToolsApplicantsScrollFrameScrollBar"]
 applicantsScrollBar:ClearAllPoints()
 applicantsScrollBar:SetPoint("TOPLEFT", applicantsScrollFrame, "TOPRIGHT", 0, -16)
 applicantsScrollBar:SetPoint("BOTTOMLEFT", applicantsScrollFrame, "BOTTOMRIGHT", 0, 16)
 
-local applicantsScrollChild = CreateFrame("Frame", "GuildFoundToolsApplicantsScrollChild", applicantsScrollFrame)
+local applicantsScrollChild = CreateFrame("Frame", "ClassicGuildToolsApplicantsScrollChild", applicantsScrollFrame)
 applicantsScrollChild:SetSize(applicantsScrollFrame:GetWidth(), 1)
 applicantsScrollFrame:SetScrollChild(applicantsScrollChild)
 
@@ -1989,10 +1989,10 @@ local function UpdateApplicantsList(group, isLeader)
 			row.acceptButton:Show()
 			row.declineButton:Show()
 			row.acceptButton:SetScript("OnClick", function()
-				GuildFoundTools.LFG.AcceptApplicant(group.id, applicantInfo.name)
+				ClassicGuildTools.LFG.AcceptApplicant(group.id, applicantInfo.name)
 			end)
 			row.declineButton:SetScript("OnClick", function()
-				GuildFoundTools.LFG.DeclineApplicant(group.id, applicantInfo.name)
+				ClassicGuildTools.LFG.DeclineApplicant(group.id, applicantInfo.name)
 			end)
 		else
 			row.acceptButton:Hide()
@@ -2099,13 +2099,13 @@ local function ShowMyGroupEditView(myGroup)
 	rightButton:Show()
 end
 
-function GuildFoundTools.LFG.UpdateCreateGroupTab()
-	local myGroup = GuildFoundTools.LFG.GetMyGroup()
+function ClassicGuildTools.LFG.UpdateCreateGroupTab()
+	local myGroup = ClassicGuildTools.LFG.GetMyGroup()
 	local playerName = GetPlayerName()
 
 	if myGroup then
-		GuildFoundTools.UI.SetTabText(2, L["TabMyGroup"])
-		GuildFoundTools.UI.SetTabEnabled(2, true)
+		ClassicGuildTools.UI.SetTabText(2, L["TabMyGroup"])
+		ClassicGuildTools.UI.SetTabEnabled(2, true)
 
 		if myGroup.leader == playerName then
 			if isEditingMyGroup then
@@ -2135,11 +2135,11 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 			UpdateApplicantsList(myGroup, false)
 		end
 	else
-		GuildFoundTools.UI.SetTabText(2, L["TabCreateGroup"])
+		ClassicGuildTools.UI.SetTabText(2, L["TabCreateGroup"])
 		isEditingMyGroup = false
 
 		local isInPartyAsNonLeader = GetNumGroupMembers() > 0 and not UnitIsGroupLeader("player")
-		GuildFoundTools.UI.SetTabEnabled(2, not isInPartyAsNonLeader, L["TabCreateGroupDisabled"])
+		ClassicGuildTools.UI.SetTabEnabled(2, not isInPartyAsNonLeader, L["TabCreateGroupDisabled"])
 
 		beginnerFriendlyButton:Show()
 		UpdateRoleContainerLayout()
@@ -2155,23 +2155,23 @@ function GuildFoundTools.LFG.UpdateCreateGroupTab()
 end
 
 leftButton:SetScript("OnClick", function()
-	local myGroup = GuildFoundTools.LFG.GetMyGroup()
+	local myGroup = ClassicGuildTools.LFG.GetMyGroup()
 	if not myGroup or myGroup.leader ~= GetPlayerName() then return end
 
 	if isEditingMyGroup then
 		-- Back to list view
 		isEditingMyGroup = false
-		GuildFoundTools.LFG.UpdateCreateGroupTab()
+		ClassicGuildTools.LFG.UpdateCreateGroupTab()
 	else
 		-- Remove group
-		if GuildFoundTools.LFG.ownGroupId then
-			GuildFoundTools.LFG.RemoveGroup(GuildFoundTools.LFG.ownGroupId)
+		if ClassicGuildTools.LFG.ownGroupId then
+			ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
 		end
 	end
 end)
 
 rightButton:SetScript("OnClick", function()
-	local myGroup = GuildFoundTools.LFG.GetMyGroup()
+	local myGroup = ClassicGuildTools.LFG.GetMyGroup()
 
 	if myGroup and myGroup.leader == GetPlayerName() and isEditingMyGroup then
 		-- save edits
@@ -2183,13 +2183,13 @@ rightButton:SetScript("OnClick", function()
 		if maxMembers < 1 then maxMembers = 1 end
 		if maxMembers > 40 then maxMembers = 40 end
 
-		GuildFoundTools.LFG.EditGroup(GuildFoundTools.LFG.ownGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+		ClassicGuildTools.LFG.EditGroup(ClassicGuildTools.LFG.ownGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 		isEditingMyGroup = false
-		GuildFoundTools.LFG.UpdateCreateGroupTab()
+		ClassicGuildTools.LFG.UpdateCreateGroupTab()
 	elseif myGroup then
 		-- switch to edit view
 		isEditingMyGroup = true
-		GuildFoundTools.LFG.UpdateCreateGroupTab()
+		ClassicGuildTools.LFG.UpdateCreateGroupTab()
 	else
 		-- create new group
 		local category = selectedCategory
@@ -2200,20 +2200,20 @@ rightButton:SetScript("OnClick", function()
 		if maxMembers < 2 then maxMembers = 2 end
 		if maxMembers > 40 then maxMembers = 40 end
 
-		GuildFoundTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+		ClassicGuildTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
 	end
 end)
 
 createGroupContent:SetScript("OnShow", function()
 	isEditingMyGroup = false
-	GuildFoundTools.LFG.UpdateCreateGroupTab()
+	ClassicGuildTools.LFG.UpdateCreateGroupTab()
 end)
 
 -- ============================================================
 -- Party role selection popup (shown when joining a group leader's party)
 -- ============================================================
 
-local partyRolePopup = CreateFrame("Frame", "GuildFoundToolsPartyRolePopup", UIParent, "BasicFrameTemplateWithInset")
+local partyRolePopup = CreateFrame("Frame", "ClassicGuildToolsPartyRolePopup", UIParent, "BasicFrameTemplateWithInset")
 partyRolePopup:SetSize(230, 100)
 partyRolePopup:SetPoint("CENTER")
 partyRolePopup:SetFrameStrata("DIALOG")
@@ -2246,9 +2246,9 @@ for index, roleName in ipairs(ROLE_NAMES) do
 
 	button:SetScript("OnClick", function()
 		if partyRolePopup.groupId then
-			GuildFoundTools.LFG.SignupForGroup(partyRolePopup.groupId, roleName)
+			ClassicGuildTools.LFG.SignupForGroup(partyRolePopup.groupId, roleName)
 			selectedRole = roleName
-			GuildFoundTools.LFG.ChangeMyRole(roleName)
+			ClassicGuildTools.LFG.ChangeMyRole(roleName)
 		end
 		partyRolePopup:Hide()
 	end)
@@ -2261,9 +2261,9 @@ for index, roleName in ipairs(ROLE_NAMES) do
 	button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
-tinsert(UISpecialFrames, "GuildFoundToolsPartyRolePopup")
+tinsert(UISpecialFrames, "ClassicGuildToolsPartyRolePopup")
 
-function GuildFoundTools.LFG.ShowPartyRolePopup(groupId)
+function ClassicGuildTools.LFG.ShowPartyRolePopup(groupId)
 	partyRolePopup.groupId = groupId
 	partyRolePopup:Show()
 end

@@ -1,7 +1,7 @@
-GuildFoundTools = GuildFoundTools or {}
-GuildFoundTools.Enums = GuildFoundTools.Enums or {}
+ClassicGuildTools = ClassicGuildTools or {}
+ClassicGuildTools.Enums = ClassicGuildTools.Enums or {}
 
-GuildFoundTools.MESSAGE_TYPE = {
+ClassicGuildTools.MESSAGE_TYPE = {
 	GROUP_CREATE = "GROUP_CREATE",
 	GROUP_EDIT = "GROUP_EDIT",
 	GROUP_REMOVE = "GROUP_REMOVE",
@@ -21,7 +21,7 @@ GuildFoundTools.MESSAGE_TYPE = {
 	GROUP_INVITE_DECLINE = "GROUP_INVITE_DECLINE",
 }
 
-GuildFoundTools.Enums.DUNGEON = {
+ClassicGuildTools.Enums.DUNGEON = {
 	-- Dungeons
 	RAGEFIRE_CHASM = "RAGEFIRE_CHASM",
 	WAILING_CAVERNS = "WAILING_CAVERNS",

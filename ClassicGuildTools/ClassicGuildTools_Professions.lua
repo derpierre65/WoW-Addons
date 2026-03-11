@@ -4,11 +4,11 @@
 -- Profession Logic
 -- ============================================================
 
-GuildFoundTools.Professions = GuildFoundTools.Professions or {}
+ClassicGuildTools.Professions = ClassicGuildTools.Professions or {}
 
-local L = LibStub("AceLocale-3.0"):GetLocale("GuildFoundTools")
-local MESSAGE_TYPE = GuildFoundTools.MESSAGE_TYPE
-local SendGuildMessage = GuildFoundTools.SendGuildMessage
+local L = LibStub("AceLocale-3.0"):GetLocale("ClassicGuildTools")
+local MESSAGE_TYPE = ClassicGuildTools.MESSAGE_TYPE
+local SendGuildMessage = ClassicGuildTools.SendGuildMessage
 
 -- ============================================================
 -- Profession scanning (Classic: GetNumSkillLines/GetSkillLineInfo)
@@ -31,7 +31,7 @@ local PROFESSION_NAME_TO_ID = {
 	["Inscription"] = 773, ["Inschriftenkunde"] = 773,
 }
 
-function GuildFoundTools.Professions.ScanProfessions()
+function ClassicGuildTools.Professions.ScanProfessions()
 	local result = {}
 
 	if not GetNumSkillLines then return result end
@@ -55,10 +55,10 @@ end
 -- ============================================================
 
 local function GetPlayerRecipes()
-	GuildFoundToolsProfessions = GuildFoundToolsProfessions or {}
+	ClassicGuildToolsProfessions = ClassicGuildToolsProfessions or {}
 	local guid = UnitGUID("player")
-	GuildFoundToolsProfessions[guid] = GuildFoundToolsProfessions[guid] or {}
-	return GuildFoundToolsProfessions[guid]
+	ClassicGuildToolsProfessions[guid] = ClassicGuildToolsProfessions[guid] or {}
+	return ClassicGuildToolsProfessions[guid]
 end
 
 local function ScanCurrentTradeSkill()
@@ -89,7 +89,7 @@ local function ScanCurrentTradeSkill()
 	playerRecipes[professionId] = recipes
 end
 
-function GuildFoundTools.Professions.GetScannedRecipes()
+function ClassicGuildTools.Professions.GetScannedRecipes()
 	return GetPlayerRecipes()
 end
 
@@ -97,19 +97,19 @@ end
 -- Profession query API
 -- ============================================================
 
-function GuildFoundTools.Professions.RequestProfessions()
+function ClassicGuildTools.Professions.RequestProfessions()
 	if not IsInGuild() then
-		print("|cff00ccffGuildFound Tools:|r " .. L["NotInGuild"])
+		print("|cff00ccffClassic Guild Tools:|r " .. L["NotInGuild"])
 		return
 	end
 
 	-- Clear old data
-	wipe(GuildFoundTools.professions)
+	wipe(ClassicGuildTools.professions)
 
 	SendGuildMessage(MESSAGE_TYPE.PROFESSION_QUERY)
 
-	if GuildFoundTools.UI and GuildFoundTools.UI.UpdateProfessionsUI then
-		GuildFoundTools.UI.UpdateProfessionsUI()
+	if ClassicGuildTools.UI and ClassicGuildTools.UI.UpdateProfessionsUI then
+		ClassicGuildTools.UI.UpdateProfessionsUI()
 	end
 end
 
@@ -117,9 +117,9 @@ end
 -- Profession message handlers
 -- ============================================================
 
-GuildFoundTools.MessageHandlers.PROFESSION_QUERY = function(data, sender)
+ClassicGuildTools.MessageHandlers.PROFESSION_QUERY = function(data, sender)
 	-- Someone is requesting professions; respond with ours
-	local myProfessions = GuildFoundTools.Professions.ScanProfessions()
+	local myProfessions = ClassicGuildTools.Professions.ScanProfessions()
 
 	for _, profession in ipairs(myProfessions) do
 		local recipes = scannedRecipes[profession.name]
@@ -139,36 +139,36 @@ GuildFoundTools.MessageHandlers.PROFESSION_QUERY = function(data, sender)
 	end
 end
 
-GuildFoundTools.MessageHandlers.PROFESSION_ANSWER = function(data, sender)
+ClassicGuildTools.MessageHandlers.PROFESSION_ANSWER = function(data, sender)
 	if not data or not data.name then return end
 
-	GuildFoundTools.professions[sender] = GuildFoundTools.professions[sender] or {}
+	ClassicGuildTools.professions[sender] = ClassicGuildTools.professions[sender] or {}
 
-	GuildFoundTools.professions[sender][data.name] = {
+	ClassicGuildTools.professions[sender][data.name] = {
 		rank = data.rank or 0,
 		maxRank = data.maxRank or 0,
 		recipes = data.recipes or {},
 	}
 
-	if GuildFoundTools.UI and GuildFoundTools.UI.UpdateProfessionsUI then
-		GuildFoundTools.UI.UpdateProfessionsUI()
+	if ClassicGuildTools.UI and ClassicGuildTools.UI.UpdateProfessionsUI then
+		ClassicGuildTools.UI.UpdateProfessionsUI()
 	end
 end
 
 -- Register profession event handlers
 local function OnTradeSkillUpdate()
-	GuildFoundTools.Utils.Debounce("TradeSkillUpdate", 1, ScanCurrentTradeSkill)
+	ClassicGuildTools.Utils.Debounce("TradeSkillUpdate", 1, ScanCurrentTradeSkill)
 end
 
-GuildFoundTools.EventHandlers.TRADE_SKILL_SHOW = function()
+ClassicGuildTools.EventHandlers.TRADE_SKILL_SHOW = function()
 	OnTradeSkillUpdate()
-	GuildFoundTools.EventHandlers.TRADE_SKILL_UPDATE = OnTradeSkillUpdate
-	GuildFoundTools.EventHandlers.CRAFT_UPDATE = OnTradeSkillUpdate
+	ClassicGuildTools.EventHandlers.TRADE_SKILL_UPDATE = OnTradeSkillUpdate
+	ClassicGuildTools.EventHandlers.CRAFT_UPDATE = OnTradeSkillUpdate
 end
 
-GuildFoundTools.EventHandlers.TRADE_SKILL_CLOSE = function()
-	GuildFoundTools.UnregisterEventHandler("TRADE_SKILL_UPDATE", OnTradeSkillUpdate)
-	GuildFoundTools.UnregisterEventHandler("CRAFT_UPDATE", OnTradeSkillUpdate)
+ClassicGuildTools.EventHandlers.TRADE_SKILL_CLOSE = function()
+	ClassicGuildTools.UnregisterEventHandler("TRADE_SKILL_UPDATE", OnTradeSkillUpdate)
+	ClassicGuildTools.UnregisterEventHandler("CRAFT_UPDATE", OnTradeSkillUpdate)
 	ScanCurrentTradeSkill()
 end
 
@@ -176,7 +176,7 @@ end
 -- Professions UI
 -- ============================================================
 
-local contentFrame = GuildFoundTools.UI.GetContentFrame(3)
+local contentFrame = ClassicGuildTools.UI.GetContentFrame(3)
 
 local LEFT_PANEL_WIDTH = 180
 local selectedMember = nil
@@ -198,10 +198,10 @@ statusText:SetText("")
 
 queryButton:SetScript("OnClick", function()
 	statusText:SetText(L["QuerySent"])
-	GuildFoundTools.Professions.RequestProfessions()
+	ClassicGuildTools.Professions.RequestProfessions()
 	C_Timer.After(5, function()
 		local count = 0
-		for _ in pairs(GuildFoundTools.professions) do
+		for _ in pairs(ClassicGuildTools.professions) do
 			count = count + 1
 		end
 		statusText:SetText(string.format(L["ResponsesReceived"], count))
@@ -226,11 +226,11 @@ leftPanel:SetBackdrop({
 })
 leftPanel:SetBackdropColor(0, 0, 0, 0.6)
 
-local leftScrollFrame = CreateFrame("ScrollFrame", "GuildFoundToolsProfLeftScroll", leftPanel, "UIPanelScrollFrameTemplate")
+local leftScrollFrame = CreateFrame("ScrollFrame", "ClassicGuildToolsProfLeftScroll", leftPanel, "UIPanelScrollFrameTemplate")
 leftScrollFrame:SetPoint("TOPLEFT", 5, -5)
 leftScrollFrame:SetPoint("BOTTOMRIGHT", -25, 5)
 
-local leftScrollChild = CreateFrame("Frame", "GuildFoundToolsProfLeftScrollChild", leftScrollFrame)
+local leftScrollChild = CreateFrame("Frame", "ClassicGuildToolsProfLeftScrollChild", leftScrollFrame)
 leftScrollChild:SetSize(LEFT_PANEL_WIDTH - 30, 1)
 leftScrollFrame:SetScrollChild(leftScrollChild)
 
@@ -255,11 +255,11 @@ local rightHeader = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal"
 rightHeader:SetPoint("TOP", 0, -8)
 rightHeader:SetText("")
 
-local rightScrollFrame = CreateFrame("ScrollFrame", "GuildFoundToolsProfRightScroll", rightPanel, "UIPanelScrollFrameTemplate")
+local rightScrollFrame = CreateFrame("ScrollFrame", "ClassicGuildToolsProfRightScroll", rightPanel, "UIPanelScrollFrameTemplate")
 rightScrollFrame:SetPoint("TOPLEFT", 5, -25)
 rightScrollFrame:SetPoint("BOTTOMRIGHT", -25, 5)
 
-local rightScrollChild = CreateFrame("Frame", "GuildFoundToolsProfRightScrollChild", rightScrollFrame)
+local rightScrollChild = CreateFrame("Frame", "ClassicGuildToolsProfRightScrollChild", rightScrollFrame)
 rightScrollChild:SetSize(200, 1)
 rightScrollFrame:SetScrollChild(rightScrollChild)
 
@@ -369,7 +369,7 @@ local function UpdateRightPanel()
 		return
 	end
 
-	local memberData = GuildFoundTools.professions[selectedMember]
+	local memberData = ClassicGuildTools.professions[selectedMember]
 	if not memberData then
 		rightHeader:SetText("")
 		noRecipesText:Hide()
@@ -423,7 +423,7 @@ end
 local function UpdateLeftPanel()
 	ReleaseLeftEntries()
 
-	local professions = GuildFoundTools.professions
+	local professions = ClassicGuildTools.professions
 	local yOffset = 0
 
 	-- Sort members alphabetically
@@ -491,7 +491,7 @@ end
 -- Public update function
 -- ============================================================
 
-function GuildFoundTools.UI.UpdateProfessionsUI()
+function ClassicGuildTools.UI.UpdateProfessionsUI()
 	if not contentFrame:IsShown() then return end
 	UpdateLeftPanel()
 	UpdateRightPanel()

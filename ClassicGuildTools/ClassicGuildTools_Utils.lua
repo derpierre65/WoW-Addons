@@ -1,9 +1,9 @@
-GuildFoundTools = GuildFoundTools or {}
-GuildFoundTools.Utils = GuildFoundTools.Utils or {}
+ClassicGuildTools = ClassicGuildTools or {}
+ClassicGuildTools.Utils = ClassicGuildTools.Utils or {}
 
 local debounceTimers = {}
 
-function GuildFoundTools.Utils.CreatePool(parent, createFunction, releaseCallback)
+function ClassicGuildTools.Utils.CreatePool(parent, createFunction, releaseCallback)
 	local pool = {}
 	local active = {}
 
@@ -32,7 +32,7 @@ function GuildFoundTools.Utils.CreatePool(parent, createFunction, releaseCallbac
 	}
 end
 
-function GuildFoundTools.Utils.Debounce(key, delay, callback)
+function ClassicGuildTools.Utils.Debounce(key, delay, callback)
 	if debounceTimers[key] then
 		debounceTimers[key]:Cancel()
 		debounceTimers[key] = nil

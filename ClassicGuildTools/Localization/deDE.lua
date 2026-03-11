@@ -1,8 +1,8 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("GuildFoundTools", "deDE")
+local L = LibStub("AceLocale-3.0"):NewLocale("ClassicGuildTools", "deDE")
 if not L then return end
 
 -- General
-L["AddonTitle"] = "GuildFound Tools"
+L["AddonTitle"] = "Classic Guild Tools"
 L["MinimapTooltip"] = "Klicken um das Fenster zu öffnen"
 L["NotInGuild"] = "Du bist in keiner Gilde."
 
