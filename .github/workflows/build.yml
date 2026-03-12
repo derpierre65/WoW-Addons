@@ -1,10 +1,11 @@
-name: Build Addons
+name: 🔨 Build Addons
 
 on:
   push:
 
 jobs:
   detect:
+    name: 🔍 Detect changed addons
     runs-on: ubuntu-latest
     outputs:
       addons: ${{ steps.changed.outputs.addons }}
@@ -14,6 +15,7 @@ jobs:
           fetch-depth: 2
 
       - id: changed
+        name: 🔎 Find changed addon directories
         shell: bash
         run: |
           DIRS=$(git diff --name-only HEAD~1 HEAD | cut -d'/' -f1 | sort -u)
@@ -25,6 +27,7 @@ jobs:
           echo "addons=$ADDONS" >> "$GITHUB_OUTPUT"
 
   build:
+    name: 📦 Build ${{ matrix.addon }}
     needs: detect
     if: needs.detect.outputs.addons != '[]'
     runs-on: ubuntu-latest
@@ -34,12 +37,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare artifact
+      - name: 🛠️ Prepare artifact
         run: |
           mkdir build
           cp -r "${{ matrix.addon }}" build/
 
-      - name: Upload artifact
+      - name: 📤 Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.addon }}
