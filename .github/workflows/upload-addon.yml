@@ -1,0 +1,143 @@
+name: 📤 Upload Addon to CurseForge
+
+on:
+  workflow_call:
+    inputs:
+      addon_name:
+        description: "Addon folder name"
+        required: true
+        type: string
+    secrets:
+      CF_API_KEY:
+        required: true
+
+jobs:
+  upload:
+    name: 📤 Upload ${{ inputs.addon_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 🔍 Read version from TOC
+        id: info
+        run: |
+          ADDON_NAME="${{ inputs.addon_name }}"
+          TOC_FILE="${ADDON_NAME}/${ADDON_NAME}.toc"
+          VERSION=$(grep -oP '## Version:\s*\K\S+' "$TOC_FILE")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: ✅ Validate addon directory
+        run: |
+          ADDON_NAME="${{ inputs.addon_name }}"
+          if [ ! -d "$ADDON_NAME" ]; then
+            echo "::error::Addon directory '$ADDON_NAME' does not exist"
+            exit 1
+          fi
+
+      - name: 📋 Read CurseForge Project ID from TOC
+        id: curse
+        run: |
+          ADDON_NAME="${{ inputs.addon_name }}"
+          TOC_FILE="${ADDON_NAME}/${ADDON_NAME}.toc"
+          PROJECT_ID=$(grep -oP '## X-Curse-Project-ID:\s*\K\S+' "$TOC_FILE")
+
+          if [ -z "$PROJECT_ID" ]; then
+            echo "::error::X-Curse-Project-ID not found in $TOC_FILE"
+            exit 1
+          fi
+
+          echo "project_id=${PROJECT_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: 🎮 Read game versions from TOC
+        id: gameversions
+        run: |
+          ADDON_NAME="${{ inputs.addon_name }}"
+          TOC_FILE="${ADDON_NAME}/${ADDON_NAME}.toc"
+          INTERFACE_LINE=$(grep -oP '## Interface:\s*\K.*' "$TOC_FILE")
+          echo "interface_versions=${INTERFACE_LINE}" >> "$GITHUB_OUTPUT"
+
+      - name: 🌐 Fetch CurseForge game version IDs
+        id: cfversions
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: |
+          VERSIONS_JSON=$(curl -s -H "X-Api-Token: ${CF_API_KEY}" \
+            "https://wow.curseforge.com/api/game/versions")
+
+          INTERFACE_VERSIONS="${{ steps.gameversions.outputs.interface_versions }}"
+          GAME_VERSION_IDS="[]"
+
+          IFS=',' read -ra IFACES <<< "$INTERFACE_VERSIONS"
+          for iface in "${IFACES[@]}"; do
+            iface=$(echo "$iface" | tr -d ' ')
+
+            if [ ${#iface} -eq 5 ]; then
+              MAJOR="${iface:0:1}"
+              MINOR="${iface:1:2}"
+              PATCH="${iface:3:2}"
+            elif [ ${#iface} -eq 6 ]; then
+              MAJOR="${iface:0:2}"
+              MINOR="${iface:2:2}"
+              PATCH="${iface:4:2}"
+            else
+              echo "::warning::Unknown interface format: $iface"
+              continue
+            fi
+
+            MINOR=$((10#$MINOR))
+            PATCH=$((10#$PATCH))
+            VERSION_STRING="${MAJOR}.${MINOR}.${PATCH}"
+
+            echo "Looking for game version matching interface $iface -> $VERSION_STRING"
+
+            MATCHED_ID=$(echo "$VERSIONS_JSON" | jq -r \
+              --arg vs "$VERSION_STRING" \
+              '.[] | select(.name == $vs) | .id // empty')
+
+            if [ -n "$MATCHED_ID" ]; then
+              GAME_VERSION_IDS=$(echo "$GAME_VERSION_IDS" | jq ". + [$MATCHED_ID]")
+              echo "Matched: $VERSION_STRING -> ID $MATCHED_ID"
+            else
+              echo "::warning::No CurseForge game version found for $VERSION_STRING (interface $iface)"
+            fi
+          done
+
+          echo "game_version_ids=$(echo "$GAME_VERSION_IDS" | jq -c '.')" >> "$GITHUB_OUTPUT"
+
+      - name: 📦 Create ZIP
+        run: |
+          ADDON_NAME="${{ inputs.addon_name }}"
+          zip -r "${ADDON_NAME}-${{ steps.info.outputs.version }}.zip" "$ADDON_NAME"
+
+      - name: ☁️ Upload to CurseForge
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: |
+          ADDON_NAME="${{ inputs.addon_name }}"
+          VERSION="${{ steps.info.outputs.version }}"
+          PROJECT_ID="${{ steps.curse.outputs.project_id }}"
+          GAME_VERSION_IDS="${{ steps.cfversions.outputs.game_version_ids }}"
+
+          METADATA=$(jq -n \
+            --arg changelog "Release v${VERSION}" \
+            --arg releaseType "alpha" \
+            --argjson gameVersions "$GAME_VERSION_IDS" \
+            '{changelog: $changelog, changelogType: "text", releaseType: $releaseType, gameVersions: $gameVersions}')
+
+          echo "Upload metadata: $METADATA"
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "X-Api-Token: ${CF_API_KEY}" \
+            -F "metadata=$METADATA" \
+            -F "file=@${ADDON_NAME}-${VERSION}.zip" \
+            "https://wow.curseforge.com/api/projects/${PROJECT_ID}/upload-file")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "Response ($HTTP_CODE): $BODY"
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::CurseForge upload failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
