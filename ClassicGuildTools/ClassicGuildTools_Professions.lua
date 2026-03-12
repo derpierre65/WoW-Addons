@@ -52,7 +52,7 @@ local function GetPlayerRecipes()
 	return guildData[guid]
 end
 
-local function BroadcastPlayerProfessions(target)
+local function BroadcastPlayerProfessions(target, filterProfessionId)
 	local guildData = GetCurrentGuildData()
 	if not guildData then return end
 
@@ -61,18 +61,20 @@ local function BroadcastPlayerProfessions(target)
 	if not professions then return end
 
 	for professionId, professionData in pairs(professions) do
-		local payload = {
-			guid = guid,
-			professionId = professionId,
-			recipes = professionData.recipes or {},
-			rank = professionData.rank or 0,
-			maxRank = professionData.maxRank or 0,
-		}
+		if not filterProfessionId or professionId == filterProfessionId then
+			local payload = {
+				guid = guid,
+				professionId = professionId,
+				recipes = professionData.recipes or {},
+				rank = professionData.rank or 0,
+				maxRank = professionData.maxRank or 0,
+			}
 
-		if target then
-			SendWhisperMessage(MESSAGE_TYPE.PROFESSION_ANSWER, target, payload)
-		else
-			SendGuildMessage(MESSAGE_TYPE.PROFESSION_ANSWER, payload)
+			if target then
+				SendWhisperMessage(MESSAGE_TYPE.PROFESSION_ANSWER, target, payload)
+			else
+				SendGuildMessage(MESSAGE_TYPE.PROFESSION_ANSWER, payload)
+			end
 		end
 	end
 end
@@ -95,8 +97,6 @@ function ClassicGuildTools.Professions.ScanProfessions()
 			playerRecipes[professionId].maxRank = skillMaxRank or 0
 		end
 	end
-
-	BroadcastPlayerProfessions()
 end
 
 local function ScanCurrentTradeSkill()
@@ -123,7 +123,7 @@ local function ScanCurrentTradeSkill()
 	playerRecipes[professionId] = playerRecipes[professionId] or {}
 	playerRecipes[professionId].recipes = recipeItemIds
 
-	BroadcastPlayerProfessions()
+	BroadcastPlayerProfessions(nil, professionId)
 end
 
 function ClassicGuildTools.Professions.GetScannedRecipes()
