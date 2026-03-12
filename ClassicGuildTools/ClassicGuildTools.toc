@@ -1,4 +1,4 @@
-## Interface: 11302, 11307, 20505
+## Interface: 11508, 20505
 ## Title: Classic Guild Tools
 ## Notes: Tools for Guilds.
 ## Author: derpierre65
