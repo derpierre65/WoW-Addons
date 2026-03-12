@@ -144,6 +144,7 @@ end
 -- ============================================================
 
 ClassicGuildTools.MessageHandlers.PROFESSION_QUERY = function(data, sender)
+	if sender == ClassicGuildTools.GetPlayerName() then return end
 	BroadcastPlayerProfessions(sender)
 end
 
