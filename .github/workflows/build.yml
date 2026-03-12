@@ -47,3 +47,20 @@ jobs:
         with:
           name: ${{ matrix.addon }}
           path: build/
+
+  release:
+    name: 🚀 Release ${{ matrix.addon }}
+    needs: detect
+    if: needs.detect.outputs.addons != '[]' && contains(github.event.head_commit.message, '[release]')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        addon: ${{ fromJson(needs.detect.outputs.addons) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 🚀 Trigger release workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run "release.yml" --ref "${GITHUB_REF_NAME}" -f addon_name="${{ matrix.addon }}"
