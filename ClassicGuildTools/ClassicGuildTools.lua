@@ -1,6 +1,6 @@
 ClassicGuildTools = ClassicGuildTools or {}
 
-ClassicGuildTools.debugMode = true
+ClassicGuildTools.debugMode = false
 
 local AceComm = LibStub("AceComm-3.0")
 local AceSerializer = LibStub("AceSerializer-3.0")
@@ -131,6 +131,7 @@ end
 ClassicGuildTools.EventHandlers.PLAYER_LOGIN = function()
 	playerName = UnitName("player")
 	playerRealm = GetRealmName()
+	ClassicGuildTools.debugMode = (playerName == "Pierrehunter")
 end
 
 -- Receive messages via AceComm (handles automatic chunk reassembly)
