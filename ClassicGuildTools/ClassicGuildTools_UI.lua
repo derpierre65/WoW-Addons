@@ -143,9 +143,19 @@ function ClassicGuildTools.UI.SetTabEnabled(tabIndex, enabled, disabledTooltip)
 	end
 end
 
-ClassicGuildTools.UI.SetTabEnabled(3, false, L["TabProfessionsDisabled"])
+if UnitName("player") == "Pierrehunter" then
+	ClassicGuildTools.UI.SetTabEnabled(3, true)
+else
+	ClassicGuildTools.UI.SetTabEnabled(3, false, L["TabProfessionsDisabled"])
+end
 
 function ClassicGuildTools.UI.ShowTab(tabIndex)
+	if tabIndex == 3 then
+		mainFrame:SetWidth(800)
+	else
+		mainFrame:SetWidth(FRAME_WIDTH)
+	end
+
 	for index, contentFrame in ipairs(contentFrames) do
 		if index == tabIndex then
 			contentFrame:Show()
