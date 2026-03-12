@@ -41,6 +41,8 @@ local DUNGEON_BY_ID = {}
 
 -- Forward declarations
 local leftButton, rightButton
+local RemoveFromInviteQueue, ShowNextInvite
+local inviteConfirmPopup = CreateFrame("Frame", "ClassicGuildToolsInviteConfirmPopup", UIParent, "BasicFrameTemplateWithInset")
 
 -- Generate a unique group ID
 local function GenerateGroupId()
@@ -560,7 +562,6 @@ end
 -- Invite confirmation popup (shown to applicant when leader accepts)
 -- ============================================================
 
-local inviteConfirmPopup = CreateFrame("Frame", "ClassicGuildToolsInviteConfirmPopup", UIParent, "BasicFrameTemplateWithInset")
 inviteConfirmPopup:SetSize(300, 110)
 inviteConfirmPopup:SetPoint("CENTER")
 inviteConfirmPopup:SetFrameStrata("DIALOG")
@@ -580,7 +581,15 @@ inviteConfirmPopup.groupId = nil
 
 local inviteQueue = {}
 
-local function ShowNextInvite()
+RemoveFromInviteQueue = function(groupId)
+	for index = #inviteQueue, 1, -1 do
+		if inviteQueue[index].groupId == groupId then
+			table.remove(inviteQueue, index)
+		end
+	end
+end
+
+ShowNextInvite = function()
 	if #inviteQueue == 0 then
 		inviteConfirmPopup:Hide()
 		return
@@ -608,14 +617,6 @@ local function DeclineAllQueuedInvites()
 		SendWhisperMessage(MESSAGE_TYPE.GROUP_INVITE_DECLINE, invite.leaderName)
 	end
 	inviteQueue = {}
-end
-
-local function RemoveFromInviteQueue(groupId)
-	for index = #inviteQueue, 1, -1 do
-		if inviteQueue[index].groupId == groupId then
-			table.remove(inviteQueue, index)
-		end
-	end
 end
 
 inviteConfirmPopup.text = inviteConfirmPopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
