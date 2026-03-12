@@ -150,10 +150,18 @@ else
 end
 
 function ClassicGuildTools.UI.ShowTab(tabIndex)
+	local currentLeft = mainFrame:GetLeft()
+	local currentTop = mainFrame:GetTop()
+
 	if tabIndex == 3 then
 		mainFrame:SetWidth(800)
 	else
 		mainFrame:SetWidth(FRAME_WIDTH)
+	end
+
+	if currentLeft and currentTop then
+		mainFrame:ClearAllPoints()
+		mainFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", currentLeft, currentTop)
 	end
 
 	for index, contentFrame in ipairs(contentFrames) do
