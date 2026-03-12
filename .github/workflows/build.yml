@@ -10,7 +10,7 @@ jobs:
     outputs:
       addons: ${{ steps.changed.outputs.addons }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 2
 
@@ -35,7 +35,7 @@ jobs:
       matrix:
         addon: ${{ fromJson(needs.detect.outputs.addons) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: 🛠️ Prepare artifact
         run: |
@@ -43,7 +43,7 @@ jobs:
           cp -r "${{ matrix.addon }}" build/
 
       - name: 📤 Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.addon }}
           path: build/
