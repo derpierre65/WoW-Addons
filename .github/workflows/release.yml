@@ -31,6 +31,7 @@ jobs:
     uses: ./.github/workflows/upload-addon.yml
     with:
       addon_name: ${{ needs.resolve.outputs.addon_name }}
+      release_type: release
     secrets:
       CF_API_KEY: ${{ secrets.CF_API_KEY }}
 
@@ -57,5 +58,4 @@ jobs:
           gh release create "$TAG" \
             --title "${ADDON_NAME} v${VERSION}" \
             --generate-notes \
-            --prerelease \
             "${ADDON_NAME}-${VERSION}.zip"

@@ -7,6 +7,11 @@ on:
         description: "Addon folder name"
         required: true
         type: string
+      release_type:
+        description: "CurseForge release type (release, beta, alpha)"
+        required: false
+        type: string
+        default: "beta"
     secrets:
       CF_API_KEY:
         required: true
@@ -120,7 +125,7 @@ jobs:
 
           METADATA=$(jq -n \
             --arg changelog "" \
-            --arg releaseType "alpha" \
+            --arg releaseType "${{ inputs.release_type }}" \
             --argjson gameVersions "$GAME_VERSION_IDS" \
             '{changelog: $changelog, changelogType: "text", releaseType: $releaseType, gameVersions: $gameVersions}')
 
