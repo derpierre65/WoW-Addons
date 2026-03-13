@@ -261,7 +261,7 @@ local function CreateRecipeRow(parent)
 	row.players = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	row.players:SetPoint("RIGHT", row, "RIGHT", -4, 0)
 	row.players:SetPoint("LEFT", row, "CENTER", -120, 0)
-	row.players:SetJustifyH("RIGHT")
+	row.players:SetJustifyH("LEFT")
 	row.players:SetWordWrap(false)
 
 	row.background = row:CreateTexture(nil, "BACKGROUND")
@@ -371,8 +371,18 @@ end)
 
 -- Scroll frame
 local scrollFrame = CreateFrame("ScrollFrame", nil, contentFrame, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 0, -30)
+scrollFrame:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 0, -48)
 scrollFrame:SetPoint("BOTTOMRIGHT", contentFrame, "BOTTOMRIGHT", -22, 0)
+
+-- Column headers (anchored to scrollFrame so they align with row columns)
+local headerItem = contentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+headerItem:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 4, -32)
+headerItem:SetText(L["ColumnItem"])
+
+local headerPlayers = contentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+headerPlayers:SetPoint("LEFT", scrollFrame, "CENTER", -120, 0)
+headerPlayers:SetPoint("TOP", headerItem, "TOP", 0, 0)
+headerPlayers:SetText(L["ColumnPlayers"])
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
 scrollChild:SetWidth(scrollFrame:GetWidth())
