@@ -60,6 +60,7 @@ local ROW_SPACING = 2
 
 local selectedProfessionId = nil
 local searchText = ""
+local recipeCache = {}
 
 -- ============================================================
 -- Data access helpers
@@ -68,6 +69,7 @@ local searchText = ""
 local function GetGuildData(guildName)
 	ClassicGuildToolsProfessions = ClassicGuildToolsProfessions or {}
 	ClassicGuildToolsProfessions[guildName] = ClassicGuildToolsProfessions[guildName] or {}
+
 	return ClassicGuildToolsProfessions[guildName]
 end
 
@@ -111,6 +113,29 @@ local function BroadcastPlayerProfessions(target, filterProfessionId)
 				SendWhisperMessage(MESSAGE_TYPE.PROFESSION_ANSWER, target, payload)
 			else
 				SendGuildMessage(MESSAGE_TYPE.PROFESSION_ANSWER, payload)
+			end
+		end
+	end
+end
+
+local function RebuildRecipeCache()
+	wipe(recipeCache)
+
+	local guildData = GetCurrentGuildData()
+	if not guildData then return end
+
+	for guid, professions in pairs(guildData) do
+		local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
+		if playerName then
+			for professionId, professionData in pairs(professions) do
+				for _, itemId in ipairs(professionData.recipes or {}) do
+					if itemId and itemId > 0 then
+						if not recipeCache[itemId] then
+							recipeCache[itemId] = { professionId = professionId, players = {} }
+						end
+						recipeCache[itemId].players[playerName] = true
+					end
+				end
 			end
 		end
 	end
@@ -466,7 +491,54 @@ ClassicGuildTools.MessageHandlers.PROFESSION_ANSWER = function(data, sender)
 	guildData[data.guid][data.professionId].recipes = data.recipes or {}
 	guildData[data.guid][data.professionId].rank = data.rank or 0
 	guildData[data.guid][data.professionId].maxRank = data.maxRank or 0
+
+	ClassicGuildTools.Utils.Debounce("RebuildRecipeCache", 1, RebuildRecipeCache)
 end
+
+-- ============================================================
+-- Tooltip hook
+-- ============================================================
+
+GameTooltip:HookScript("OnTooltipSetItem", function(self)
+	local _, itemLink = self:GetItem()
+	if not itemLink then return end
+
+	local itemId = tonumber(itemLink:match("item:(%d+)"))
+	if not itemId then return end
+
+	local cached = recipeCache[itemId]
+	if not cached then return end
+
+	local myName = ClassicGuildTools.GetPlayerName()
+	local playerParts = {}
+	local sortedNames = {}
+	for playerName in pairs(cached.players) do
+		table.insert(sortedNames, playerName)
+	end
+	table.sort(sortedNames, function(a, b)
+		if a == myName then return true end
+		if b == myName then return false end
+		return a < b
+	end)
+
+	for _, playerName in ipairs(sortedNames) do
+		if playerName == myName then
+			table.insert(playerParts, "|cff00ff00" .. L["You"] .. "|r")
+		else
+			table.insert(playerParts, playerName)
+		end
+	end
+
+	local localeKey = PROFESSION_ID_TO_LOCALE_KEY[cached.professionId]
+	local icon = PROFESSION_ID_TO_ICON[cached.professionId]
+
+	self:AddLine(" ")
+	if localeKey and icon then
+		self:AddLine("|T" .. icon .. ":14|t " .. L[localeKey] .. " (" .. L["AddonTitle"] .. ")")
+	end
+	self:AddLine(table.concat(playerParts, ", "), 1, 1, 1, true)
+	self:Show()
+end)
 
 -- ============================================================
 -- Event handlers
@@ -479,6 +551,7 @@ end
 
 ClassicGuildTools.EventHandlers.PLAYER_LOGIN = function()
 	ClassicGuildTools.Professions.ScanProfessions()
+	RebuildRecipeCache()
 	SendGuildMessage(MESSAGE_TYPE.PROFESSION_QUERY)
 end
 
