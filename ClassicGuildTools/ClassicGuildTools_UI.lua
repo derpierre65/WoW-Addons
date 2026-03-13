@@ -160,6 +160,12 @@ function ClassicGuildTools.UI.ShowTab(tabIndex)
 		mainFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", currentLeft, currentTop)
 	end
 
+	if tabIndex == 3 then
+		settingsButton:Hide()
+	else
+		settingsButton:Show()
+	end
+
 	for index, contentFrame in ipairs(contentFrames) do
 		if index == tabIndex then
 			contentFrame:Show()
