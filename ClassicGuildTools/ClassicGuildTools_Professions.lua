@@ -280,6 +280,12 @@ local function CreateRecipeRow(parent)
 		GameTooltip:Hide()
 	end)
 
+	row:SetScript("OnMouseUp", function(self, button)
+		if button == "LeftButton" and IsShiftKeyDown() and self.itemLink then
+			ChatEdit_InsertLink(self.itemLink)
+		end
+	end)
+
 	return row
 end
 
