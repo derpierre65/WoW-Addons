@@ -7,7 +7,7 @@ local MESSAGE_TYPE = ClassicGuildTools.MESSAGE_TYPE
 local SendGuildMessage = ClassicGuildTools.SendGuildMessage
 local SendWhisperMessage = ClassicGuildTools.SendWhisperMessage
 
-local PROFESSION_NAME_TO_ID = {
+local PROFESSIONS = {
 	["Alchemy"] = 171, ["Alchimie"] = 171,
 	["Blacksmithing"] = 164, ["Schmiedekunst"] = 164,
 	["Enchanting"] = 333, ["Verzauberkunst"] = 333, ["Verzaubern"] = 333,
@@ -23,7 +23,7 @@ local PROFESSION_NAME_TO_ID = {
 	["Jewelcrafting"] = 755, ["Juwelenschleifen"] = 755,
 	["Inscription"] = 773, ["Inschriftenkunde"] = 773,
 }
-local PROFESSION_ID_TO_LOCALE_KEY = {
+local PROFESSION_LOCALE_KEYS = {
 	[171] = "ProfessionAlchemy",
 	[164] = "ProfessionBlacksmithing",
 	[333] = "ProfessionEnchanting",
@@ -43,7 +43,7 @@ if not ClassicGuildTools.Utils.isEra then
 	table.insert(SORTED_PROFESSION_IDS, 773) -- Inscription
 end
 
-local PROFESSION_ID_TO_ICON = {
+local PROFESSION_ICONS = {
 	[171] = "Interface\\Icons\\Trade_Alchemy",
 	[164] = "Interface\\Icons\\Trade_BlackSmithing",
 	[333] = "Interface\\Icons\\Trade_Engraving",
@@ -152,8 +152,8 @@ function ClassicGuildTools.Professions.ScanProfessions()
 
 	for index = 1, GetNumSkillLines() do
 		local skillName, isHeader, _, skillRank, _, _, skillMaxRank = GetSkillLineInfo(index)
-		if skillName and not isHeader and PROFESSION_NAME_TO_ID[skillName] then
-			local professionId = PROFESSION_NAME_TO_ID[skillName]
+		if skillName and not isHeader and PROFESSIONS[skillName] then
+			local professionId = PROFESSIONS[skillName]
 			playerRecipes[professionId] = playerRecipes[professionId] or {}
 			playerRecipes[professionId].rank = skillRank or 0
 			playerRecipes[professionId].maxRank = skillMaxRank or 0
@@ -167,7 +167,7 @@ local function ScanCurrentTradeSkill()
 	local tradeSkillName = GetTradeSkillLine()
 	if not tradeSkillName or tradeSkillName == "UNKNOWN" then return end
 
-	local professionId = PROFESSION_NAME_TO_ID[tradeSkillName]
+	local professionId = PROFESSIONS[tradeSkillName]
 	if not professionId then return end
 
 	local recipeItemIds = {}
@@ -329,8 +329,8 @@ UIDropDownMenu_SetText(professionDropdown, L["AllProfessions"])
 
 local function UpdateDropdownDisplay(professionId)
 	if professionId then
-		local localeKey = PROFESSION_ID_TO_LOCALE_KEY[professionId]
-		local icon = PROFESSION_ID_TO_ICON[professionId]
+		local localeKey = PROFESSION_LOCALE_KEYS[professionId]
+		local icon = PROFESSION_ICONS[professionId]
 		UIDropDownMenu_SetText(professionDropdown, L[localeKey] .. " |T" .. icon .. ":16|t")
 	else
 		UIDropDownMenu_SetText(professionDropdown, L["AllProfessions"])
@@ -353,11 +353,11 @@ UIDropDownMenu_Initialize(professionDropdown, function()
 	UIDropDownMenu_AddButton(info)
 
 	for _, professionId in ipairs(SORTED_PROFESSION_IDS) do
-		local localeKey = PROFESSION_ID_TO_LOCALE_KEY[professionId]
+		local localeKey = PROFESSION_LOCALE_KEYS[professionId]
 		if localeKey then
 			info = UIDropDownMenu_CreateInfo()
 			info.text = L[localeKey]
-			info.icon = PROFESSION_ID_TO_ICON[professionId]
+			info.icon = PROFESSION_ICONS[professionId]
 			info.checked = (selectedProfessionId == professionId)
 			info.func = function()
 				selectedProfessionId = professionId
@@ -439,6 +439,7 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		row:SetPoint("RIGHT", scrollChild, "RIGHT", 0, 0)
 
 		row.itemId = recipe.itemId
+		row.itemLink = recipe.itemLink
 		row.icon:SetTexture(recipe.itemTexture)
 		row.itemName:SetText(recipe.itemLink)
 
@@ -539,8 +540,8 @@ GameTooltip:HookScript("OnTooltipSetItem", function(self)
 		end
 	end
 
-	local localeKey = PROFESSION_ID_TO_LOCALE_KEY[cached.professionId]
-	local icon = PROFESSION_ID_TO_ICON[cached.professionId]
+	local localeKey = PROFESSION_LOCALE_KEYS[cached.professionId]
+	local icon = PROFESSION_ICONS[cached.professionId]
 
 	self:AddLine(" ")
 	if localeKey and icon then
