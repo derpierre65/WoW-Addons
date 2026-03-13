@@ -119,7 +119,7 @@ jobs:
           GAME_VERSION_IDS="${{ steps.cfversions.outputs.game_version_ids }}"
 
           METADATA=$(jq -n \
-            --arg changelog "Release v${VERSION}" \
+            --arg changelog "" \
             --arg releaseType "alpha" \
             --argjson gameVersions "$GAME_VERSION_IDS" \
             '{changelog: $changelog, changelogType: "text", releaseType: $releaseType, gameVersions: $gameVersions}')
