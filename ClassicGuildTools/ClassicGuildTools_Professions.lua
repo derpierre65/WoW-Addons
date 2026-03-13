@@ -23,6 +23,43 @@ local PROFESSION_NAME_TO_ID = {
 	["Jewelcrafting"] = 755, ["Juwelenschleifen"] = 755,
 	["Inscription"] = 773, ["Inschriftenkunde"] = 773,
 }
+local PROFESSION_ID_TO_LOCALE_KEY = {
+	[171] = "ProfessionAlchemy",
+	[164] = "ProfessionBlacksmithing",
+	[333] = "ProfessionEnchanting",
+	[202] = "ProfessionEngineering",
+	[165] = "ProfessionLeatherworking",
+	[197] = "ProfessionTailoring",
+	[185] = "ProfessionCooking",
+	[129] = "ProfessionFirstAid",
+	[755] = "ProfessionJewelcrafting",
+	[773] = "ProfessionInscription",
+}
+
+local SORTED_PROFESSION_IDS = { 171, 164, 333, 202, 165, 197, 185, 129 }
+
+if not ClassicGuildTools.Utils.isEra then
+	table.insert(SORTED_PROFESSION_IDS, 755) -- Jewelcrafting
+	table.insert(SORTED_PROFESSION_IDS, 773) -- Inscription
+end
+
+local PROFESSION_ID_TO_ICON = {
+	[171] = "Interface\\Icons\\Trade_Alchemy",
+	[164] = "Interface\\Icons\\Trade_BlackSmithing",
+	[333] = "Interface\\Icons\\Trade_Engraving",
+	[202] = "Interface\\Icons\\Trade_Engineering",
+	[165] = "Interface\\Icons\\Trade_LeatherWorking",
+	[197] = "Interface\\Icons\\Trade_Tailoring",
+	[185] = "Interface\\Icons\\INV_Misc_Food_15",
+	[129] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
+	[755] = "Interface\\Icons\\INV_Misc_Gem_01",
+	[773] = "Interface\\Icons\\INV_Inscription_Tradeskill01",
+}
+local ROW_HEIGHT = 20
+local ROW_SPACING = 2
+
+local selectedProfessionId = nil
+local searchText = ""
 
 -- ============================================================
 -- Data access helpers
@@ -135,8 +172,252 @@ end
 -- ============================================================
 
 local contentFrame = ClassicGuildTools.UI.GetContentFrame(3)
+contentFrame:SetScript("OnShow", function()
+	ClassicGuildTools.UI.UpdateProfessionsUI()
+end)
+
+local function CollectRecipeData()
+	local guildData = GetCurrentGuildData()
+	if not guildData then return {} end
+
+	local recipeMap = {}
+	local myName = ClassicGuildTools.GetPlayerName()
+
+	for guid, professions in pairs(guildData) do
+		local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
+		if playerName then
+			local isself = playerName == myName
+			local memberInfo = ClassicGuildTools.guildMemberCache[playerName]
+			local isOnline = isself or (memberInfo and memberInfo.online)
+
+			for professionId, professionData in pairs(professions) do
+				if not selectedProfessionId or professionId == selectedProfessionId then
+					for _, itemId in ipairs(professionData.recipes or {}) do
+						if itemId and itemId > 0 then
+							if not recipeMap[itemId] then
+								recipeMap[itemId] = { players = {} }
+							end
+							table.insert(recipeMap[itemId].players, {
+								name = playerName,
+								isSelf = isself,
+								isOnline = isOnline,
+							})
+						end
+					end
+				end
+			end
+		end
+	end
+
+	return recipeMap
+end
+
+local function CreateRecipeRow(parent)
+	local row = CreateFrame("Frame", nil, parent)
+	row:SetHeight(ROW_HEIGHT)
+	row:EnableMouse(true)
+
+	row.icon = row:CreateTexture(nil, "ARTWORK")
+	row.icon:SetSize(ROW_HEIGHT, ROW_HEIGHT)
+	row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
+
+	row.itemName = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	row.itemName:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
+	row.itemName:SetJustifyH("LEFT")
+
+	row.players = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	row.players:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+	row.players:SetPoint("LEFT", row, "CENTER", 0, 0)
+	row.players:SetJustifyH("RIGHT")
+
+	row.background = row:CreateTexture(nil, "BACKGROUND")
+	row.background:SetAllPoints()
+	row.background:SetColorTexture(1, 1, 1, 0.03)
+
+	row:SetScript("OnEnter", function(self)
+		if self.itemId then
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetItemByID(self.itemId)
+			GameTooltip:Show()
+		end
+	end)
+
+	row:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+	end)
+
+	return row
+end
+
+-- Search box
+local searchBox = CreateFrame("EditBox", nil, contentFrame, "InputBoxTemplate")
+searchBox:SetSize(100, 20)
+searchBox:SetAutoFocus(false)
+searchBox:SetFontObject(ChatFontNormal)
+
+local searchPlaceholder = searchBox:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+searchPlaceholder:SetPoint("LEFT", searchBox, "LEFT", 6, 0)
+searchPlaceholder:SetText(L["SearchPlaceholder"])
+
+searchBox:SetScript("OnEditFocusGained", function()
+	searchPlaceholder:Hide()
+end)
+
+searchBox:SetScript("OnEditFocusLost", function(self)
+	if self:GetText() == "" then
+		searchPlaceholder:Show()
+	end
+end)
+
+searchBox:SetScript("OnTextChanged", function(self)
+	searchText = self:GetText():lower()
+	if searchText == "" then
+		searchPlaceholder:Show()
+	else
+		searchPlaceholder:Hide()
+	end
+	ClassicGuildTools.UI.UpdateProfessionsUI()
+end)
+
+searchBox:SetScript("OnEscapePressed", function(self)
+	self:ClearFocus()
+end)
+
+searchBox:SetScript("OnEnterPressed", function(self)
+	self:ClearFocus()
+end)
+
+-- Profession dropdown
+local professionDropdown = CreateFrame("Frame", "ClassicGuildToolsProfessionDropdown", contentFrame, "UIDropDownMenuTemplate")
+professionDropdown:SetPoint("TOPRIGHT", contentFrame, "TOPRIGHT", 0, 2)
+UIDropDownMenu_SetWidth(professionDropdown, 150)
+UIDropDownMenu_SetText(professionDropdown, L["AllProfessions"])
+
+local function UpdateDropdownDisplay(professionId)
+	if professionId then
+		local localeKey = PROFESSION_ID_TO_LOCALE_KEY[professionId]
+		local icon = PROFESSION_ID_TO_ICON[professionId]
+		UIDropDownMenu_SetText(professionDropdown, L[localeKey] .. " |T" .. icon .. ":16|t")
+	else
+		UIDropDownMenu_SetText(professionDropdown, L["AllProfessions"])
+	end
+end
+
+searchBox:SetPoint("LEFT", contentFrame, "LEFT", 6, 0)
+searchBox:SetPoint("RIGHT", professionDropdown, "LEFT", -10, 0)
+searchBox:SetPoint("BOTTOM", professionDropdown, "BOTTOM", 0, 8)
+
+UIDropDownMenu_Initialize(professionDropdown, function()
+	local info = UIDropDownMenu_CreateInfo()
+	info.text = L["AllProfessions"]
+	info.checked = selectedProfessionId == nil
+	info.func = function()
+		selectedProfessionId = nil
+		UpdateDropdownDisplay(nil)
+		ClassicGuildTools.UI.UpdateProfessionsUI()
+	end
+	UIDropDownMenu_AddButton(info)
+
+	for _, professionId in ipairs(SORTED_PROFESSION_IDS) do
+		local localeKey = PROFESSION_ID_TO_LOCALE_KEY[professionId]
+		if localeKey then
+			info = UIDropDownMenu_CreateInfo()
+			info.text = L[localeKey]
+			info.icon = PROFESSION_ID_TO_ICON[professionId]
+			info.checked = (selectedProfessionId == professionId)
+			info.func = function()
+				selectedProfessionId = professionId
+				UpdateDropdownDisplay(professionId)
+				ClassicGuildTools.UI.UpdateProfessionsUI()
+			end
+			UIDropDownMenu_AddButton(info)
+		end
+	end
+end)
+
+-- Scroll frame
+local scrollFrame = CreateFrame("ScrollFrame", nil, contentFrame, "UIPanelScrollFrameTemplate")
+scrollFrame:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 0, -30)
+scrollFrame:SetPoint("BOTTOMRIGHT", contentFrame, "BOTTOMRIGHT", -22, 0)
+
+local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+scrollChild:SetWidth(scrollFrame:GetWidth())
+scrollChild:SetHeight(1)
+scrollFrame:SetScrollChild(scrollChild)
+
+scrollFrame:SetScript("OnSizeChanged", function(self)
+	scrollChild:SetWidth(self:GetWidth())
+end)
+
+-- No results text
+local noResultsText = contentFrame:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+noResultsText:SetPoint("CENTER", scrollFrame, "CENTER", 0, 0)
+noResultsText:SetText(L["NoRecipesFound"])
+noResultsText:Hide()
+
+-- Row pool
+local rowPool = ClassicGuildTools.Utils.CreatePool(scrollChild, CreateRecipeRow)
 
 function ClassicGuildTools.UI.UpdateProfessionsUI()
+	rowPool:ReleaseAll()
+
+	local recipeMap = CollectRecipeData()
+	local recipeList = {}
+
+	for itemId, data in pairs(recipeMap) do
+		local itemName, itemLink, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+		if itemName and itemLink then
+			if searchText == "" or itemName:lower():find(searchText, 1, true) then
+				table.insert(recipeList, {
+					itemId = itemId,
+					itemName = itemName,
+					itemLink = itemLink,
+					itemTexture = itemTexture,
+					players = data.players,
+				})
+			end
+		end
+	end
+
+	table.sort(recipeList, function(a, b)
+		return a.itemName < b.itemName
+	end)
+
+	if #recipeList == 0 then
+		noResultsText:Show()
+	else
+		noResultsText:Hide()
+	end
+
+	for index, recipe in ipairs(recipeList) do
+		local row = rowPool:Acquire()
+		row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -((index - 1) * (ROW_HEIGHT + ROW_SPACING)))
+		row:SetPoint("RIGHT", scrollChild, "RIGHT", 0, 0)
+
+		row.itemId = recipe.itemId
+		row.icon:SetTexture(recipe.itemTexture)
+		row.itemName:SetText(recipe.itemLink)
+
+		local playerParts = {}
+		for _, player in ipairs(recipe.players) do
+			if player.isSelf then
+				table.insert(playerParts, "|cff00ff00" .. L["You"] .. "|r")
+			elseif player.isOnline then
+				table.insert(playerParts, "|cffffffff" .. player.name .. "|r")
+			else
+				table.insert(playerParts, "|cff808080" .. player.name .. "|r")
+			end
+		end
+		row.players:SetText(table.concat(playerParts, ", "))
+
+		if index % 2 == 0 then
+			row.background:SetColorTexture(1, 1, 1, 0.05)
+		else
+			row.background:SetColorTexture(0, 0, 0, 0)
+		end
+	end
+
+	scrollChild:SetHeight(math.max(1, #recipeList * (ROW_HEIGHT + ROW_SPACING)))
 end
 
 -- ============================================================

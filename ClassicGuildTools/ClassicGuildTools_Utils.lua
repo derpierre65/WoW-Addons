@@ -1,6 +1,13 @@
 ClassicGuildTools = ClassicGuildTools or {}
 ClassicGuildTools.Utils = ClassicGuildTools.Utils or {}
 
+local _, _, _, interfaceVersion = GetBuildInfo()
+interfaceVersion = interfaceVersion or 0
+
+ClassicGuildTools.Utils.isEra = interfaceVersion < 20000
+ClassicGuildTools.Utils.isTBC = interfaceVersion >= 20000 and interfaceVersion < 30000
+ClassicGuildTools.Utils.isWotLK = interfaceVersion >= 30000 and interfaceVersion < 40000
+
 local debounceTimers = {}
 
 function ClassicGuildTools.Utils.CreatePool(parent, createFunction, releaseCallback)

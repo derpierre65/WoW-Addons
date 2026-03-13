@@ -874,8 +874,7 @@ local contentFrame = ClassicGuildTools.UI.GetContentFrame(1)
 
 local ROLE_TEXTURE, ROLE_TEXCOORDS, BEGINNER_FRIENDLY_TEXCOORD
 
-local _, _, _, interfaceVersion = GetBuildInfo()
-if interfaceVersion and interfaceVersion >= 20000 and interfaceVersion < 30000 then
+if ClassicGuildTools.Utils.isTBC then
 	ROLE_TEXTURE = "Interface\\LFGFrame\\UILFGPrompts"
 	ROLE_TEXCOORDS = {
 		["TANK"] = { 0.63037109375, 0.75537109375, 0.25146484375, 0.37646484375 },
@@ -883,7 +882,7 @@ if interfaceVersion and interfaceVersion >= 20000 and interfaceVersion < 30000 t
 		["DD"]   = { 0.00048828125, 0.12548828125, 0.25146484375, 0.37646484375 },
 	}
 	BEGINNER_FRIENDLY_TEXCOORD = { 0.12646484375, 0.25146484375, 0.50341796875, 0.62841796875 }
-else
+elseif ClassicGuildTools.Utils.isEra then
 	ROLE_TEXTURE = "Interface\\LFGFrame\\UILFGPromptSDF"
 	ROLE_TEXCOORDS = {
 		["TANK"] = { 0.75634765625, 0.88134765625, 0.25146484375, 0.37646484375 },
