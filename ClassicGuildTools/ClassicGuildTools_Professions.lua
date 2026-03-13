@@ -209,6 +209,14 @@ local function CollectRecipeData()
 		end
 	end
 
+	for _, data in pairs(recipeMap) do
+		table.sort(data.players, function(a, b)
+			if a.isSelf ~= b.isSelf then return a.isSelf end
+			if a.isOnline ~= b.isOnline then return a.isOnline end
+			return a.name < b.name
+		end)
+	end
+
 	return recipeMap
 end
 
@@ -227,8 +235,9 @@ local function CreateRecipeRow(parent)
 
 	row.players = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	row.players:SetPoint("RIGHT", row, "RIGHT", -4, 0)
-	row.players:SetPoint("LEFT", row, "CENTER", 0, 0)
+	row.players:SetPoint("LEFT", row, "CENTER", -120, 0)
 	row.players:SetJustifyH("RIGHT")
+	row.players:SetWordWrap(false)
 
 	row.background = row:CreateTexture(nil, "BACKGROUND")
 	row.background:SetAllPoints()
@@ -398,17 +407,34 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		row.icon:SetTexture(recipe.itemTexture)
 		row.itemName:SetText(recipe.itemLink)
 
-		local playerParts = {}
-		for _, player in ipairs(recipe.players) do
-			if player.isSelf then
-				table.insert(playerParts, "|cff00ff00" .. L["You"] .. "|r")
-			elseif player.isOnline then
-				table.insert(playerParts, "|cffffffff" .. player.name .. "|r")
-			else
-				table.insert(playerParts, "|cff808080" .. player.name .. "|r")
+		local availableWidth = row.players:GetWidth()
+		local playerText = ""
+		local truncated = false
+
+		for partIndex, player in ipairs(recipe.players) do
+			local color = player.isSelf and "|cff00ff00" or player.isOnline and "|cffffffff" or "|cff808080"
+			local name = player.isSelf and L["You"] or player.name
+			local testText = playerText
+
+			if testText ~= "" then testText = testText .. ", " end
+			testText = testText .. color .. name
+
+			if availableWidth and availableWidth > 0 and partIndex > 1 then
+				row.players:SetText(testText)
+				if row.players:GetStringWidth() > availableWidth then
+					truncated = true
+					break
+				end
 			end
+
+			playerText = testText
 		end
-		row.players:SetText(table.concat(playerParts, ", "))
+
+		if truncated then
+			playerText = playerText .. ", ..."
+		end
+
+		row.players:SetText(playerText)
 
 		if index % 2 == 0 then
 			row.background:SetColorTexture(1, 1, 1, 0.05)
