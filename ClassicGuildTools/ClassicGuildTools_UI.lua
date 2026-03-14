@@ -82,8 +82,10 @@ for index = 1, #TAB_NAMES do
 	end
 
 	tabButton:SetScript("OnClick", function(self)
-		PanelTemplates_SetTab(mainFrame, self:GetID())
-		ClassicGuildTools.UI.ShowTab(self:GetID())
+		local tabIndex = self:GetID()
+		PanelTemplates_SetTab(mainFrame, tabIndex)
+		ClassicGuildTools.UI.ShowTab(tabIndex)
+		ClassicGuildToolsDB.lastTab = tabIndex
 	end)
 end
 
@@ -197,10 +199,11 @@ function ClassicGuildTools.UI.Toggle()
 	end
 end
 
--- Show first tab by default when frame opens and request group list
+-- Restore last tab and request group list when frame opens
 mainFrame:SetScript("OnShow", function()
-	local selectedTab = PanelTemplates_GetSelectedTab(mainFrame) or 1
-	ClassicGuildTools.UI.ShowTab(selectedTab)
+	local lastTab = ClassicGuildToolsDB and ClassicGuildToolsDB.lastTab or 1
+	PanelTemplates_SetTab(mainFrame, lastTab)
+	ClassicGuildTools.UI.ShowTab(lastTab)
 	ClassicGuildTools.LFG.RequestGroupList()
 end)
 
