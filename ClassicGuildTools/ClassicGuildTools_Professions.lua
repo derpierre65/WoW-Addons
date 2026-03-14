@@ -500,8 +500,12 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 
 	if #recipeList == 0 then
 		noResultsText:Show()
+		headerItem:Hide()
+		headerPlayers:Hide()
 	else
 		noResultsText:Hide()
+		headerItem:Show()
+		headerPlayers:Show()
 	end
 
 	for index, recipe in ipairs(recipeList) do
