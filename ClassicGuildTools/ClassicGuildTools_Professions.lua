@@ -124,6 +124,8 @@ local function RebuildRecipeCache()
 	local guildData = GetCurrentGuildData()
 	if not guildData then return end
 
+	ClassicGuildTools.BuildGuildMemberCache()
+
 	local myName = ClassicGuildTools.GetPlayerName()
 
 	for guid, professions in pairs(guildData) do
