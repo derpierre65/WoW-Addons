@@ -281,11 +281,11 @@ local function CreateRecipeRow(parent)
 	row.icon:SetSize(ROW_HEIGHT, ROW_HEIGHT)
 	row.icon:SetPoint("LEFT", row, "LEFT", 4, 0)
 
-	row.itemName = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	row.itemName = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	row.itemName:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
 	row.itemName:SetJustifyH("LEFT")
 
-	row.players = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	row.players = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	row.players:SetPoint("RIGHT", row, "RIGHT", -4, 0)
 	row.players:SetPoint("LEFT", row, "CENTER", -120, 0)
 	row.players:SetJustifyH("LEFT")
