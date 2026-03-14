@@ -1024,7 +1024,7 @@ local function GetDungeonLevelColor(dungeon)
 end
 
 local function IsDungeonVisible(dungeon)
-	return ClassicGuildTools.UI.showAllLevelRanges or (not IsDungeonRed(dungeon) and not IsDungeonGray(dungeon))
+	return ClassicGuildTools.UI.GetLFGSettings().showAllLevelRanges or (not IsDungeonRed(dungeon) and not IsDungeonGray(dungeon))
 end
 
 local function IsLevelRed(level)
@@ -1033,7 +1033,7 @@ local function IsLevelRed(level)
 end
 
 local function IsGroupVisible(group)
-	if ClassicGuildTools.UI.showAllLevelRanges then return true end
+	if ClassicGuildTools.UI.GetLFGSettings().showAllLevelRanges then return true end
 
 	local dungeon = group.dungeon and group.dungeon ~= "" and DUNGEON_BY_ID[group.dungeon]
 	if dungeon then

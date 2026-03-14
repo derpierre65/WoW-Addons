@@ -31,7 +31,12 @@ mainFrame:SetScript("OnDragStop", mainFrame.StopMovingOrSizing)
 tinsert(UISpecialFrames, "ClassicGuildToolsMainFrame")
 
 -- Settings gear button (left of the close button)
-ClassicGuildTools.UI.showAllLevelRanges = false
+function ClassicGuildTools.UI.GetLFGSettings()
+	ClassicGuildToolsDB = ClassicGuildToolsDB or {}
+	ClassicGuildToolsDB.lfg = ClassicGuildToolsDB.lfg or {}
+	return ClassicGuildToolsDB.lfg
+end
+local GetLFGSettings = ClassicGuildTools.UI.GetLFGSettings
 
 local settingsButton = CreateFrame("Button", nil, mainFrame)
 settingsButton:SetSize(20, 20)
@@ -48,9 +53,9 @@ UIDropDownMenu_Initialize(settingsDropdownFrame, function()
 	info.text = L["SettingsShowAllLevelRanges"]
 	info.isNotRadio = true
 	info.keepShownOnClick = true
-	info.checked = ClassicGuildTools.UI.showAllLevelRanges
+	info.checked = GetLFGSettings().showAllLevelRanges
 	info.func = function(_, _, _, checked)
-		ClassicGuildTools.UI.showAllLevelRanges = checked
+		GetLFGSettings().showAllLevelRanges = checked
 		if ClassicGuildTools.LFG and ClassicGuildTools.LFG.UpdateLFGUI then
 			ClassicGuildTools.LFG.UpdateLFGUI(true)
 		end

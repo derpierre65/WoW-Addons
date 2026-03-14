@@ -369,7 +369,11 @@ searchBox:SetScript("OnEnterPressed", function(self)
 end)
 
 -- Settings button
-local showOnlyOnline = false
+local function GetSettings()
+	ClassicGuildToolsDB = ClassicGuildToolsDB or {}
+	ClassicGuildToolsDB.professions = ClassicGuildToolsDB.professions or {}
+	return ClassicGuildToolsDB.professions
+end
 
 local mainFrame = ClassicGuildTools.UI.GetMainFrame()
 local professionSettingsButton = CreateFrame("Button", nil, mainFrame)
@@ -389,9 +393,9 @@ UIDropDownMenu_Initialize(professionSettingsDropdown, function()
 	info.text = L["SettingsShowOnlyOnline"]
 	info.isNotRadio = true
 	info.keepShownOnClick = true
-	info.checked = showOnlyOnline
+	info.checked = GetSettings().showOnlyOnline
 	info.func = function(_, _, _, checked)
-		showOnlyOnline = checked
+		GetSettings().showOnlyOnline = checked
 		ClassicGuildTools.UI.UpdateProfessionsUI()
 	end
 	UIDropDownMenu_AddButton(info)
@@ -532,7 +536,7 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 			if recipeName and recipeLink then
 				if searchText == "" or recipeName:lower():find(searchText, 1, true) then
 					local players = data.players
-					if showOnlyOnline then
+					if GetSettings().showOnlyOnline then
 						players = {}
 						for _, player in ipairs(data.players) do
 							if player.isSelf or player.isOnline then
