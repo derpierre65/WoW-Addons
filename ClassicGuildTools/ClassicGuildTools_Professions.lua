@@ -368,6 +368,39 @@ searchBox:SetScript("OnEnterPressed", function(self)
 	self:ClearFocus()
 end)
 
+-- Settings button
+local showOnlyOnline = false
+
+local mainFrame = ClassicGuildTools.UI.GetMainFrame()
+local professionSettingsButton = CreateFrame("Button", nil, mainFrame)
+professionSettingsButton:SetSize(20, 20)
+professionSettingsButton:SetPoint("RIGHT", mainFrame.CloseButton, "LEFT", 4, 0)
+professionSettingsButton:Hide()
+ClassicGuildTools.UI.professionSettingsButton = professionSettingsButton
+professionSettingsButton:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
+professionSettingsButton:SetHighlightTexture("Interface\\Buttons\\UI-OptionsButton")
+professionSettingsButton:GetHighlightTexture():SetAlpha(0.4)
+
+local professionSettingsDropdown = CreateFrame("Frame", "ClassicGuildToolsProfessionSettingsDropdown", contentFrame, "UIDropDownMenuTemplate")
+professionSettingsDropdown:Hide()
+
+UIDropDownMenu_Initialize(professionSettingsDropdown, function()
+	local info = UIDropDownMenu_CreateInfo()
+	info.text = L["SettingsShowOnlyOnline"]
+	info.isNotRadio = true
+	info.keepShownOnClick = true
+	info.checked = showOnlyOnline
+	info.func = function(_, _, _, checked)
+		showOnlyOnline = checked
+		ClassicGuildTools.UI.UpdateProfessionsUI()
+	end
+	UIDropDownMenu_AddButton(info)
+end, "MENU")
+
+professionSettingsButton:SetScript("OnClick", function(self)
+	ToggleDropDownMenu(1, nil, professionSettingsDropdown, self, 0, 0)
+end)
+
 -- Profession dropdown
 local professionDropdown = CreateFrame("Frame", "ClassicGuildToolsProfessionDropdown", contentFrame, "UIDropDownMenuTemplate")
 professionDropdown:SetPoint("TOPRIGHT", contentFrame, "TOPRIGHT", 0, 2)
@@ -498,14 +531,26 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 
 			if recipeName and recipeLink then
 				if searchText == "" or recipeName:lower():find(searchText, 1, true) then
-					table.insert(recipeList, {
-						recipeId = recipeId,
-						isSpell = isSpell,
-						itemName = recipeName,
-						itemLink = recipeLink,
-						itemTexture = recipeTexture,
-						players = data.players,
-					})
+					local players = data.players
+					if showOnlyOnline then
+						players = {}
+						for _, player in ipairs(data.players) do
+							if player.isSelf or player.isOnline then
+								table.insert(players, player)
+							end
+						end
+					end
+
+					if #players > 0 then
+						table.insert(recipeList, {
+							recipeId = recipeId,
+							isSpell = isSpell,
+							itemName = recipeName,
+							itemLink = recipeLink,
+							itemTexture = recipeTexture,
+							players = players,
+						})
+					end
 				end
 			end
 		end

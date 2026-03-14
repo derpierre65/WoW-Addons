@@ -165,8 +165,14 @@ function ClassicGuildTools.UI.ShowTab(tabIndex)
 
 	if tabIndex == 3 then
 		settingsButton:Hide()
+		if ClassicGuildTools.UI.professionSettingsButton then
+			ClassicGuildTools.UI.professionSettingsButton:Show()
+		end
 	else
 		settingsButton:Show()
+		if ClassicGuildTools.UI.professionSettingsButton then
+			ClassicGuildTools.UI.professionSettingsButton:Hide()
+		end
 	end
 
 	for index, contentFrame in ipairs(contentFrames) do
