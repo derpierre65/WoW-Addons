@@ -377,11 +377,29 @@ professionDropdown:SetPoint("TOPRIGHT", contentFrame, "TOPRIGHT", 0, 2)
 UIDropDownMenu_SetWidth(professionDropdown, 150)
 UIDropDownMenu_SetText(professionDropdown, L["AllProfessions"])
 
+local function CountPlayersForProfession(professionId)
+	local guildData = GetCurrentGuildData()
+	if not guildData then return 0 end
+
+	local count = 0
+	for guid, professions in pairs(guildData) do
+		if professions[professionId] and professions[professionId].recipes and #professions[professionId].recipes > 0 then
+			local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
+			if playerName then
+				count = count + 1
+			end
+		end
+	end
+
+	return count
+end
+
 local function UpdateDropdownDisplay(professionId)
 	if professionId then
 		local localeKey = PROFESSION_LOCALE_KEYS[professionId]
 		local icon = PROFESSION_ICONS[professionId]
-		UIDropDownMenu_SetText(professionDropdown, L[localeKey] .. " |T" .. icon .. ":16|t")
+		local playerCount = CountPlayersForProfession(professionId)
+		UIDropDownMenu_SetText(professionDropdown, L[localeKey] .. " (" .. playerCount .. ") |T" .. icon .. ":16|t")
 	else
 		UIDropDownMenu_SetText(professionDropdown, L["AllProfessions"])
 	end
@@ -406,7 +424,8 @@ UIDropDownMenu_Initialize(professionDropdown, function()
 		local localeKey = PROFESSION_LOCALE_KEYS[professionId]
 		if localeKey then
 			info = UIDropDownMenu_CreateInfo()
-			info.text = L[localeKey]
+			local playerCount = CountPlayersForProfession(professionId)
+			info.text = L[localeKey] .. " (" .. playerCount .. ")"
 			info.icon = PROFESSION_ICONS[professionId]
 			info.checked = (selectedProfessionId == professionId)
 			info.func = function()
