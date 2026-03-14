@@ -513,7 +513,7 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		row.isSpell = recipe.isSpell
 		row.itemLink = recipe.itemLink
 		row.icon:SetTexture(recipe.itemTexture)
-		row.itemName:SetText(recipe.itemLink)
+		row.itemName:SetText(recipe.itemLink:gsub("|h%[", "|h"):gsub("%]|h", "|h"))
 
 		local availableWidth = row.players:GetWidth()
 		local playerText = ""
