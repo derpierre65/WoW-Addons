@@ -128,12 +128,12 @@ local function RebuildRecipeCache()
 		local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
 		if playerName then
 			for professionId, professionData in pairs(professions) do
-				for _, itemId in ipairs(professionData.recipes or {}) do
-					if itemId and itemId > 0 then
-						if not recipeCache[itemId] then
-							recipeCache[itemId] = { professionId = professionId, players = {} }
+				for _, recipeId in ipairs(professionData.recipes or {}) do
+					if recipeId and recipeId ~= 0 then
+						if not recipeCache[recipeId] then
+							recipeCache[recipeId] = { professionId = professionId, players = {} }
 						end
-						recipeCache[itemId].players[playerName] = true
+						recipeCache[recipeId].players[playerName] = true
 					end
 				end
 			end
@@ -162,21 +162,61 @@ function ClassicGuildTools.Professions.ScanProfessions()
 end
 
 local function ScanCurrentTradeSkill()
-	if not GetTradeSkillLine or not GetNumTradeSkills then return end
+	local tradeSkillName
+	local recipeCount = 0
+	local useCraftApi = false
 
-	local tradeSkillName = GetTradeSkillLine()
+	-- Try TradeSkill API first, fall back to Craft API
+	if GetTradeSkillLine and GetNumTradeSkills then
+		tradeSkillName = GetTradeSkillLine()
+		if tradeSkillName and tradeSkillName ~= "UNKNOWN" then
+			recipeCount = GetNumTradeSkills()
+		end
+	end
+
+	if (not tradeSkillName or tradeSkillName == "UNKNOWN") and GetCraftDisplaySkillLine and GetNumCrafts then
+		tradeSkillName = GetCraftDisplaySkillLine()
+		if tradeSkillName and tradeSkillName ~= "UNKNOWN" then
+			recipeCount = GetNumCrafts()
+			useCraftApi = true
+		end
+	end
+
 	if not tradeSkillName or tradeSkillName == "UNKNOWN" then return end
 
 	local professionId = PROFESSIONS[tradeSkillName]
 	if not professionId then return end
 
 	local recipeItemIds = {}
-	for index = 1, GetNumTradeSkills() do
-		local recipeName, recipeType = GetTradeSkillInfo(index)
+	for index = 1, recipeCount do
+		local recipeName, recipeType
+		if useCraftApi then
+			local name, _, craftType = GetCraftInfo(index)
+			recipeName = name
+			recipeType = craftType
+		else
+			recipeName, recipeType = GetTradeSkillInfo(index)
+		end
+
 		if recipeName and recipeType ~= "header" then
-			local itemLink = GetTradeSkillItemLink(index)
+			local itemLink
+			if useCraftApi then
+				itemLink = GetCraftItemLink and GetCraftItemLink(index)
+			else
+				itemLink = GetTradeSkillItemLink(index)
+			end
+
 			if itemLink then
 				table.insert(recipeItemIds, tonumber(itemLink:match("item:(%d+)")) or 0)
+			else
+				-- Fallback: use spell ID from craft recipe link, stored as negative
+				local spellLink = useCraftApi and GetCraftRecipeLink and GetCraftRecipeLink(index)
+				if spellLink then
+					local spellId = tonumber(spellLink:match("enchant:(%d+)"))
+					if spellId then
+						table.insert(recipeItemIds, -spellId)
+					end
+				end
 			end
 		end
 	end
@@ -217,12 +257,12 @@ local function CollectRecipeData()
 
 			for professionId, professionData in pairs(professions) do
 				if not selectedProfessionId or professionId == selectedProfessionId then
-					for _, itemId in ipairs(professionData.recipes or {}) do
-						if itemId and itemId > 0 then
-							if not recipeMap[itemId] then
-								recipeMap[itemId] = { players = {} }
+					for _, recipeId in ipairs(professionData.recipes or {}) do
+						if recipeId and recipeId ~= 0 then
+							if not recipeMap[recipeId] then
+								recipeMap[recipeId] = { players = {} }
 							end
-							table.insert(recipeMap[itemId].players, {
+							table.insert(recipeMap[recipeId].players, {
 								name = playerName,
 								isSelf = isself,
 								isOnline = isOnline,
@@ -271,7 +311,11 @@ local function CreateRecipeRow(parent)
 	row:SetScript("OnEnter", function(self)
 		if self.itemId then
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-			GameTooltip:SetItemByID(self.itemId)
+			if self.isSpell then
+				GameTooltip:SetSpellByID(-self.itemId)
+			else
+				GameTooltip:SetItemByID(self.itemId)
+			end
 			GameTooltip:Show()
 		end
 	end)
@@ -414,15 +458,36 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 	local recipeMap = CollectRecipeData()
 	local recipeList = {}
 
-	for itemId, data in pairs(recipeMap) do
-		local itemName, itemLink, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
-		if itemName and itemLink then
-			if searchText == "" or itemName:lower():find(searchText, 1, true) then
+	for recipeId, data in pairs(recipeMap) do
+		local recipeName, recipeLink, recipeTexture, isSpell
+
+		if recipeId < 0 then
+			-- Spell-based recipe (negative ID = spell ID)
+			local spellId = -recipeId
+			local spellName, _, spellIcon = GetSpellInfo(spellId)
+			if spellName then
+				recipeName = spellName
+				recipeLink = GetSpellLink(spellId)
+				recipeTexture = spellIcon
+				isSpell = true
+			end
+		else
+			local itemName, itemLink, _, _, _, _, _, _, _, itemTexture = GetItemInfo(recipeId)
+			if itemName and itemLink then
+				recipeName = itemName
+				recipeLink = itemLink
+				recipeTexture = itemTexture
+			end
+		end
+
+		if recipeName and recipeLink then
+			if searchText == "" or recipeName:lower():find(searchText, 1, true) then
 				table.insert(recipeList, {
-					itemId = itemId,
-					itemName = itemName,
-					itemLink = itemLink,
-					itemTexture = itemTexture,
+					recipeId = recipeId,
+					isSpell = isSpell,
+					itemName = recipeName,
+					itemLink = recipeLink,
+					itemTexture = recipeTexture,
 					players = data.players,
 				})
 			end
@@ -444,7 +509,8 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -((index - 1) * (ROW_HEIGHT + ROW_SPACING)))
 		row:SetPoint("RIGHT", scrollChild, "RIGHT", 0, 0)
 
-		row.itemId = recipe.itemId
+		row.itemId = recipe.recipeId
+		row.isSpell = recipe.isSpell
 		row.itemLink = recipe.itemLink
 		row.icon:SetTexture(recipe.itemTexture)
 		row.itemName:SetText(recipe.itemLink)
@@ -516,16 +582,7 @@ end
 -- Tooltip hook
 -- ============================================================
 
-GameTooltip:HookScript("OnTooltipSetItem", function(self)
-	local _, itemLink = self:GetItem()
-	if not itemLink then return end
-
-	local itemId = tonumber(itemLink:match("item:(%d+)"))
-	if not itemId then return end
-
-	local cached = recipeCache[itemId]
-	if not cached then return end
-
+local function AddRecipeCacheTooltip(self, cached)
 	local myName = ClassicGuildTools.GetPlayerName()
 	local playerParts = {}
 	local sortedNames = {}
@@ -555,6 +612,29 @@ GameTooltip:HookScript("OnTooltipSetItem", function(self)
 	end
 	self:AddLine(table.concat(playerParts, ", "), 1, 1, 1, true)
 	self:Show()
+end
+
+GameTooltip:HookScript("OnTooltipSetItem", function(self)
+	local _, itemLink = self:GetItem()
+	if not itemLink then return end
+
+	local itemId = tonumber(itemLink:match("item:(%d+)"))
+	if not itemId then return end
+
+	local cached = recipeCache[itemId]
+	if not cached then return end
+
+	AddRecipeCacheTooltip(self, cached)
+end)
+
+GameTooltip:HookScript("OnTooltipSetSpell", function(self)
+	local _, spellId = self:GetSpell()
+	if not spellId then return end
+
+	local cached = recipeCache[-spellId]
+	if not cached then return end
+
+	AddRecipeCacheTooltip(self, cached)
 end)
 
 -- ============================================================
@@ -575,11 +655,19 @@ end
 ClassicGuildTools.EventHandlers.TRADE_SKILL_SHOW = function()
 	OnTradeSkillUpdate()
 	ClassicGuildTools.EventHandlers.TRADE_SKILL_UPDATE = OnTradeSkillUpdate
-	ClassicGuildTools.EventHandlers.CRAFT_UPDATE = OnTradeSkillUpdate
 end
 
 ClassicGuildTools.EventHandlers.TRADE_SKILL_CLOSE = function()
 	ClassicGuildTools.UnregisterEventHandler("TRADE_SKILL_UPDATE", OnTradeSkillUpdate)
+	ScanCurrentTradeSkill()
+end
+
+ClassicGuildTools.EventHandlers.CRAFT_SHOW = function()
+	OnTradeSkillUpdate()
+	ClassicGuildTools.EventHandlers.CRAFT_UPDATE = OnTradeSkillUpdate
+end
+
+ClassicGuildTools.EventHandlers.CRAFT_CLOSE = function()
 	ClassicGuildTools.UnregisterEventHandler("CRAFT_UPDATE", OnTradeSkillUpdate)
 	ScanCurrentTradeSkill()
 end
