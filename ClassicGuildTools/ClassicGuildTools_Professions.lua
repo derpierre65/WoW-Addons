@@ -243,7 +243,7 @@ local function ScanCurrentTradeSkill()
 	playerRecipes[professionId] = playerRecipes[professionId] or {}
 	playerRecipes[professionId].recipes = recipeItemIds
 
-	BroadcastPlayerProfessions(nil, professionId)
+	ClassicGuildTools.Utils.Debounce("ProfessionBroadcast", 30, BroadcastPlayerProfessions)
 end
 
 -- ============================================================
