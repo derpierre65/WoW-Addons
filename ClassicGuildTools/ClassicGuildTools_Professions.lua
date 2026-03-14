@@ -133,7 +133,7 @@ local function RebuildRecipeCache()
 						if not recipeCache[recipeId] then
 							recipeCache[recipeId] = { professionId = professionId, players = {} }
 						end
-						recipeCache[recipeId].players[playerName] = true
+						recipeCache[recipeId].players[playerName] = professionData.rank or 0
 					end
 				end
 			end
@@ -228,10 +228,6 @@ local function ScanCurrentTradeSkill()
 	BroadcastPlayerProfessions(nil, professionId)
 end
 
-function ClassicGuildTools.Professions.GetScannedRecipes()
-	return GetPlayerRecipes()
-end
-
 -- ============================================================
 -- Professions UI
 -- ============================================================
@@ -240,6 +236,23 @@ local contentFrame = ClassicGuildTools.UI.GetContentFrame(3)
 contentFrame:SetScript("OnShow", function()
 	ClassicGuildTools.UI.UpdateProfessionsUI()
 end)
+
+local function FormatPlayerName(playerName, rank)
+	local myName = ClassicGuildTools.GetPlayerName()
+	local isSelf = playerName == myName
+	local displayName = isSelf and L["You"] or playerName
+
+	local color
+	if isSelf then
+		color = "|cff00ff00"
+	else
+		local memberInfo = ClassicGuildTools.guildMemberCache[playerName]
+
+		color = memberInfo and memberInfo.online and "|cffffffff" or "|cff808080"
+	end
+
+	return color .. displayName .. " (" .. rank .. ")|r"
+end
 
 local function CollectRecipeData()
 	local guildData = GetCurrentGuildData()
@@ -266,6 +279,7 @@ local function CollectRecipeData()
 								name = playerName,
 								isSelf = isself,
 								isOnline = isOnline,
+								rank = professionData.rank or 0,
 							})
 						end
 					end
@@ -547,12 +561,10 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		local truncated = false
 
 		for partIndex, player in ipairs(recipe.players) do
-			local color = player.isSelf and "|cff00ff00" or player.isOnline and "|cffffffff" or "|cff808080"
-			local name = player.isSelf and L["You"] or player.name
 			local testText = playerText
 
-			if testText ~= "" then testText = testText .. ", " end
-			testText = testText .. color .. name
+			if testText ~= "" then testText = testText .. "|cffffffff, |r" end
+			testText = testText .. FormatPlayerName(player.name, player.rank)
 
 			if availableWidth and availableWidth > 0 and partIndex > 1 then
 				row.players:SetText(testText)
@@ -623,11 +635,7 @@ local function AddRecipeCacheTooltip(self, cached)
 	end)
 
 	for _, playerName in ipairs(sortedNames) do
-		if playerName == myName then
-			table.insert(playerParts, "|cff00ff00" .. L["You"] .. "|r")
-		else
-			table.insert(playerParts, playerName)
-		end
+		table.insert(playerParts, FormatPlayerName(playerName, cached.players[playerName]))
 	end
 
 	local localeKey = PROFESSION_LOCALE_KEYS[cached.professionId]
