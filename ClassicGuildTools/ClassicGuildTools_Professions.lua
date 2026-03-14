@@ -396,6 +396,7 @@ UIDropDownMenu_Initialize(professionSettingsDropdown, function()
 	info.checked = GetSettings().showOnlyOnline
 	info.func = function(_, _, _, checked)
 		GetSettings().showOnlyOnline = checked
+		ClassicGuildTools.Professions.UpdateDropdownDisplay(selectedProfessionId)
 		ClassicGuildTools.UI.UpdateProfessionsUI()
 	end
 	UIDropDownMenu_AddButton(info)
@@ -415,12 +416,22 @@ local function CountPlayersForProfession(professionId)
 	local guildData = GetCurrentGuildData()
 	if not guildData then return 0 end
 
+	local onlyOnline = GetSettings().showOnlyOnline
+	local myName = ClassicGuildTools.GetPlayerName()
 	local count = 0
 	for guid, professions in pairs(guildData) do
 		if professions[professionId] and professions[professionId].recipes and #professions[professionId].recipes > 0 then
 			local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
 			if playerName then
-				count = count + 1
+				if not onlyOnline then
+					count = count + 1
+				else
+					local isSelf = playerName == myName
+					local memberInfo = ClassicGuildTools.guildMemberCache[playerName]
+					if isSelf or (memberInfo and memberInfo.online) then
+						count = count + 1
+					end
+				end
 			end
 		end
 	end
@@ -428,7 +439,7 @@ local function CountPlayersForProfession(professionId)
 	return count
 end
 
-local function UpdateDropdownDisplay(professionId)
+function ClassicGuildTools.Professions.UpdateDropdownDisplay(professionId)
 	if professionId then
 		local localeKey = PROFESSION_LOCALE_KEYS[professionId]
 		local icon = PROFESSION_ICONS[professionId]
@@ -449,7 +460,7 @@ UIDropDownMenu_Initialize(professionDropdown, function()
 	info.checked = selectedProfessionId == nil
 	info.func = function()
 		selectedProfessionId = nil
-		UpdateDropdownDisplay(nil)
+		ClassicGuildTools.Professions.UpdateDropdownDisplay(nil)
 		ClassicGuildTools.UI.UpdateProfessionsUI()
 	end
 	UIDropDownMenu_AddButton(info)
@@ -464,7 +475,7 @@ UIDropDownMenu_Initialize(professionDropdown, function()
 			info.checked = (selectedProfessionId == professionId)
 			info.func = function()
 				selectedProfessionId = professionId
-				UpdateDropdownDisplay(professionId)
+				ClassicGuildTools.Professions.UpdateDropdownDisplay(professionId)
 				ClassicGuildTools.UI.UpdateProfessionsUI()
 			end
 			UIDropDownMenu_AddButton(info)
@@ -600,6 +611,7 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		local availableWidth = row.players:GetWidth()
 		local playerText = ""
 		local truncated = false
+		local lastPlayerOnline = false
 
 		for partIndex, player in ipairs(recipe.players) do
 			local testText = playerText
@@ -615,11 +627,13 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 				end
 			end
 
+			lastPlayerOnline = player.isSelf or player.isOnline
 			playerText = testText
 		end
 
 		if truncated then
-			playerText = playerText .. ", ..."
+			local ellipsisColor = lastPlayerOnline and "|cffffffff" or "|cff808080"
+			playerText = playerText .. ellipsisColor .. ", ...|r"
 		end
 
 		row.players:SetText(playerText)
