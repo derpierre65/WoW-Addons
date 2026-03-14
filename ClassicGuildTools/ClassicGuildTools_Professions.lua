@@ -124,6 +124,8 @@ local function RebuildRecipeCache()
 	local guildData = GetCurrentGuildData()
 	if not guildData then return end
 
+	local myName = ClassicGuildTools.GetPlayerName()
+
 	for guid, professions in pairs(guildData) do
 		local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
 		if playerName then
@@ -133,11 +135,25 @@ local function RebuildRecipeCache()
 						if not recipeCache[recipeId] then
 							recipeCache[recipeId] = { professionId = professionId, players = {} }
 						end
-						recipeCache[recipeId].players[playerName] = professionData.rank or 0
+						table.insert(recipeCache[recipeId].players, {
+							name = playerName,
+							isSelf = playerName == myName,
+							isOnline = playerName == myName or (ClassicGuildTools.guildMemberCache[playerName] and ClassicGuildTools.guildMemberCache[playerName].online),
+							rank = professionData.rank or 0,
+						})
 					end
 				end
 			end
 		end
+	end
+
+	for _, cached in pairs(recipeCache) do
+		table.sort(cached.players, function(playerA, playerB)
+			if playerA.isSelf ~= playerB.isSelf then return playerA.isSelf end
+			if playerA.isOnline ~= playerB.isOnline then return playerA.isOnline end
+
+			return playerA.rank > playerB.rank
+		end)
 	end
 end
 
@@ -252,51 +268,6 @@ local function FormatPlayerName(playerName, rank)
 	end
 
 	return color .. displayName .. " (" .. rank .. ")|r"
-end
-
-local function CollectRecipeData()
-	local guildData = GetCurrentGuildData()
-	if not guildData then return {} end
-
-	local recipeMap = {}
-	local myName = ClassicGuildTools.GetPlayerName()
-
-	for guid, professions in pairs(guildData) do
-		local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
-		if playerName then
-			local isself = playerName == myName
-			local memberInfo = ClassicGuildTools.guildMemberCache[playerName]
-			local isOnline = isself or (memberInfo and memberInfo.online)
-
-			for professionId, professionData in pairs(professions) do
-				if not selectedProfessionId or professionId == selectedProfessionId then
-					for _, recipeId in ipairs(professionData.recipes or {}) do
-						if recipeId and recipeId ~= 0 then
-							if not recipeMap[recipeId] then
-								recipeMap[recipeId] = { players = {} }
-							end
-							table.insert(recipeMap[recipeId].players, {
-								name = playerName,
-								isSelf = isself,
-								isOnline = isOnline,
-								rank = professionData.rank or 0,
-							})
-						end
-					end
-				end
-			end
-		end
-	end
-
-	for _, data in pairs(recipeMap) do
-		table.sort(data.players, function(a, b)
-			if a.isSelf ~= b.isSelf then return a.isSelf end
-			if a.isOnline ~= b.isOnline then return a.isOnline end
-			return a.name < b.name
-		end)
-	end
-
-	return recipeMap
 end
 
 local function CreateRecipeRow(parent)
@@ -488,41 +459,42 @@ local rowPool = ClassicGuildTools.Utils.CreatePool(scrollChild, CreateRecipeRow)
 function ClassicGuildTools.UI.UpdateProfessionsUI()
 	rowPool:ReleaseAll()
 
-	local recipeMap = CollectRecipeData()
 	local recipeList = {}
 
-	for recipeId, data in pairs(recipeMap) do
-		local recipeName, recipeLink, recipeTexture, isSpell
+	for recipeId, data in pairs(recipeCache) do
+		if not selectedProfessionId or data.professionId == selectedProfessionId then
+			local recipeName, recipeLink, recipeTexture, isSpell
 
-		if recipeId < 0 then
-			-- Spell-based recipe (negative ID = spell ID)
-			local spellId = -recipeId
-			local spellName, _, spellIcon = GetSpellInfo(spellId)
-			if spellName then
-				recipeName = spellName
-				recipeLink = GetSpellLink(spellId)
-				recipeTexture = spellIcon
-				isSpell = true
+			if recipeId < 0 then
+				-- Spell-based recipe (negative ID = spell ID)
+				local spellId = -recipeId
+				local spellName, _, spellIcon = GetSpellInfo(spellId)
+				if spellName then
+					recipeName = spellName
+					recipeLink = GetSpellLink(spellId)
+					recipeTexture = spellIcon
+					isSpell = true
+				end
+			else
+				local itemName, itemLink, _, _, _, _, _, _, _, itemTexture = GetItemInfo(recipeId)
+				if itemName and itemLink then
+					recipeName = itemName
+					recipeLink = itemLink
+					recipeTexture = itemTexture
+				end
 			end
-		else
-			local itemName, itemLink, _, _, _, _, _, _, _, itemTexture = GetItemInfo(recipeId)
-			if itemName and itemLink then
-				recipeName = itemName
-				recipeLink = itemLink
-				recipeTexture = itemTexture
-			end
-		end
 
-		if recipeName and recipeLink then
-			if searchText == "" or recipeName:lower():find(searchText, 1, true) then
-				table.insert(recipeList, {
-					recipeId = recipeId,
-					isSpell = isSpell,
-					itemName = recipeName,
-					itemLink = recipeLink,
-					itemTexture = recipeTexture,
-					players = data.players,
-				})
+			if recipeName and recipeLink then
+				if searchText == "" or recipeName:lower():find(searchText, 1, true) then
+					table.insert(recipeList, {
+						recipeId = recipeId,
+						isSpell = isSpell,
+						itemName = recipeName,
+						itemLink = recipeLink,
+						itemTexture = recipeTexture,
+						players = data.players,
+					})
+				end
 			end
 		end
 	end
@@ -622,20 +594,9 @@ end
 -- ============================================================
 
 local function AddRecipeCacheTooltip(self, cached)
-	local myName = ClassicGuildTools.GetPlayerName()
 	local playerParts = {}
-	local sortedNames = {}
-	for playerName in pairs(cached.players) do
-		table.insert(sortedNames, playerName)
-	end
-	table.sort(sortedNames, function(a, b)
-		if a == myName then return true end
-		if b == myName then return false end
-		return a < b
-	end)
-
-	for _, playerName in ipairs(sortedNames) do
-		table.insert(playerParts, FormatPlayerName(playerName, cached.players[playerName]))
+	for _, player in ipairs(cached.players) do
+		table.insert(playerParts, FormatPlayerName(player.name, player.rank))
 	end
 
 	local localeKey = PROFESSION_LOCALE_KEYS[cached.professionId]
