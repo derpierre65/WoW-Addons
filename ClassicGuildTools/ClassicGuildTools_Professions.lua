@@ -314,6 +314,16 @@ local function CreateRecipeRow(parent)
 	row:SetScript("OnMouseUp", function(self, button)
 		if button == "LeftButton" and IsShiftKeyDown() and self.itemLink then
 			ChatEdit_InsertLink(self.itemLink)
+		elseif button == "RightButton" and self.onlinePlayers and #self.onlinePlayers > 0 then
+			local onlinePlayers = self.onlinePlayers
+			MenuUtil.CreateContextMenu(self, function(_, rootDescription)
+				rootDescription:SetScrollMode(GetScreenHeight() * 0.5)
+				for _, playerName in ipairs(onlinePlayers) do
+					rootDescription:CreateButton(L["SendMessageTo"]:format("|cffffd100" .. playerName .. "|r"), function()
+						ChatFrame_SendTell(playerName)
+					end)
+				end
+			end)
 		end
 	end)
 
@@ -523,6 +533,14 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		row.itemId = recipe.recipeId
 		row.isSpell = recipe.isSpell
 		row.itemLink = recipe.itemLink
+
+		local onlinePlayers = {}
+		for _, player in ipairs(recipe.players) do
+			if not player.isSelf and player.isOnline then
+				table.insert(onlinePlayers, player.name)
+			end
+		end
+		row.onlinePlayers = onlinePlayers
 		row.icon:SetTexture(recipe.itemTexture)
 		local displayText = recipe.itemLink:gsub("|h%[", "|h"):gsub("%]|h", "|h")
 		if recipe.isSpell then
