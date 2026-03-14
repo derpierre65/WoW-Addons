@@ -8,8 +8,12 @@ local ADDON_PREFIX = "CGTools"
 
 -- Guild member cache (shared across modules)
 ClassicGuildTools.guildMemberCache = {}
+local guildMemberCacheDirty = true
 
 function ClassicGuildTools.BuildGuildMemberCache()
+	if not guildMemberCacheDirty then return end
+	guildMemberCacheDirty = false
+
 	wipe(ClassicGuildTools.guildMemberCache)
 	local memberCount = GetNumGuildMembers()
 	for index = 1, memberCount do
@@ -161,4 +165,8 @@ SLASH_GUILDTOOLS1 = "/gt"
 SLASH_GUILDTOOLS2 = "/guildtools"
 SlashCmdList["GUILDTOOLS"] = function()
 	ClassicGuildTools.UI.Toggle()
+end
+
+ClassicGuildTools.EventHandlers["GUILD_ROSTER_UPDATE"] = function()
+	guildMemberCacheDirty = true
 end
