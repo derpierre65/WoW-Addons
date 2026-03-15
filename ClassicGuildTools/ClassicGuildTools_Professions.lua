@@ -272,7 +272,7 @@ local function FormatPlayerName(playerName, rank)
 		color = memberInfo and memberInfo.online and "|cffffffff" or "|cff808080"
 	end
 
-	return color .. displayName .. " (" .. rank .. ")|r"
+	return color .. displayName .. " (" .. rank .. ")"
 end
 
 local function CreateRecipeRow(parent)
@@ -619,7 +619,7 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		for partIndex, player in ipairs(recipe.players) do
 			local testText = playerText
 
-			if testText ~= "" then testText = testText .. "|cffffffff, |r" end
+			if testText ~= "" then testText = testText .. ", " end
 			testText = testText .. FormatPlayerName(player.name, player.rank)
 
 			if availableWidth and availableWidth > 0 and partIndex > 1 then
@@ -635,8 +635,7 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		end
 
 		if truncated then
-			local ellipsisColor = lastPlayerOnline and "|cffffffff" or "|cff808080"
-			playerText = playerText .. ellipsisColor .. ", ...|r"
+			playerText = playerText .. ", ..."
 		end
 
 		row.players:SetText(playerText)
