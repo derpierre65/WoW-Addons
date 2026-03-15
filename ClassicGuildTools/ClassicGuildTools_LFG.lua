@@ -34,6 +34,7 @@ local selectedBeginnerFriendly = false
 local selectedCategory = "Dungeons"
 local selectedDungeon = ""
 local isEditingMyGroup = false
+local isCreateFormInitialized = false
 local roleButtons = {}
 local pendingInviteFromLeader = nil
 local ROLE_ICON_MARKUP = {}
@@ -199,6 +200,7 @@ function ClassicGuildTools.LFG.CreateGroup(category, dungeon, description, maxMe
 
 	ClassicGuildTools.groups[groupId] = group
 	ClassicGuildTools.LFG.ownGroupId = groupId
+	isCreateFormInitialized = false
 
 	UpdateGroupMembers()
 	SendGuildMessage(MESSAGE_TYPE.GROUP_CREATE, group)
@@ -214,6 +216,7 @@ function ClassicGuildTools.LFG.RemoveGroup(groupId)
 
 	ClassicGuildTools.groups[groupId] = nil
 	ClassicGuildTools.LFG.ownGroupId = nil
+	isCreateFormInitialized = false
 
 	ClearGroupFromStorage()
 
@@ -2150,7 +2153,10 @@ function ClassicGuildTools.LFG.UpdateCreateGroupTab()
 		leftButton:Hide()
 		rightButton:SetText(L["ButtonCreate"])
 		rightButton:Show()
-		ResetForm()
+		if not isCreateFormInitialized then
+			ResetForm()
+			isCreateFormInitialized = true
+		end
 	end
 end
 
