@@ -185,7 +185,7 @@ function ClassicGuildTools.Professions.ScanProfessions()
 end
 
 local function ScanCurrentTradeSkill()
-	local tradeSkillName
+	local tradeSkillName = "UNKNOWN"
 	local recipeCount = 0
 	local useCraftApi = false
 
@@ -222,26 +222,21 @@ local function ScanCurrentTradeSkill()
 		end
 
 		if recipeName and recipeType ~= "header" then
-			local itemLink
 			if useCraftApi then
-				itemLink = GetCraftItemLink and GetCraftItemLink(index)
-			else
-				itemLink = GetTradeSkillItemLink(index)
-			end
+				local craftLink = GetCraftItemLink and GetCraftItemLink(index)
 
-			if itemLink then
+				-- use spell ID from craft recipe link, stored as negative
+				if craftLink then
+					local craftId = tonumber(craftLink:match("enchant:(%d+)"))
+					if craftId then
+						table.insert(recipeItemIds, -craftId)
+					end
+				end
+			else
+				local itemLink = GetTradeSkillItemLink(index)
 				local itemId = GetItemIdFromLink(itemLink)
 				if itemId then
 					table.insert(recipeItemIds, itemId)
-				end
-			else
-				-- Fallback: use spell ID from craft recipe link, stored as negative
-				local spellLink = useCraftApi and GetCraftRecipeLink and GetCraftRecipeLink(index)
-				if spellLink then
-					local spellId = tonumber(spellLink:match("enchant:(%d+)"))
-					if spellId then
-						table.insert(recipeItemIds, -spellId)
-					end
 				end
 			end
 		end
