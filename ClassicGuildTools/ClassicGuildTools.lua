@@ -135,7 +135,11 @@ end
 ClassicGuildTools.EventHandlers.PLAYER_LOGIN = function()
 	playerName = UnitName("player")
 	playerRealm = GetRealmName()
-	ClassicGuildTools.debugMode = (playerName == "Pierrehunter")
+	ClassicGuildTools.debugMode = playerName == "Pierrehunter"
+
+	if ClassicGuildTools.Utils.isHardcore and UnitIsGhost("player") then
+		ClassicGuildTools.SendGuildMessage(ClassicGuildTools.MESSAGE_TYPE.PLAYER_DIED)
+	end
 end
 
 -- Receive messages via AceComm (handles automatic chunk reassembly)
@@ -165,6 +169,12 @@ SLASH_GUILDTOOLS1 = "/gt"
 SLASH_GUILDTOOLS2 = "/guildtools"
 SlashCmdList["GUILDTOOLS"] = function()
 	ClassicGuildTools.UI.Toggle()
+end
+
+ClassicGuildTools.EventHandlers["PLAYER_DEAD"] = function()
+	if ClassicGuildTools.Utils.isHardcore then
+		ClassicGuildTools.SendGuildMessage(ClassicGuildTools.MESSAGE_TYPE.PLAYER_DIED)
+	end
 end
 
 ClassicGuildTools.EventHandlers["GUILD_ROSTER_UPDATE"] = function()

@@ -7,6 +7,7 @@ interfaceVersion = interfaceVersion or 0
 ClassicGuildTools.Utils.isEra = interfaceVersion < 20000
 ClassicGuildTools.Utils.isTBC = interfaceVersion >= 20000 and interfaceVersion < 30000
 ClassicGuildTools.Utils.isWotLK = interfaceVersion >= 30000 and interfaceVersion < 40000
+ClassicGuildTools.Utils.isHardcore = C_GameRules and C_GameRules.IsHardcoreActive and C_GameRules.IsHardcoreActive() or false
 
 local debounceTimers = {}
 

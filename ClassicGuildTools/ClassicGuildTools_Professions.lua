@@ -660,6 +660,24 @@ ClassicGuildTools.MessageHandlers.PROFESSION_QUERY = function(data, sender)
 	BroadcastPlayerProfessions(sender)
 end
 
+ClassicGuildTools.MessageHandlers.PLAYER_DIED = function(data, sender)
+	if not ClassicGuildTools.Utils.isHardcore then
+		return
+	end
+
+	local guildData = GetCurrentGuildData()
+	if not guildData then return end
+
+	for guid, _ in pairs(guildData) do
+		local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
+		if playerName == sender then
+			guildData[guid] = nil
+			ClassicGuildTools.Utils.Debounce("RebuildRecipeCache", 1, RebuildRecipeCache)
+			break
+		end
+	end
+end
+
 ClassicGuildTools.MessageHandlers.PROFESSION_ANSWER = function(data, sender)
 	if not data or not data.guid or not data.professionId then return end
 
