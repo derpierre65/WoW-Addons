@@ -66,6 +66,11 @@ local recipeCache = {}
 -- Data access helpers
 -- ============================================================
 
+local function GetItemIdFromLink(itemLink)
+	if not itemLink then return nil end
+	return tonumber(itemLink:match("item:(%d+)"))
+end
+
 local function GetGuildData(guildName)
 	ClassicGuildToolsProfessions = ClassicGuildToolsProfessions or {}
 	ClassicGuildToolsProfessions[guildName] = ClassicGuildToolsProfessions[guildName] or {}
@@ -225,7 +230,10 @@ local function ScanCurrentTradeSkill()
 			end
 
 			if itemLink then
-				table.insert(recipeItemIds, tonumber(itemLink:match("item:(%d+)")) or 0)
+				local itemId = GetItemIdFromLink(itemLink)
+				if itemId then
+					table.insert(recipeItemIds, itemId)
+				end
 			else
 				-- Fallback: use spell ID from craft recipe link, stored as negative
 				local spellLink = useCraftApi and GetCraftRecipeLink and GetCraftRecipeLink(index)
@@ -697,7 +705,7 @@ GameTooltip:HookScript("OnTooltipSetItem", function(self)
 	local _, itemLink = self:GetItem()
 	if not itemLink then return end
 
-	local itemId = tonumber(itemLink:match("item:(%d+)"))
+	local itemId = GetItemIdFromLink(itemLink)
 	if not itemId then return end
 
 	local cached = recipeCache[itemId]
