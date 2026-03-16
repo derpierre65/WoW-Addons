@@ -37,6 +37,7 @@ local isEditingMyGroup = false
 local isCreateFormInitialized = false
 local roleButtons = {}
 local pendingInviteFromLeader = nil
+local lastGroupMemberCount = 0
 local ROLE_ICON_MARKUP = {}
 local DUNGEON_BY_ID = {}
 
@@ -162,6 +163,7 @@ local function RestoreGroupFromStorage()
 
 	ClassicGuildTools.groups[group.id] = group
 	ClassicGuildTools.LFG.ownGroupId = group.id
+	lastGroupMemberCount = GetNumGroupMembers()
 
 	-- Broadcast to guild so others know the group exists
 	SendGuildMessage(MESSAGE_TYPE.GROUP_CREATE, group)
@@ -200,6 +202,7 @@ function ClassicGuildTools.LFG.CreateGroup(category, dungeon, description, maxMe
 
 	ClassicGuildTools.groups[groupId] = group
 	ClassicGuildTools.LFG.ownGroupId = groupId
+	lastGroupMemberCount = GetNumGroupMembers()
 	isCreateFormInitialized = false
 
 	UpdateGroupMembers()
@@ -216,6 +219,7 @@ function ClassicGuildTools.LFG.RemoveGroup(groupId)
 
 	ClassicGuildTools.groups[groupId] = nil
 	ClassicGuildTools.LFG.ownGroupId = nil
+	lastGroupMemberCount = 0
 	isCreateFormInitialized = false
 
 	ClearGroupFromStorage()
@@ -258,11 +262,6 @@ end
 
 function ClassicGuildTools.LFG.SignupForGroup(groupId, role)
 	if not IsInGuild() then return end
-
-	-- If the player is a group leader, remove their group first
-	if ClassicGuildTools.LFG.ownGroupId then
-		ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
-	end
 
 	SendGuildMessage(MESSAGE_TYPE.GROUP_SIGNUP, {
 		groupId = groupId,
@@ -551,6 +550,7 @@ ClassicGuildTools.MessageHandlers.GROUP_LEADER_CHANGE = function(data)
 	-- If I am the new leader, take ownership
 	if newLeader == GetPlayerName() then
 		ClassicGuildTools.LFG.ownGroupId = groupId
+		lastGroupMemberCount = GetNumGroupMembers()
 		SaveGroupToStorage(group)
 	else
 		ClearGroupFromStorage()
@@ -770,6 +770,7 @@ end
 -- Restore group session after login/reload
 ClassicGuildTools.EventHandlers.PLAYER_LOGIN = function()
 	C_Timer.After(2, function()
+		lastGroupMemberCount = GetNumGroupMembers()
 		RestoreGroupFromStorage()
 	end)
 end
@@ -808,32 +809,42 @@ ClassicGuildTools.EventHandlers.GROUP_JOINED = function()
 	end)
 end
 
-ClassicGuildTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
+local function UpdateGroupMemberCount()
 	if not ClassicGuildTools.LFG.ownGroupId then return end
 
 	local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 	if not group then return end
 
-	UpdateGroupMembers()
+	local previousCount = lastGroupMemberCount
+	lastGroupMemberCount = GetNumGroupMembers()
 
-	-- Auto-remove group from browser when maxMembers is reached
-	if group.leader == GetPlayerName() and ClassicGuildTools.LFG.GetMemberCount(group) >= group.maxMembers then
+	-- For non-leaders: remove group when member count transitions from >0 to 0
+	if group.leader == GetPlayerName() and previousCount > 0 and lastGroupMemberCount == 0 then
 		ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
 		return
 	end
 
-	SaveGroupToStorage(group)
-	BroadcastMemberSync()
+	-- Only update members and sync if still in a group
+	if lastGroupMemberCount > 0 then
+		UpdateGroupMembers()
+
+		-- Auto-remove group from browser when maxMembers is reached
+		if group.leader == GetPlayerName() and ClassicGuildTools.LFG.GetMemberCount(group) >= group.maxMembers then
+			ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
+			return
+		end
+
+		SaveGroupToStorage(group)
+		BroadcastMemberSync()
+	end
+end
+
+ClassicGuildTools.EventHandlers.GROUP_ROSTER_UPDATE = function()
+	UpdateGroupMemberCount()
 end
 
 ClassicGuildTools.EventHandlers.GROUP_LEFT = function()
-	if not ClassicGuildTools.LFG.ownGroupId then return end
-
-	local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
-	-- Don't remove the group if the player is the leader (e.g. party dissolved after a failed invite)
-	if group and group.leader == GetPlayerName() then return end
-
-	ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
+	UpdateGroupMemberCount()
 end
 
 ClassicGuildTools.EventHandlers.PARTY_LEADER_CHANGED = function()
