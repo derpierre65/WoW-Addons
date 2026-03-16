@@ -1607,6 +1607,7 @@ function ClassicGuildTools.LFG.GetMyGroup()
 	if ClassicGuildTools.LFG.ownGroupId then
 		return ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 	end
+
 	local playerName = GetPlayerName()
 	for _, group in pairs(ClassicGuildTools.groups) do
 		if group.members[playerName] then
@@ -2168,11 +2169,9 @@ leftButton:SetScript("OnClick", function()
 		-- Back to list view
 		isEditingMyGroup = false
 		ClassicGuildTools.LFG.UpdateCreateGroupTab()
-	else
-		-- Remove group
-		if ClassicGuildTools.LFG.ownGroupId then
-			ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
-		end
+	-- Remove group
+	elseif ClassicGuildTools.LFG.ownGroupId then
+		ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
 	end
 end)
 
