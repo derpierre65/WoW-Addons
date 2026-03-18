@@ -32,7 +32,7 @@ local selectedGroupId = nil
 local selectedRole = "DD"
 local selectedBeginnerFriendly = false
 local selectedCategory = "Dungeons"
-local selectedDungeon = ""
+local selectedDungeons = {}
 local isEditingMyGroup = false
 local isCreateFormInitialized = false
 local roleButtons = {}
@@ -148,10 +148,16 @@ local function RestoreGroupFromStorage()
 		end
 	end
 
+	-- Backward compat: convert old single dungeon to dungeons table
+	local dungeons = saved.dungeons or {}
+	if saved.dungeon and saved.dungeon ~= "" and #dungeons == 0 then
+		dungeons = { saved.dungeon }
+	end
+
 	local group = {
 		id = saved.id,
 		category = saved.category or "Custom",
-		dungeon = saved.dungeon or "",
+		dungeons = dungeons,
 		description = saved.description or "",
 		maxMembers = saved.maxMembers or 5,
 		beginnerFriendly = saved.beginnerFriendly or false,
@@ -173,7 +179,7 @@ end
 -- Group management API
 -- ============================================================
 
-function ClassicGuildTools.LFG.CreateGroup(category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
+function ClassicGuildTools.LFG.CreateGroup(category, dungeons, description, maxMembers, beginnerFriendly, leaderRole)
 	if not IsInGuild() then
 		print("|cff00ccffClassic Guild Tools:|r " .. L["NotInGuild"])
 		return
@@ -189,7 +195,7 @@ function ClassicGuildTools.LFG.CreateGroup(category, dungeon, description, maxMe
 	local group = {
 		id = groupId,
 		category = category or "Custom",
-		dungeon = dungeon or "",
+		dungeons = dungeons or {},
 		description = description or "",
 		maxMembers = maxMembers or 5,
 		beginnerFriendly = beginnerFriendly or false,
@@ -231,13 +237,13 @@ function ClassicGuildTools.LFG.RemoveGroup(groupId)
 	end
 end
 
-function ClassicGuildTools.LFG.EditGroup(groupId, category, dungeon, description, maxMembers, beginnerFriendly, leaderRole)
+function ClassicGuildTools.LFG.EditGroup(groupId, category, dungeons, description, maxMembers, beginnerFriendly, leaderRole)
 	local group = ClassicGuildTools.groups[groupId]
 	if not group then return end
 	if group.leader ~= GetPlayerName() then return end
 
 	group.category = category or group.category
-	group.dungeon = dungeon or group.dungeon
+	group.dungeons = dungeons or group.dungeons
 	group.description = description or group.description
 	group.maxMembers = maxMembers or group.maxMembers
 	group.beginnerFriendly = beginnerFriendly
@@ -248,7 +254,7 @@ function ClassicGuildTools.LFG.EditGroup(groupId, category, dungeon, description
 	SendGuildMessage(MESSAGE_TYPE.GROUP_EDIT, {
 		id = groupId,
 		category = group.category,
-		dungeon = group.dungeon,
+		dungeons = group.dungeons,
 		description = group.description,
 		maxMembers = group.maxMembers,
 		beginnerFriendly = group.beginnerFriendly,
@@ -330,6 +336,12 @@ end
 ClassicGuildTools.MessageHandlers.GROUP_CREATE = function(data, sender)
 	if not data or not data.id then return end
 
+	-- Backward compat: convert old single dungeon to dungeons table
+	if not data.dungeons and data.dungeon then
+		data.dungeons = (data.dungeon ~= "") and { data.dungeon } or {}
+		data.dungeon = nil
+	end
+
 	local isNewGroup = not ClassicGuildTools.groups[data.id]
 
 	data.leader = data.leader or sender
@@ -359,11 +371,17 @@ end
 ClassicGuildTools.MessageHandlers.GROUP_EDIT = function(data, sender)
 	if not data or not data.id then return end
 
+	-- Backward compat: convert old single dungeon to dungeons table
+	if not data.dungeons and data.dungeon then
+		data.dungeons = (data.dungeon ~= "") and { data.dungeon } or {}
+		data.dungeon = nil
+	end
+
 	local group = ClassicGuildTools.groups[data.id]
 	if not group then return end
 
 	group.category = data.category or group.category
-	group.dungeon = data.dungeon or group.dungeon
+	group.dungeons = data.dungeons or group.dungeons
 	group.description = data.description or group.description
 	group.maxMembers = data.maxMembers or group.maxMembers
 	group.beginnerFriendly = data.beginnerFriendly or false
@@ -511,7 +529,7 @@ ClassicGuildTools.MessageHandlers.GROUP_LIST_REQUEST = function(data, sender)
 	SendGuildMessage(MESSAGE_TYPE.GROUP_LIST_ANSWER, {
 		id = ClassicGuildTools.LFG.ownGroupId,
 		category = group.category,
-		dungeon = group.dungeon,
+		dungeons = group.dungeons,
 		description = group.description,
 		maxMembers = group.maxMembers,
 		leader = group.leader,
@@ -524,6 +542,12 @@ end
 
 ClassicGuildTools.MessageHandlers.GROUP_LIST_ANSWER = function(data)
 	if not data or not data.id then return end
+
+	-- Backward compat: convert old single dungeon to dungeons table
+	if not data.dungeons and data.dungeon then
+		data.dungeons = (data.dungeon ~= "") and { data.dungeon } or {}
+		data.dungeon = nil
+	end
 
 	-- Don't overwrite if we already have it
 	if ClassicGuildTools.groups[data.id] then return end
@@ -1049,9 +1073,15 @@ end
 local function IsGroupVisible(group)
 	if ClassicGuildTools.UI.GetLFGSettings().showAllLevelRanges then return true end
 
-	local dungeon = group.dungeon and group.dungeon ~= "" and DUNGEON_BY_ID[group.dungeon]
-	if dungeon then
-		return not IsDungeonRed(dungeon)
+	local dungeons = group.dungeons or {}
+	if #dungeons > 0 then
+		for _, dungeonId in ipairs(dungeons) do
+			local dungeon = DUNGEON_BY_ID[dungeonId]
+			if dungeon and not IsDungeonRed(dungeon) then
+				return true
+			end
+		end
+		return false
 	end
 
 	if group.leaderLevel then
@@ -1088,15 +1118,6 @@ for _, category in pairs(DUNGEON_LIST) do
 	for _, dungeon in ipairs(category) do
 		DUNGEON_BY_ID[dungeon.id] = dungeon
 	end
-end
-
-local function GetDungeonDisplayTextById(dungeonId)
-	local dungeon = DUNGEON_BY_ID[dungeonId]
-	if dungeon then
-		return GetDungeonDisplayText(dungeon)
-	end
-
-	return GetDungeonName(dungeonId)
 end
 
 -- No groups hint
@@ -1360,6 +1381,15 @@ local function CreateGroupRow(parent)
 			GameTooltip:AddLine(self.groupDescription, 0.6, 0.6, 0.6, true)
 		end
 
+		-- Dungeon list (if multiple dungeons selected)
+		if self.groupDungeons and #self.groupDungeons > 0 then
+			GameTooltip:AddLine(" ")
+			GameTooltip:AddLine(self.groupCategory or "Dungeons", 1, 1, 1)
+			for _, dungeonId in ipairs(self.groupDungeons) do
+				GameTooltip:AddLine("  " .. GetDungeonName(dungeonId), 0.6, 0.6, 0.6)
+			end
+		end
+
 		GameTooltip:Show()
 	end)
 	row:SetScript("OnLeave", function(self)
@@ -1485,8 +1515,13 @@ function ClassicGuildTools.LFG.UpdateLFGUI(skipCreateGroupTab)
 
 		-- Dungeon/description line (bottom left)
 		local descriptionLine = ""
-		if group.dungeon and group.dungeon ~= "" then
-			descriptionLine = GetDungeonDisplayTextById(group.dungeon)
+		local dungeons = group.dungeons or {}
+		if #dungeons > 0 then
+			local names = {}
+			for _, dungeonId in ipairs(dungeons) do
+				table.insert(names, GetDungeonName(dungeonId))
+			end
+			descriptionLine = table.concat(names, ", ")
 		elseif group.description and group.description ~= "" then
 			descriptionLine = group.description
 		else
@@ -1494,6 +1529,8 @@ function ClassicGuildTools.LFG.UpdateLFGUI(skipCreateGroupTab)
 		end
 		row.dungeonText:SetText(descriptionLine)
 		row.groupDescription = group.description or ""
+		row.groupDungeons = group.dungeons or {}
+		row.groupCategory = group.category or "Custom"
 		row.groupMaxMembers = group.maxMembers
 		row.groupLeader = group.leader
 		row.groupBeginnerFriendly = group.beginnerFriendly
@@ -1764,7 +1801,44 @@ UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
 
 local function IsDungeonSelectionValid()
 	local requiresDungeon = (selectedCategory == "Dungeons" or selectedCategory == "Raids")
-	return not requiresDungeon or (selectedDungeon ~= "")
+
+	return not requiresDungeon or (#selectedDungeons > 0)
+end
+
+local function IsDungeonSelected(dungeonId)
+	for _, id in ipairs(selectedDungeons) do
+		if id == dungeonId then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function ToggleDungeonSelection(dungeonId)
+	for index, id in ipairs(selectedDungeons) do
+		if id == dungeonId then
+			table.remove(selectedDungeons, index)
+			return
+		end
+	end
+
+	table.insert(selectedDungeons, dungeonId)
+end
+
+local function GetSelectedDungeonsText()
+	if #selectedDungeons == 0 then
+		return L["DropdownSelect"]
+	elseif #selectedDungeons <= 2 then
+		local names = {}
+		for _, dungeonId in ipairs(selectedDungeons) do
+			table.insert(names, GetDungeonName(dungeonId))
+		end
+
+		return table.concat(names, ", ")
+	else
+		return #selectedDungeons .. " " .. L["DungeonsSelected"]
+	end
 end
 
 local function UpdateFormValidation()
@@ -1782,13 +1856,14 @@ local function InitDungeonDropdown(self, level)
 	for _, dungeon in ipairs(dungeons) do
 		local info = UIDropDownMenu_CreateInfo()
 		info.text = GetDungeonDisplayText(dungeon)
+		info.keepShownOnClick = true
+		info.isNotRadio = true
 		info.func = function()
-			selectedDungeon = dungeon.id
-			UIDropDownMenu_SetText(dungeonDropdown, GetDungeonDisplayText(dungeon))
-			CloseDropDownMenus()
+			ToggleDungeonSelection(dungeon.id)
+			UIDropDownMenu_SetText(dungeonDropdown, GetSelectedDungeonsText())
 			UpdateFormValidation()
 		end
-		info.checked = (selectedDungeon == dungeon.id)
+		info.checked = IsDungeonSelected(dungeon.id)
 		UIDropDownMenu_AddButton(info)
 	end
 end
@@ -1801,7 +1876,7 @@ local function InitCategoryDropdown(self, level)
 		info.text = category
 		info.func = function()
 			selectedCategory = category
-			selectedDungeon = ""
+			selectedDungeons = {}
 			UIDropDownMenu_SetText(categoryDropdown, category)
 			UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
 			UIDropDownMenu_Initialize(dungeonDropdown, InitDungeonDropdown)
@@ -2041,7 +2116,7 @@ end
 
 local function ResetForm()
 	selectedCategory = "Dungeons"
-	selectedDungeon = ""
+	selectedDungeons = {}
 	UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
 	UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
 	UIDropDownMenu_EnableDropDown(dungeonDropdown)
@@ -2060,12 +2135,8 @@ local function PopulateFormFromGroup(group)
 	selectedCategory = group.category or "Dungeons"
 	UIDropDownMenu_SetText(categoryDropdown, selectedCategory)
 
-	selectedDungeon = group.dungeon or ""
-	if selectedDungeon ~= "" then
-		UIDropDownMenu_SetText(dungeonDropdown, GetDungeonDisplayTextById(selectedDungeon))
-	else
-		UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
-	end
+	selectedDungeons = { unpack(group.dungeons or {}) }
+	UIDropDownMenu_SetText(dungeonDropdown, GetSelectedDungeonsText())
 
 	if selectedCategory == "Custom" then
 		UIDropDownMenu_DisableDropDown(dungeonDropdown)
@@ -2186,20 +2257,26 @@ leftButton:SetScript("OnClick", function()
 	end
 end)
 
+local function GetClampedMaxMembers()
+	local maxMembers = tonumber(maxMembersEditBox:GetText()) or 5
+	return math.max(2, math.min(40, maxMembers))
+end
+
 rightButton:SetScript("OnClick", function()
 	local myGroup = ClassicGuildTools.LFG.GetMyGroup()
 
 	if myGroup and myGroup.leader == GetPlayerName() and isEditingMyGroup then
-		-- save edits
-		local category = selectedCategory
-		local dungeon = selectedDungeon
-		local description = descriptionEditBox:GetText() or ""
-		local maxMembers = tonumber(maxMembersEditBox:GetText()) or 5
+		local maxMembers = GetClampedMaxMembers()
 
-		if maxMembers < 1 then maxMembers = 1 end
-		if maxMembers > 40 then maxMembers = 40 end
-
-		ClassicGuildTools.LFG.EditGroup(ClassicGuildTools.LFG.ownGroupId, category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+		ClassicGuildTools.LFG.EditGroup(
+			ClassicGuildTools.LFG.ownGroupId,
+			selectedCategory,
+			selectedDungeons,
+			descriptionEditBox:GetText() or "",
+			maxMembers,
+			selectedBeginnerFriendly,
+			selectedRole
+		)
 		isEditingMyGroup = false
 		ClassicGuildTools.LFG.UpdateCreateGroupTab()
 	elseif myGroup then
@@ -2208,15 +2285,16 @@ rightButton:SetScript("OnClick", function()
 		ClassicGuildTools.LFG.UpdateCreateGroupTab()
 	else
 		-- create new group
-		local category = selectedCategory
-		local dungeon = selectedDungeon
-		local description = descriptionEditBox:GetText() or ""
-		local maxMembers = tonumber(maxMembersEditBox:GetText()) or 5
+		local maxMembers = GetClampedMaxMembers()
 
-		if maxMembers < 2 then maxMembers = 2 end
-		if maxMembers > 40 then maxMembers = 40 end
-
-		ClassicGuildTools.LFG.CreateGroup(category, dungeon, description, maxMembers, selectedBeginnerFriendly, selectedRole)
+		ClassicGuildTools.LFG.CreateGroup(
+			selectedCategory,
+			selectedDungeons,
+			descriptionEditBox:GetText() or "",
+			maxMembers,
+			selectedBeginnerFriendly,
+			selectedRole
+		)
 	end
 end)
 
