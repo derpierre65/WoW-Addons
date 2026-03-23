@@ -38,6 +38,8 @@ local isCreateFormInitialized = false
 local roleButtons = {}
 local pendingInviteFromLeader = nil
 local lastGroupMemberCount = 0
+local savedGroupBeforeJoin = nil
+local SAVED_GROUP_MAX_AGE = 600 -- 10 minutes
 local ROLE_ICON_MARKUP = {}
 local DUNGEON_BY_ID = {}
 
@@ -802,6 +804,18 @@ end
 -- Register LFG event handlers
 ClassicGuildTools.EventHandlers.GROUP_JOINED = function()
 	if ClassicGuildTools.LFG.ownGroupId then
+		local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
+		if group then
+			savedGroupBeforeJoin = {
+				category = group.category,
+				dungeons = group.dungeons,
+				description = group.description,
+				maxMembers = group.maxMembers,
+				beginnerFriendly = group.beginnerFriendly,
+				leaderRole = group.members[GetPlayerName()] or "DD",
+				savedAt = time(),
+			}
+		end
 		-- If we joined someone else's party, remove our own tool group immediately
 		-- (before PARTY_LEADER_CHANGED can transfer leadership)
 		ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
@@ -842,7 +856,7 @@ local function UpdateGroupMemberCount()
 	local previousCount = lastGroupMemberCount
 	lastGroupMemberCount = GetNumGroupMembers()
 
-	-- For non-leaders: remove group when member count transitions from >0 to 0
+	-- For leaders: remove group when member count transitions from >0 to 0
 	if group.leader == GetPlayerName() and previousCount > 0 and lastGroupMemberCount == 0 then
 		ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
 		return
@@ -869,6 +883,23 @@ end
 
 ClassicGuildTools.EventHandlers.GROUP_LEFT = function()
 	UpdateGroupMemberCount()
+
+	-- Restore saved group if we had one before joining and it's not too old
+	if savedGroupBeforeJoin and not ClassicGuildTools.LFG.ownGroupId then
+		local saved = savedGroupBeforeJoin
+		savedGroupBeforeJoin = nil
+
+		if time() - saved.savedAt <= SAVED_GROUP_MAX_AGE then
+			ClassicGuildTools.LFG.CreateGroup(
+				saved.category,
+				saved.dungeons,
+				saved.description,
+				saved.maxMembers,
+				saved.beginnerFriendly,
+				saved.leaderRole
+			)
+		end
+	end
 end
 
 ClassicGuildTools.EventHandlers.PARTY_LEADER_CHANGED = function()
