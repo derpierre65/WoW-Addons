@@ -1,8 +1,9 @@
-## Interface: 11307, 20505, 50503, 120001
+## Interface: 11508, 20505, 50503, 120001
+## X-Curse-Project-ID: 1466666
 ## Title: BankViewer
 ## Author: derpierre65
 ## Notes: Saves information about the bank and displays it everywhere.
-## Version: 1.3.0
+## Version: 1.3.1
 ## SavedVariables: BankViewerDB
 
 Localization.lua

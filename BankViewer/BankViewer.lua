@@ -135,7 +135,7 @@ local function ScanBank()
 	end
 
 	BankViewerDB[realm][name] = charData
-	print("|cff00ccffBankViewer:|r " .. BankViewer.L.bankDataSaved:format(name))
+	-- print("|cff00ccffBankViewer:|r " .. BankViewer.L.bankDataSaved:format(name))
 
 	if BankViewer.UpdateUI then
 		BankViewer.UpdateUI()
@@ -169,7 +169,7 @@ local function ScanWarbandBank()
 	end
 
 	BankViewerDB._warband = warbandData
-	print("|cff00ccffBankViewer:|r " .. BankViewer.L.warbandBankDataSaved)
+	-- print("|cff00ccffBankViewer:|r " .. BankViewer.L.warbandBankDataSaved)
 
 	if BankViewer.UpdateUI then
 		BankViewer.UpdateUI()
@@ -224,7 +224,7 @@ local function ScanGuildBank()
 	end
 
 	BankViewerDB._guilds[realm][guildName] = guildData
-	print("|cff00ccffBankViewer:|r " .. BankViewer.L.guildBankDataSaved:format(guildName))
+	-- print("|cff00ccffBankViewer:|r " .. BankViewer.L.guildBankDataSaved:format(guildName))
 
 	if BankViewer.UpdateUI then
 		BankViewer.UpdateUI()
