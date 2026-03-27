@@ -1815,20 +1815,39 @@ local categoryLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameF
 categoryLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET)
 categoryLabel:SetText(L["LabelCategory"])
 
-local categoryDropdown = CreateFrame("Frame", "ClassicGuildToolsCategoryDropdown", createGroupContent, "UIDropDownMenuTemplate")
-categoryDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 12)
-UIDropDownMenu_SetWidth(categoryDropdown, 140)
-UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
+local categoryDropdown = CreateFrame("DropdownButton", "ClassicGuildToolsCategoryDropdown", createGroupContent, "WowStyle1DropdownTemplate")
+categoryDropdown:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 14)
+categoryDropdown:SetWidth(170)
+categoryDropdown:SetDefaultText("Dungeons")
 
 -- Dungeon dropdown
 local dungeonLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 dungeonLabel:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 42)
 dungeonLabel:SetText(L["LabelDungeonRaid"])
 
-local dungeonDropdown = CreateFrame("Frame", "ClassicGuildToolsDungeonDropdown", createGroupContent, "UIDropDownMenuTemplate")
-dungeonDropdown:SetPoint("TOPLEFT", -12, FORM_TOP_OFFSET - 54)
-UIDropDownMenu_SetWidth(dungeonDropdown, 280)
-UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
+local dungeonDropdown = CreateFrame("DropdownButton", "ClassicGuildToolsDungeonDropdown", createGroupContent, "WowStyle1DropdownTemplate")
+dungeonDropdown:SetPoint("TOPLEFT", 4, FORM_TOP_OFFSET - 56)
+dungeonDropdown:SetWidth(310)
+dungeonDropdown:SetDefaultText(L["DropdownSelect"])
+dungeonDropdown:HookScript("OnEnter", function(self)
+	if #selectedDungeons == 0 then return end
+	local selectedLookup = {}
+	for _, id in ipairs(selectedDungeons) do
+		selectedLookup[id] = true
+	end
+	GameTooltip:SetOwner(self, "ANCHOR_NONE")
+	GameTooltip:SetPoint("LEFT", self, "RIGHT", 0, 0)
+	local visibleDungeons = GetVisibleDungeons(selectedCategory)
+	for _, dungeon in ipairs(visibleDungeons) do
+		if selectedLookup[dungeon.id] then
+			GameTooltip:AddLine(GetDungeonDisplayText(dungeon), 1, 1, 1)
+		end
+	end
+	GameTooltip:Show()
+end)
+dungeonDropdown:HookScript("OnLeave", function()
+	GameTooltip:Hide()
+end)
 
 local function IsDungeonSelectionValid()
 	local requiresDungeon = (selectedCategory == "Dungeons" or selectedCategory == "Raids")
@@ -1882,50 +1901,39 @@ local function UpdateFormValidation()
 	end
 end
 
-local function InitDungeonDropdown(self, level)
+dungeonDropdown:SetupMenu(function(dropdown, rootDescription)
 	local dungeons = GetVisibleDungeons(selectedCategory)
 	for _, dungeon in ipairs(dungeons) do
-		local info = UIDropDownMenu_CreateInfo()
-		info.text = GetDungeonDisplayText(dungeon)
-		info.keepShownOnClick = true
-		info.isNotRadio = true
-		info.func = function()
-			ToggleDungeonSelection(dungeon.id)
-			UIDropDownMenu_SetText(dungeonDropdown, GetSelectedDungeonsText())
-			UpdateFormValidation()
-		end
-		info.checked = IsDungeonSelected(dungeon.id)
-		UIDropDownMenu_AddButton(info)
+		local checkbox = rootDescription:CreateCheckbox(
+			GetDungeonDisplayText(dungeon),
+			function() return IsDungeonSelected(dungeon.id) end,
+			function()
+				ToggleDungeonSelection(dungeon.id)
+				dungeonDropdown:SetDefaultText(GetSelectedDungeonsText())
+				UpdateFormValidation()
+			end
+		)
+		checkbox:SetResponse(MenuResponse.Refresh)
 	end
-end
+end)
 
-UIDropDownMenu_Initialize(dungeonDropdown, InitDungeonDropdown)
-
-local function InitCategoryDropdown(self, level)
+categoryDropdown:SetupMenu(function(dropdown, rootDescription)
 	for _, category in ipairs(CATEGORIES) do
-		local info = UIDropDownMenu_CreateInfo()
-		info.text = category
-		info.func = function()
+		rootDescription:CreateRadio(category, function() return selectedCategory == category end, function()
 			selectedCategory = category
 			selectedDungeons = {}
-			UIDropDownMenu_SetText(categoryDropdown, category)
-			UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
-			UIDropDownMenu_Initialize(dungeonDropdown, InitDungeonDropdown)
-			CloseDropDownMenus()
+			categoryDropdown:SetDefaultText(category)
+			dungeonDropdown:SetDefaultText(L["DropdownSelect"])
 
 			if category == "Custom" then
-				UIDropDownMenu_DisableDropDown(dungeonDropdown)
+				dungeonDropdown:SetEnabled(false)
 			else
-				UIDropDownMenu_EnableDropDown(dungeonDropdown)
+				dungeonDropdown:SetEnabled(true)
 			end
 			UpdateFormValidation()
-		end
-		info.checked = (selectedCategory == category)
-		UIDropDownMenu_AddButton(info)
+		end)
 	end
-end
-
-UIDropDownMenu_Initialize(categoryDropdown, InitCategoryDropdown)
+end)
 
 -- Description editbox
 local descriptionLabel = createGroupContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -2148,9 +2156,9 @@ end
 local function ResetForm()
 	selectedCategory = "Dungeons"
 	selectedDungeons = {}
-	UIDropDownMenu_SetText(categoryDropdown, "Dungeons")
-	UIDropDownMenu_SetText(dungeonDropdown, L["DropdownSelect"])
-	UIDropDownMenu_EnableDropDown(dungeonDropdown)
+	categoryDropdown:SetDefaultText("Dungeons")
+	dungeonDropdown:SetDefaultText(L["DropdownSelect"])
+	dungeonDropdown:SetEnabled(true)
 	descriptionEditBox:SetText("")
 	maxMembersEditBox:SetText("5")
 	selectedRole = "DD"
@@ -2164,15 +2172,15 @@ local function PopulateFormFromGroup(group)
 	local playerName = GetPlayerName()
 
 	selectedCategory = group.category or "Dungeons"
-	UIDropDownMenu_SetText(categoryDropdown, selectedCategory)
+	categoryDropdown:SetDefaultText(selectedCategory)
 
 	selectedDungeons = { unpack(group.dungeons or {}) }
-	UIDropDownMenu_SetText(dungeonDropdown, GetSelectedDungeonsText())
+	dungeonDropdown:SetDefaultText(GetSelectedDungeonsText())
 
 	if selectedCategory == "Custom" then
-		UIDropDownMenu_DisableDropDown(dungeonDropdown)
+		dungeonDropdown:SetEnabled(false)
 	else
-		UIDropDownMenu_EnableDropDown(dungeonDropdown)
+		dungeonDropdown:SetEnabled(true)
 	end
 
 	descriptionEditBox:SetText(group.description or "")

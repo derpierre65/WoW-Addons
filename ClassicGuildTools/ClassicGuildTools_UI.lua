@@ -45,26 +45,19 @@ settingsButton:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
 settingsButton:SetHighlightTexture("Interface\\Buttons\\UI-OptionsButton")
 settingsButton:GetHighlightTexture():SetAlpha(0.4)
 
-local settingsDropdownFrame = CreateFrame("Frame", "ClassicGuildToolsSettingsDropdown", mainFrame, "UIDropDownMenuTemplate")
-settingsDropdownFrame:Hide()
-
-UIDropDownMenu_Initialize(settingsDropdownFrame, function()
-	local info = UIDropDownMenu_CreateInfo()
-	info.text = L["SettingsShowAllLevelRanges"]
-	info.isNotRadio = true
-	info.keepShownOnClick = true
-	info.checked = GetLFGSettings().showAllLevelRanges
-	info.func = function(_, _, _, checked)
-		GetLFGSettings().showAllLevelRanges = checked
-		if ClassicGuildTools.LFG and ClassicGuildTools.LFG.UpdateLFGUI then
-			ClassicGuildTools.LFG.UpdateLFGUI(true)
-		end
-	end
-	UIDropDownMenu_AddButton(info)
-end, "MENU")
-
 settingsButton:SetScript("OnClick", function(self)
-	ToggleDropDownMenu(1, nil, settingsDropdownFrame, self, 0, 0)
+	MenuUtil.CreateContextMenu(self, function(ownerRegion, rootDescription)
+		rootDescription:CreateCheckbox(
+			L["SettingsShowAllLevelRanges"],
+			function() return GetLFGSettings().showAllLevelRanges end,
+			function()
+				GetLFGSettings().showAllLevelRanges = not GetLFGSettings().showAllLevelRanges
+				if ClassicGuildTools.LFG and ClassicGuildTools.LFG.UpdateLFGUI then
+					ClassicGuildTools.LFG.UpdateLFGUI(true)
+				end
+			end
+		)
+	end)
 end)
 
 -- ============================================================

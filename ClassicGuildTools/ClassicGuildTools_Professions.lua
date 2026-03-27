@@ -388,32 +388,25 @@ professionSettingsButton:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton"
 professionSettingsButton:SetHighlightTexture("Interface\\Buttons\\UI-OptionsButton")
 professionSettingsButton:GetHighlightTexture():SetAlpha(0.4)
 
-local professionSettingsDropdown = CreateFrame("Frame", "ClassicGuildToolsProfessionSettingsDropdown", contentFrame, "UIDropDownMenuTemplate")
-professionSettingsDropdown:Hide()
-
-UIDropDownMenu_Initialize(professionSettingsDropdown, function()
-	local info = UIDropDownMenu_CreateInfo()
-	info.text = L["SettingsShowOnlyOnline"]
-	info.isNotRadio = true
-	info.keepShownOnClick = true
-	info.checked = GetSettings().showOnlyOnline
-	info.func = function(_, _, _, checked)
-		GetSettings().showOnlyOnline = checked
-		ClassicGuildTools.Professions.UpdateDropdownDisplay(selectedProfessionId)
-		ClassicGuildTools.UI.UpdateProfessionsUI()
-	end
-	UIDropDownMenu_AddButton(info)
-end, "MENU")
-
 professionSettingsButton:SetScript("OnClick", function(self)
-	ToggleDropDownMenu(1, nil, professionSettingsDropdown, self, 0, 0)
+	MenuUtil.CreateContextMenu(self, function(ownerRegion, rootDescription)
+		rootDescription:CreateCheckbox(
+			L["SettingsShowOnlyOnline"],
+			function() return GetSettings().showOnlyOnline end,
+			function()
+				GetSettings().showOnlyOnline = not GetSettings().showOnlyOnline
+				ClassicGuildTools.Professions.UpdateDropdownDisplay(selectedProfessionId)
+				ClassicGuildTools.UI.UpdateProfessionsUI()
+			end
+		)
+	end)
 end)
 
 -- Profession dropdown
-local professionDropdown = CreateFrame("Frame", "ClassicGuildToolsProfessionDropdown", contentFrame, "UIDropDownMenuTemplate")
-professionDropdown:SetPoint("TOPRIGHT", contentFrame, "TOPRIGHT", 0, 2)
-UIDropDownMenu_SetWidth(professionDropdown, 150)
-UIDropDownMenu_SetText(professionDropdown, L["AllProfessions"])
+local professionDropdown = CreateFrame("DropdownButton", "ClassicGuildToolsProfessionDropdown", contentFrame, "WowStyle1DropdownTemplate")
+professionDropdown:SetPoint("TOPRIGHT", contentFrame, "TOPRIGHT", -4, 0)
+professionDropdown:SetWidth(180)
+professionDropdown:SetDefaultText(L["AllProfessions"])
 
 local function CountPlayersForProfession(professionId)
 	local guildData = GetCurrentGuildData()
@@ -447,9 +440,9 @@ function ClassicGuildTools.Professions.UpdateDropdownDisplay(professionId)
 		local localeKey = PROFESSION_LOCALE_KEYS[professionId]
 		local icon = PROFESSION_ICONS[professionId]
 		local playerCount = CountPlayersForProfession(professionId)
-		UIDropDownMenu_SetText(professionDropdown, L[localeKey] .. " (" .. playerCount .. ") |T" .. icon .. ":16|t")
+		professionDropdown:SetDefaultText(L[localeKey] .. " (" .. playerCount .. ") |T" .. icon .. ":16|t")
 	else
-		UIDropDownMenu_SetText(professionDropdown, L["AllProfessions"])
+		professionDropdown:SetDefaultText(L["AllProfessions"])
 	end
 end
 
@@ -457,31 +450,22 @@ searchBox:SetPoint("LEFT", contentFrame, "LEFT", 6, 0)
 searchBox:SetPoint("RIGHT", professionDropdown, "LEFT", -10, 0)
 searchBox:SetPoint("BOTTOM", professionDropdown, "BOTTOM", 0, 8)
 
-UIDropDownMenu_Initialize(professionDropdown, function()
-	local info = UIDropDownMenu_CreateInfo()
-	info.text = L["AllProfessions"]
-	info.checked = selectedProfessionId == nil
-	info.func = function()
+professionDropdown:SetupMenu(function(dropdown, rootDescription)
+	rootDescription:CreateRadio(L["AllProfessions"], function() return selectedProfessionId == nil end, function()
 		selectedProfessionId = nil
 		ClassicGuildTools.Professions.UpdateDropdownDisplay(nil)
 		ClassicGuildTools.UI.UpdateProfessionsUI()
-	end
-	UIDropDownMenu_AddButton(info)
+	end)
 
 	for _, professionId in ipairs(SORTED_PROFESSION_IDS) do
 		local localeKey = PROFESSION_LOCALE_KEYS[professionId]
 		if localeKey then
-			info = UIDropDownMenu_CreateInfo()
 			local playerCount = CountPlayersForProfession(professionId)
-			info.text = L[localeKey] .. " (" .. playerCount .. ")"
-			info.icon = PROFESSION_ICONS[professionId]
-			info.checked = (selectedProfessionId == professionId)
-			info.func = function()
+			rootDescription:CreateRadio("|T" .. PROFESSION_ICONS[professionId] .. ":16|t " .. L[localeKey] .. " (" .. playerCount .. ")", function() return selectedProfessionId == professionId end, function()
 				selectedProfessionId = professionId
 				ClassicGuildTools.Professions.UpdateDropdownDisplay(professionId)
 				ClassicGuildTools.UI.UpdateProfessionsUI()
-			end
-			UIDropDownMenu_AddButton(info)
+			end)
 		end
 	end
 end)
