@@ -1,0 +1,22 @@
+## Interface: 11508, 20505
+## Title: Classic Guild Tools
+## Notes: Tools for Guilds.
+## Author: derpierre65
+## Version: 1.0.0
+## X-Curse-Project-ID: 1483868
+## SavedVariables: ClassicGuildToolsDB, ClassicGuildTools_LFG, ClassicGuildToolsProfessions
+
+Libs\AceComm-3.0\AceComm-3.0.xml
+Libs\AceSerializer-3.0\AceSerializer-3.0.xml
+Libs\AceLocale-3.0\AceLocale-3.0.xml
+
+Localization\enUS.lua
+Localization\deDE.lua
+
+ClassicGuildTools_Enums.lua
+ClassicGuildTools_Utils.lua
+ClassicGuildTools.lua
+ClassicGuildTools_UI.lua
+ClassicGuildTools_Minimap.lua
+ClassicGuildTools_LFG.lua
+ClassicGuildTools_Professions.lua
