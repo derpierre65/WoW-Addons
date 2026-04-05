@@ -20,3 +20,4 @@ ClassicGuildTools_UI.lua
 ClassicGuildTools_Minimap.lua
 ClassicGuildTools_LFG.lua
 ClassicGuildTools_Professions.lua
+ClassicGuildTools_AddonCheck.lua

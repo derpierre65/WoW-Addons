@@ -64,7 +64,7 @@ end)
 -- Tab system
 -- ============================================================
 
-local TAB_NAMES = { L["TabGroupBrowser"], L["TabCreateGroup"], L["TabProfessions"] }
+local TAB_NAMES = { L["TabGroupBrowser"], L["TabCreateGroup"], L["TabProfessions"], L["TabAddonCheck"] }
 local contentFrames = {}
 
 -- Create tab buttons (below the frame)
@@ -146,6 +146,35 @@ end
 
 ClassicGuildTools.UI.SetTabEnabled(3, true)
 
+function ClassicGuildTools.UI.SetTabVisible(tabIndex, visible)
+	local tabButton = tabButtons[tabIndex]
+	if not tabButton then return end
+
+	if visible then
+		tabButton:Show()
+	else
+		tabButton:Hide()
+		if PanelTemplates_GetSelectedTab(mainFrame) == tabIndex then
+			PanelTemplates_SetTab(mainFrame, 1)
+			ClassicGuildTools.UI.ShowTab(1)
+		end
+	end
+
+	local previousButton = nil
+	for index = 1, #TAB_NAMES do
+		local button = tabButtons[index]
+		if button and button:IsShown() then
+			button:ClearAllPoints()
+			if not previousButton then
+				button:SetPoint("CENTER", mainFrame, "BOTTOMLEFT", 60, -12)
+			else
+				button:SetPoint("LEFT", previousButton, "RIGHT", -16, 0)
+			end
+			previousButton = button
+		end
+	end
+end
+
 function ClassicGuildTools.UI.ShowTab(tabIndex)
 	local currentLeft = mainFrame:GetLeft()
 	local currentTop = mainFrame:GetTop()
@@ -165,6 +194,11 @@ function ClassicGuildTools.UI.ShowTab(tabIndex)
 		settingsButton:Hide()
 		if ClassicGuildTools.UI.professionSettingsButton then
 			ClassicGuildTools.UI.professionSettingsButton:Show()
+		end
+	elseif tabIndex == 4 then
+		settingsButton:Hide()
+		if ClassicGuildTools.UI.professionSettingsButton then
+			ClassicGuildTools.UI.professionSettingsButton:Hide()
 		end
 	else
 		settingsButton:Show()
@@ -206,6 +240,10 @@ end
 -- Restore last tab and request group list when frame opens
 mainFrame:SetScript("OnShow", function()
 	local lastTab = ClassicGuildToolsDB and ClassicGuildToolsDB.lastTab or 1
+	local lastTabButton = tabButtons[lastTab]
+	if not lastTabButton or not lastTabButton:IsShown() then
+		lastTab = 1
+	end
 	PanelTemplates_SetTab(mainFrame, lastTab)
 	ClassicGuildTools.UI.ShowTab(lastTab)
 	ClassicGuildTools.LFG.RequestGroupList()
