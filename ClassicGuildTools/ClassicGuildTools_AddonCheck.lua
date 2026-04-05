@@ -191,6 +191,8 @@ local rowPool = ClassicGuildTools.Utils.CreatePool(scrollChild, CreateResultRow)
 -- ============================================================
 
 local function ShowIdleState()
+	queryButton:ClearAllPoints()
+	queryButton:SetPoint("CENTER", contentFrame, "CENTER", 0, 0)
 	queryButton:Show()
 	spinnerFrame:Hide()
 	spinnerAnimationGroup:Stop()
@@ -220,6 +222,8 @@ local function ShowResultsState(results)
 	spinnerFrame:Hide()
 	spinnerAnimationGroup:Stop()
 	progressText:Hide()
+	queryButton:ClearAllPoints()
+	queryButton:SetPoint("BOTTOM", contentFrame, "BOTTOM", 0, 4)
 	queryButton:Show()
 
 	rowPool:ReleaseAll()
@@ -263,6 +267,12 @@ local function ShowResultsState(results)
 
 	scrollChild:SetHeight(math.max(1, #results * (ROW_HEIGHT + ROW_SPACING)))
 end
+
+contentFrame:SetScript("OnShow", function()
+	if not activeQuery then
+		ShowIdleState()
+	end
+end)
 
 -- ============================================================
 -- Query logic
