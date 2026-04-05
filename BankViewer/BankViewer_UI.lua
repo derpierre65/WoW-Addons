@@ -138,7 +138,7 @@ local function SetupCheckboxTooltip(checkbox)
 	checkbox:SetScript("OnEnter", function(self)
 		if self.disabledTooltip then
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-			GameTooltip:SetText(self.disabledTooltip, 1, 0.82, 0, true)
+			GameTooltip:SetText(self.disabledTooltip, 1, 0.82, 0, 1)
 			GameTooltip:Show()
 		end
 	end)
