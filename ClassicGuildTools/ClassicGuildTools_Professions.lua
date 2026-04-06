@@ -7,22 +7,34 @@ local MESSAGE_TYPE = ClassicGuildTools.MESSAGE_TYPE
 local SendGuildMessage = ClassicGuildTools.SendGuildMessage
 local SendWhisperMessage = ClassicGuildTools.SendWhisperMessage
 
-local PROFESSIONS = {
-	["Alchemy"] = 171, ["Alchimie"] = 171,
-	["Blacksmithing"] = 164, ["Schmiedekunst"] = 164,
-	["Enchanting"] = 333, ["Verzauberkunst"] = 333, ["Verzaubern"] = 333,
-	["Engineering"] = 202, ["Ingenieurskunst"] = 202,
-	["Herbalism"] = 182, ["Kraeuterkunde"] = 182,
-	["Leatherworking"] = 165, ["Lederverarbeitung"] = 165,
-	["Mining"] = 186, ["Bergbau"] = 186,
-	["Skinning"] = 393, ["Kuerschnerei"] = 393,
-	["Tailoring"] = 197, ["Schneiderei"] = 197,
-	["Cooking"] = 185, ["Kochkunst"] = 185,
-	["First Aid"] = 129, ["Erste Hilfe"] = 129,
-	["Fishing"] = 356, ["Angeln"] = 356,
-	["Jewelcrafting"] = 755, ["Juwelenschleifen"] = 755,
-	["Inscription"] = 773, ["Inschriftenkunde"] = 773,
+-- Map spell IDs to profession IDs, then build localized name lookup via GetSpellInfo
+local PROFESSION_SPELL_IDS = {
+	-- classic
+	[2259] = 171,   -- Alchemy
+	[2018] = 164,   -- Blacksmithing
+	[7411] = 333,   -- Enchanting
+	[4036] = 202,   -- Engineering
+	[2366] = 182,   -- Herbalism
+	[2108] = 165,   -- Leatherworking
+	[2575] = 186,   -- Mining
+	[8613] = 393,   -- Skinning
+	[3908] = 197,   -- Tailoring
+	[2550] = 185,   -- Cooking
+	[3273] = 129,   -- First Aid
+	[7620] = 356,   -- Fishing
+	-- tbc
+	[25229] = 755,  -- Jewelcrafting
+	[45357] = 773,  -- Inscription
 }
+
+local PROFESSIONS = {}
+for spellId, professionId in pairs(PROFESSION_SPELL_IDS) do
+	local spellName = GetSpellInfo(spellId)
+	if spellName then
+		PROFESSIONS[spellName] = professionId
+	end
+end
+
 local PROFESSION_LOCALE_KEYS = {
 	[171] = "ProfessionAlchemy",
 	[164] = "ProfessionBlacksmithing",
@@ -34,9 +46,12 @@ local PROFESSION_LOCALE_KEYS = {
 	[129] = "ProfessionFirstAid",
 	[755] = "ProfessionJewelcrafting",
 	[773] = "ProfessionInscription",
+	[182] = "ProfessionHerbalism",
+	[186] = "ProfessionMining",
+	[393] = "ProfessionSkinning",
 }
 
-local SORTED_PROFESSION_IDS = { 171, 164, 333, 202, 165, 197, 185, 129 }
+local SORTED_PROFESSION_IDS = { 171, 164, 333, 202, 165, 197, 182, 186, 393, 185, 129 }
 
 if not ClassicGuildTools.Utils.isEra then
 	table.insert(SORTED_PROFESSION_IDS, 755) -- Jewelcrafting
@@ -54,6 +69,15 @@ local PROFESSION_ICONS = {
 	[129] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
 	[755] = "Interface\\Icons\\INV_Misc_Gem_01",
 	[773] = "Interface\\Icons\\INV_Inscription_Tradeskill01",
+	[182] = "Interface\\Icons\\Trade_Herbalism",
+	[186] = "Interface\\Icons\\Trade_Mining",
+	[393] = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01",
+}
+
+local GATHERING_PROFESSIONS = {
+	[182] = true, -- Herbalism
+	[186] = true, -- Mining
+	[393] = true, -- Skinning
 }
 local ROW_HEIGHT = 20
 local ROW_SPACING = 2
@@ -180,6 +204,9 @@ function ClassicGuildTools.Professions.ScanProfessions()
 			playerRecipes[professionId] = playerRecipes[professionId] or {}
 			playerRecipes[professionId].rank = skillRank or 0
 			playerRecipes[professionId].maxRank = skillMaxRank or 0
+			if GATHERING_PROFESSIONS[professionId] then
+				playerRecipes[professionId].recipes = { professionId }
+			end
 		end
 	end
 end
@@ -510,9 +537,14 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 
 	for recipeId, data in pairs(recipeCache) do
 		if not selectedProfessionId or data.professionId == selectedProfessionId then
-			local recipeName, recipeLink, recipeTexture, isSpell
+			local recipeName, recipeLink, recipeTexture, isSpell, isGathering
 
-			if recipeId < 0 then
+			if GATHERING_PROFESSIONS[data.professionId] and recipeId == data.professionId then
+				local localeKey = PROFESSION_LOCALE_KEYS[data.professionId]
+				recipeName = localeKey and L[localeKey] or "Unknown"
+				recipeTexture = PROFESSION_ICONS[data.professionId]
+				isGathering = true
+			elseif recipeId < 0 then
 				-- Spell-based recipe (negative ID = spell ID)
 				local spellId = -recipeId
 				local spellName, _, spellIcon = GetSpellInfo(spellId)
@@ -531,7 +563,7 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 				end
 			end
 
-			if recipeName and recipeLink then
+			if recipeName and (recipeLink or isGathering) then
 				if searchText == "" or recipeName:lower():find(searchText, 1, true) then
 					local players = data.players
 					if GetSettings().showOnlyOnline then
@@ -547,6 +579,7 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 						table.insert(recipeList, {
 							recipeId = recipeId,
 							isSpell = isSpell,
+							isGathering = isGathering,
 							itemName = recipeName,
 							itemLink = recipeLink,
 							itemTexture = recipeTexture,
@@ -577,7 +610,7 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -((index - 1) * (ROW_HEIGHT + ROW_SPACING)))
 		row:SetPoint("RIGHT", scrollChild, "RIGHT", 0, 0)
 
-		row.itemId = recipe.recipeId
+		row.itemId = not recipe.isGathering and recipe.recipeId or nil
 		row.isSpell = recipe.isSpell
 		row.itemLink = recipe.itemLink
 
@@ -589,9 +622,13 @@ function ClassicGuildTools.UI.UpdateProfessionsUI()
 		end
 		row.onlinePlayers = onlinePlayers
 		row.icon:SetTexture(recipe.itemTexture)
-		local displayText = recipe.itemLink:gsub("|h%[", "|h"):gsub("%]|h", "|h")
-		if recipe.isSpell then
+		local displayText
+		if recipe.isGathering then
+			displayText = "|cffffd100" .. recipe.itemName .. "|r"
+		elseif recipe.isSpell then
 			displayText = "|cff71d5ff" .. recipe.itemName .. "|r"
+		else
+			displayText = recipe.itemLink:gsub("|h%[", "|h"):gsub("%]|h", "|h")
 		end
 		row.itemName:SetText(displayText)
 
@@ -703,6 +740,7 @@ GameTooltip:HookScript("OnTooltipSetItem", function(self)
 
 	local itemId = GetItemIdFromLink(itemLink)
 	if not itemId then return end
+	if GATHERING_PROFESSIONS[itemId] then return end
 
 	local cached = recipeCache[itemId]
 	if not cached then return end

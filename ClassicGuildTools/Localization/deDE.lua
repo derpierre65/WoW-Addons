@@ -95,6 +95,9 @@ L["ProfessionCooking"] = "Kochkunst"
 L["ProfessionFirstAid"] = "Erste Hilfe"
 L["ProfessionJewelcrafting"] = "Juwelenschleifen"
 L["ProfessionInscription"] = "Inschriftenkunde"
+L["ProfessionHerbalism"] = "Kräuterkunde"
+L["ProfessionMining"] = "Bergbau"
+L["ProfessionSkinning"] = "Kürschnerei"
 
 -- Dungeons
 L["DungeonRagefireChasm"] = "Ragefireabgrund"
