@@ -50,7 +50,7 @@ local PROFESSION_LOCALE_KEYS = {
 	[186] = "ProfessionMining",
 }
 
-local SORTED_PROFESSION_IDS = { 171, 164, 333, 202, 165, 197, 182, 186, 185, 129 }
+local SORTED_PROFESSION_IDS = { 171, 164, 333, 202, 165, 197, 182, 186, 393, 185, 129 }
 
 if not ClassicGuildTools.Utils.isEra then
 	table.insert(SORTED_PROFESSION_IDS, 755) -- Jewelcrafting
@@ -70,6 +70,7 @@ local PROFESSION_ICONS = {
 	[773] = "Interface\\Icons\\INV_Inscription_Tradeskill01",
 	[182] = "Interface\\Icons\\Trade_Herbalism",
 	[186] = "Interface\\Icons\\Trade_Mining",
+	[393] = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01",
 }
 
 local GATHERING_PROFESSIONS = {
