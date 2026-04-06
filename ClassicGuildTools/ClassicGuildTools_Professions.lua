@@ -48,6 +48,7 @@ local PROFESSION_LOCALE_KEYS = {
 	[773] = "ProfessionInscription",
 	[182] = "ProfessionHerbalism",
 	[186] = "ProfessionMining",
+	[393] = "ProfessionSkinning",
 }
 
 local SORTED_PROFESSION_IDS = { 171, 164, 333, 202, 165, 197, 182, 186, 393, 185, 129 }

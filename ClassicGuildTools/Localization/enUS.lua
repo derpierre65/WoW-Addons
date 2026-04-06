@@ -98,6 +98,7 @@ L["ProfessionJewelcrafting"] = "Jewelcrafting"
 L["ProfessionInscription"] = "Inscription"
 L["ProfessionHerbalism"] = "Herbalism"
 L["ProfessionMining"] = "Mining"
+L["ProfessionSkinning"] = "Skinning"
 
 -- Dungeons
 L["DungeonRagefireChasm"] = "Ragefire Chasm"
