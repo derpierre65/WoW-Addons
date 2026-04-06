@@ -6,6 +6,7 @@ local L = LibStub("AceLocale-3.0"):GetLocale("ClassicGuildTools")
 local MESSAGE_TYPE = ClassicGuildTools.MESSAGE_TYPE
 local SendGuildMessage = ClassicGuildTools.SendGuildMessage
 local SendWhisperMessage = ClassicGuildTools.SendWhisperMessage
+local GetAddOnMetadata = GetAddOnMetadata or C_AddOns and C_AddOns.GetAddOnMetadata
 
 local ROW_HEIGHT = 24
 local ROW_SPACING = 2
@@ -320,7 +321,9 @@ local function BuildResultList()
 end
 
 local function FinishQuery()
-	if not activeQuery then return end
+	if not activeQuery then
+		return
+	end
 
 	if activeQuery.timer then
 		activeQuery.timer:Cancel()
@@ -374,7 +377,9 @@ ClassicGuildTools.MessageHandlers.ADDON_CHECK_QUERY = function(data, sender)
 end
 
 ClassicGuildTools.MessageHandlers.ADDON_CHECK_ANSWER = function(data, sender)
-	if not activeQuery then return end
+	if not activeQuery then
+		return
+	end
 
 	activeQuery.responses[sender] = data
 	activeQuery.responseCount = activeQuery.responseCount + 1
