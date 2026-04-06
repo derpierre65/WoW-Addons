@@ -7,22 +7,34 @@ local MESSAGE_TYPE = ClassicGuildTools.MESSAGE_TYPE
 local SendGuildMessage = ClassicGuildTools.SendGuildMessage
 local SendWhisperMessage = ClassicGuildTools.SendWhisperMessage
 
-local PROFESSIONS = {
-	["Alchemy"] = 171, ["Alchimie"] = 171,
-	["Blacksmithing"] = 164, ["Schmiedekunst"] = 164,
-	["Enchanting"] = 333, ["Verzauberkunst"] = 333, ["Verzaubern"] = 333,
-	["Engineering"] = 202, ["Ingenieurskunst"] = 202,
-	["Herbalism"] = 182, ["Kraeuterkunde"] = 182,
-	["Leatherworking"] = 165, ["Lederverarbeitung"] = 165,
-	["Mining"] = 186, ["Bergbau"] = 186,
-	["Skinning"] = 393, ["Kuerschnerei"] = 393,
-	["Tailoring"] = 197, ["Schneiderei"] = 197,
-	["Cooking"] = 185, ["Kochkunst"] = 185,
-	["First Aid"] = 129, ["Erste Hilfe"] = 129,
-	["Fishing"] = 356, ["Angeln"] = 356,
-	["Jewelcrafting"] = 755, ["Juwelenschleifen"] = 755,
-	["Inscription"] = 773, ["Inschriftenkunde"] = 773,
+-- Map spell IDs to profession IDs, then build localized name lookup via GetSpellInfo
+local PROFESSION_SPELL_IDS = {
+	-- classic
+	[2259] = 171,   -- Alchemy
+	[2018] = 164,   -- Blacksmithing
+	[7411] = 333,   -- Enchanting
+	[4036] = 202,   -- Engineering
+	[2366] = 182,   -- Herbalism
+	[2108] = 165,   -- Leatherworking
+	[2575] = 186,   -- Mining
+	[8613] = 393,   -- Skinning
+	[3908] = 197,   -- Tailoring
+	[2550] = 185,   -- Cooking
+	[3273] = 129,   -- First Aid
+	[7620] = 356,   -- Fishing
+	-- tbc
+	[25229] = 755,  -- Jewelcrafting
+	[45357] = 773,  -- Inscription
 }
+
+local PROFESSIONS = {}
+for spellId, professionId in pairs(PROFESSION_SPELL_IDS) do
+	local spellName = GetSpellInfo(spellId)
+	if spellName then
+		PROFESSIONS[spellName] = professionId
+	end
+end
+
 local PROFESSION_LOCALE_KEYS = {
 	[171] = "ProfessionAlchemy",
 	[164] = "ProfessionBlacksmithing",
@@ -63,6 +75,7 @@ local PROFESSION_ICONS = {
 local GATHERING_PROFESSIONS = {
 	[182] = true, -- Herbalism
 	[186] = true, -- Mining
+	[393] = true, -- Skinning
 }
 local ROW_HEIGHT = 20
 local ROW_SPACING = 2
