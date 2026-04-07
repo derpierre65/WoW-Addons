@@ -106,6 +106,7 @@ L["AddonCheckQuerying"] = "Gilde wird abgefragt (%d/%d Online-Spieler)"
 L["AddonCheckNoResults"] = "Alle Online-Gildenmitglieder haben die aktuelle Addon-Version."
 L["AddonCheckStatusNotInstalled"] = "Nicht installiert"
 L["AddonCheckStatusOutdated"] = "Veraltet (%s)"
+L["VersionOutdatedMessage"] = "Deine Addon-Version (%s) ist veraltet.\nEine neuere Version (%s) ist verfügbar."
 
 -- Dungeons
 L["DungeonRagefireChasm"] = "Ragefireabgrund"

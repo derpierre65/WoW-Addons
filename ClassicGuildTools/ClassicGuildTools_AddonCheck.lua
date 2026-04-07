@@ -43,26 +43,6 @@ local function IsGuildOfficer(playerName)
 end
 
 -- ============================================================
--- Version comparison
--- ============================================================
-
-local function CompareVersions(versionA, versionB)
-	local majorA, minorA, patchA = versionA:match("^(%d+)%.(%d+)%.(%d+)$")
-	local majorB, minorB, patchB = versionB:match("^(%d+)%.(%d+)%.(%d+)$")
-
-	if not majorA or not majorB then return 0 end
-
-	majorA, minorA, patchA = tonumber(majorA), tonumber(minorA), tonumber(patchA)
-	majorB, minorB, patchB = tonumber(majorB), tonumber(minorB), tonumber(patchB)
-
-	if majorA ~= majorB then return majorA < majorB and -1 or 1 end
-	if minorA ~= minorB then return minorA < minorB and -1 or 1 end
-	if patchA ~= patchB then return patchA < patchB and -1 or 1 end
-
-	return 0
-end
-
--- ============================================================
 -- Online guild member counting
 -- ============================================================
 
@@ -299,7 +279,7 @@ local function BuildResultList()
 						status = "not_installed",
 						version = nil,
 					})
-				elseif CompareVersions(responseVersion, currentVersion) < 0 then
+				elseif ClassicGuildTools.Utils.CompareVersions(responseVersion, currentVersion) < 0 then
 					table.insert(results, {
 						name = shortName,
 						classFileName = classFileName,

@@ -107,6 +107,7 @@ L["AddonCheckQuerying"] = "Querying guild (%d/%d online players)"
 L["AddonCheckNoResults"] = "All online guild members have the current addon version."
 L["AddonCheckStatusNotInstalled"] = "Not installed"
 L["AddonCheckStatusOutdated"] = "Outdated (%s)"
+L["VersionOutdatedMessage"] = "Your addon version (%s) is outdated.\nA newer version (%s) is available."
 
 -- Dungeons
 L["DungeonRagefireChasm"] = "Ragefire Chasm"
