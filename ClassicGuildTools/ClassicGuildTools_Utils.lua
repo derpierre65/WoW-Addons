@@ -40,6 +40,14 @@ function ClassicGuildTools.Utils.CreatePool(parent, createFunction, releaseCallb
 	}
 end
 
+function ClassicGuildTools.Utils.RequestGuildRoster()
+	if GuildRoster then
+		GuildRoster()
+	elseif C_GuildInfo and C_GuildInfo.GuildRoster then
+		C_GuildInfo.GuildRoster()
+	end
+end
+
 function ClassicGuildTools.Utils.Debounce(key, delay, callback)
 	if debounceTimers[key] then
 		debounceTimers[key]:Cancel()

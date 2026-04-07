@@ -10,7 +10,8 @@ local GetAddOnMetadata = GetAddOnMetadata or C_AddOns and C_AddOns.GetAddOnMetad
 
 local ROW_HEIGHT = 24
 local ROW_SPACING = 2
-local QUERY_TIMEOUT = 5
+local QUERY_TIMEOUT = 20
+local QUERY_REPEAT_INTERVAL = 4
 
 local activeQuery = nil
 
@@ -330,6 +331,11 @@ local function FinishQuery()
 		activeQuery.timer = nil
 	end
 
+	if activeQuery.repeatTimer then
+		activeQuery.repeatTimer:Cancel()
+		activeQuery.repeatTimer = nil
+	end
+
 	local results = BuildResultList()
 	activeQuery = nil
 
@@ -339,7 +345,7 @@ end
 local function StartQuery()
 	if activeQuery then return end
 
-	if GuildRoster then GuildRoster() elseif C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
+	ClassicGuildTools.Utils.RequestGuildRoster()
 	ClassicGuildTools.BuildGuildMemberCache()
 
 	local expectedCount = CountOnlineGuildMembers()
@@ -349,11 +355,18 @@ local function StartQuery()
 		responseCount = 0,
 		expectedCount = expectedCount,
 		timer = nil,
+		repeatTimer = nil,
 	}
 
 	ShowLoadingState(expectedCount)
 
 	SendGuildMessage(MESSAGE_TYPE.ADDON_CHECK_QUERY)
+
+	activeQuery.repeatTimer = C_Timer.NewTicker(QUERY_REPEAT_INTERVAL, function()
+		if activeQuery then
+			SendGuildMessage(MESSAGE_TYPE.ADDON_CHECK_QUERY)
+		end
+	end)
 
 	activeQuery.timer = C_Timer.NewTimer(QUERY_TIMEOUT, function()
 		FinishQuery()
@@ -369,11 +382,19 @@ end)
 -- ============================================================
 
 ClassicGuildTools.MessageHandlers.ADDON_CHECK_QUERY = function(data, sender)
-	if sender == ClassicGuildTools.GetPlayerName() then return end
-	if not IsGuildOfficer(sender) then return end
+	if sender == ClassicGuildTools.GetPlayerName() then
+        return
+    end
 
-	local version = GetAddOnMetadata("ClassicGuildTools", "Version")
-	SendWhisperMessage(MESSAGE_TYPE.ADDON_CHECK_ANSWER, sender, version)
+	ClassicGuildTools.Utils.RequestGuildRoster()
+	ClassicGuildTools.Utils.Debounce("AddonCheckQuery", QUERY_REPEAT_INTERVAL - 1, function()
+		if not IsGuildOfficer(sender) then
+            return
+        end
+
+		local version = GetAddOnMetadata("ClassicGuildTools", "Version")
+		SendWhisperMessage(MESSAGE_TYPE.ADDON_CHECK_ANSWER, sender, version)
+	end)
 end
 
 ClassicGuildTools.MessageHandlers.ADDON_CHECK_ANSWER = function(data, sender)
