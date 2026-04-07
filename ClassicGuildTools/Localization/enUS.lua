@@ -100,6 +100,14 @@ L["ProfessionHerbalism"] = "Herbalism"
 L["ProfessionMining"] = "Mining"
 L["ProfessionSkinning"] = "Skinning"
 
+-- Addon Check
+L["TabAddonCheck"] = "Addon Check"
+L["ButtonQueryGuild"] = "Query Guild"
+L["AddonCheckQuerying"] = "Querying guild (%d/%d online players)"
+L["AddonCheckNoResults"] = "All online guild members have the current addon version."
+L["AddonCheckStatusNotInstalled"] = "Not installed"
+L["AddonCheckStatusOutdated"] = "Outdated (%s)"
+
 -- Dungeons
 L["DungeonRagefireChasm"] = "Ragefire Chasm"
 L["DungeonWailingCaverns"] = "Wailing Caverns"

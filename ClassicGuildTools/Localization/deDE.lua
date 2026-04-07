@@ -99,6 +99,14 @@ L["ProfessionHerbalism"] = "Kräuterkunde"
 L["ProfessionMining"] = "Bergbau"
 L["ProfessionSkinning"] = "Kürschnerei"
 
+-- Addon Check
+L["TabAddonCheck"] = "Addon Check"
+L["ButtonQueryGuild"] = "Gilde abfragen"
+L["AddonCheckQuerying"] = "Gilde wird abgefragt (%d/%d Online-Spieler)"
+L["AddonCheckNoResults"] = "Alle Online-Gildenmitglieder haben die aktuelle Addon-Version."
+L["AddonCheckStatusNotInstalled"] = "Nicht installiert"
+L["AddonCheckStatusOutdated"] = "Veraltet (%s)"
+
 -- Dungeons
 L["DungeonRagefireChasm"] = "Ragefireabgrund"
 L["DungeonWailingCaverns"] = "Die Höhlen des Wehklagens"
