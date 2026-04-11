@@ -804,6 +804,13 @@ end
 -- Register LFG event handlers
 ClassicGuildTools.EventHandlers.GROUP_JOINED = function()
 	if ClassicGuildTools.LFG.ownGroupId then
+		-- If we're the party leader, we formed this group by having an applicant accept our invite.
+		-- Don't remove our own listing in this case.
+		if UnitIsGroupLeader("player") then
+			lastGroupMemberCount = GetNumGroupMembers()
+			return
+		end
+
 		local group = ClassicGuildTools.groups[ClassicGuildTools.LFG.ownGroupId]
 		if group then
 			savedGroupBeforeJoin = {
@@ -816,6 +823,7 @@ ClassicGuildTools.EventHandlers.GROUP_JOINED = function()
 				savedAt = time(),
 			}
 		end
+
 		-- If we joined someone else's party, remove our own tool group immediately
 		-- (before PARTY_LEADER_CHANGED can transfer leadership)
 		ClassicGuildTools.LFG.RemoveGroup(ClassicGuildTools.LFG.ownGroupId)
