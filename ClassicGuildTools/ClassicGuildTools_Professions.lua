@@ -85,6 +85,7 @@ local ROW_SPACING = 2
 local selectedProfessionId = nil
 local searchText = ""
 local recipeCache = {}
+ClassicGuildTools.Professions.recipeCache = recipeCache
 
 -- ============================================================
 -- Data access helpers
@@ -147,7 +148,7 @@ local function BroadcastPlayerProfessions(target, filterProfessionId)
 	end
 end
 
-local function RebuildRecipeCache()
+function ClassicGuildTools.Professions.RebuildRecipeCache()
 	wipe(recipeCache)
 
 	local guildData = GetCurrentGuildData()
@@ -156,10 +157,11 @@ local function RebuildRecipeCache()
 	ClassicGuildTools.BuildGuildMemberCache()
 
 	local myName = ClassicGuildTools.GetPlayerName()
+	local hasGuildMembers = next(ClassicGuildTools.guildMemberCache) ~= nil
 
 	for guid, professions in pairs(guildData) do
 		local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
-		if playerName then
+		if playerName and (not hasGuildMembers or ClassicGuildTools.guildMemberCache[playerName]) then
 			for professionId, professionData in pairs(professions) do
 				for _, recipeId in ipairs(professionData.recipes or {}) do
 					if recipeId and recipeId ~= 0 then
@@ -692,7 +694,7 @@ ClassicGuildTools.MessageHandlers.PLAYER_DIED = function(data, sender)
 		local _, _, _, _, _, playerName = GetPlayerInfoByGUID(guid)
 		if playerName == sender then
 			guildData[guid] = nil
-			ClassicGuildTools.Utils.Debounce("RebuildRecipeCache", 1, RebuildRecipeCache)
+			ClassicGuildTools.Utils.Debounce("ClassicGuildTools.Professions.RebuildRecipeCache", 1, ClassicGuildTools.Professions.RebuildRecipeCache)
 			break
 		end
 	end
@@ -710,7 +712,7 @@ ClassicGuildTools.MessageHandlers.PROFESSION_ANSWER = function(data, sender)
 	guildData[data.guid][data.professionId].rank = data.rank or 0
 	guildData[data.guid][data.professionId].maxRank = data.maxRank or 0
 
-	ClassicGuildTools.Utils.Debounce("RebuildRecipeCache", 1, RebuildRecipeCache)
+	ClassicGuildTools.Utils.Debounce("ClassicGuildTools.Professions.RebuildRecipeCache", 1, ClassicGuildTools.Professions.RebuildRecipeCache)
 end
 
 -- ============================================================
@@ -769,7 +771,7 @@ end
 
 ClassicGuildTools.EventHandlers.PLAYER_LOGIN = function()
 	ClassicGuildTools.Professions.ScanProfessions()
-	RebuildRecipeCache()
+	ClassicGuildTools.Professions.RebuildRecipeCache()
 	SendGuildMessage(MESSAGE_TYPE.PROFESSION_QUERY)
 end
 
