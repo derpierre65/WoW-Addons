@@ -1,8 +1,8 @@
-## Interface: 11508, 20505
+## Interface: 11508
 ## Title: Classic Guild Tools
 ## Notes: Tools for Guilds.
 ## Author: derpierre65
-## Version: 1.2.0
+## Version: 1.2.1
 ## X-Curse-Project-ID: 1483868
 ## SavedVariables: ClassicGuildToolsDB, ClassicGuildTools_LFG, ClassicGuildToolsProfessions
 

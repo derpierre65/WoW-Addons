@@ -707,9 +707,18 @@ ClassicGuildTools.MessageHandlers.PROFESSION_ANSWER = function(data, sender)
 	if not guildData then return end
 
 	guildData[data.guid] = guildData[data.guid] or {}
-	guildData[data.guid][data.professionId] = guildData[data.guid][data.professionId] or {}
+	local existing = guildData[data.guid][data.professionId]
+	local incomingRank = data.rank or 0
+
+	-- Don't overwrite existing data with rank 0 — preserves locally cached
+	-- recipes/rank when sender broadcasts an empty/unscanned profession
+	if existing and (existing.rank or 0) > 0 and incomingRank == 0 then
+		return
+	end
+
+	guildData[data.guid][data.professionId] = existing or {}
 	guildData[data.guid][data.professionId].recipes = data.recipes or {}
-	guildData[data.guid][data.professionId].rank = data.rank or 0
+	guildData[data.guid][data.professionId].rank = incomingRank
 	guildData[data.guid][data.professionId].maxRank = data.maxRank or 0
 
 	ClassicGuildTools.Utils.Debounce("ClassicGuildTools.Professions.RebuildRecipeCache", 1, ClassicGuildTools.Professions.RebuildRecipeCache)
