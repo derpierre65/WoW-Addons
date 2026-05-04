@@ -1,0 +1,7 @@
+return {
+	default = {
+		ROOT = { "__tests__" },
+		pattern = "_spec",
+		lpath = "./?.lua;./?/init.lua",
+	},
+}

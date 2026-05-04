@@ -129,6 +129,11 @@ local function BroadcastPlayerProfessions(target, filterProfessionId)
 	local professions = guildData[guid]
 	if not professions then return end
 
+	local allProfessionIds = {}
+	for professionId in pairs(professions) do
+		table.insert(allProfessionIds, professionId)
+	end
+
 	for professionId, professionData in pairs(professions) do
 		if not filterProfessionId or professionId == filterProfessionId then
 			local payload = {
@@ -137,6 +142,7 @@ local function BroadcastPlayerProfessions(target, filterProfessionId)
 				recipes = professionData.recipes or {},
 				rank = professionData.rank or 0,
 				maxRank = professionData.maxRank or 0,
+				allProfessionIds = allProfessionIds,
 			}
 
 			if target then
@@ -198,17 +204,25 @@ function ClassicGuildTools.Professions.ScanProfessions()
 	if not GetNumSkillLines then return end
 
 	local playerRecipes = GetPlayerRecipes()
+	local foundProfessions = {}
 
 	for index = 1, GetNumSkillLines() do
 		local skillName, isHeader, _, skillRank, _, _, skillMaxRank = GetSkillLineInfo(index)
 		if skillName and not isHeader and PROFESSIONS[skillName] then
 			local professionId = PROFESSIONS[skillName]
+			foundProfessions[professionId] = true
 			playerRecipes[professionId] = playerRecipes[professionId] or {}
 			playerRecipes[professionId].rank = skillRank or 0
 			playerRecipes[professionId].maxRank = skillMaxRank or 0
 			if GATHERING_PROFESSIONS[professionId] then
 				playerRecipes[professionId].recipes = { professionId }
 			end
+		end
+	end
+
+	for professionId in pairs(playerRecipes) do
+		if not foundProfessions[professionId] then
+			playerRecipes[professionId] = nil
 		end
 	end
 end
@@ -707,6 +721,19 @@ ClassicGuildTools.MessageHandlers.PROFESSION_ANSWER = function(data, sender)
 	if not guildData then return end
 
 	guildData[data.guid] = guildData[data.guid] or {}
+
+	if data.allProfessionIds then
+		local valid = {}
+		for _, professionId in ipairs(data.allProfessionIds) do
+			valid[professionId] = true
+		end
+		for existingProfessionId in pairs(guildData[data.guid]) do
+			if not valid[existingProfessionId] then
+				guildData[data.guid][existingProfessionId] = nil
+			end
+		end
+	end
+
 	local existing = guildData[data.guid][data.professionId]
 	local incomingRank = data.rank or 0
 

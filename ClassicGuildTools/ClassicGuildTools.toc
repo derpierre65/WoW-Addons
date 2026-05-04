@@ -2,7 +2,7 @@
 ## Title: Classic Guild Tools
 ## Notes: Tools for Guilds.
 ## Author: derpierre65
-## Version: 1.2.1
+## Version: 1.2.2
 ## X-Curse-Project-ID: 1483868
 ## SavedVariables: ClassicGuildToolsDB, ClassicGuildTools_LFG, ClassicGuildToolsProfessions
 
