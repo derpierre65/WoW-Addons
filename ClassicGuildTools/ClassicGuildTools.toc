@@ -6,6 +6,8 @@
 ## X-Curse-Project-ID: 1483868
 ## SavedVariables: ClassicGuildToolsDB, ClassicGuildTools_LFG, ClassicGuildToolsProfessions
 
+Libs\LibStub.lua
+Libs\CallbackHandler-1.0.lua
 Libs\AceComm-3.0\AceComm-3.0.xml
 Libs\AceSerializer-3.0\AceSerializer-3.0.xml
 Libs\AceLocale-3.0\AceLocale-3.0.xml
