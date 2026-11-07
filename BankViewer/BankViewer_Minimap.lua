@@ -82,10 +82,16 @@ minimapButton:SetScript("OnLeave", function()
 	GameTooltip:Hide()
 end)
 
+function BankViewer.UpdateMinimapButton()
+	local settings = BankViewerDB and BankViewerDB._settings
+	minimapButton:SetShown(not (settings and settings.hideMinimapButton))
+end
+
 -- Initialize position after DB is loaded
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("PLAYER_LOGIN")
 initFrame:SetScript("OnEvent", function(self)
+	BankViewer.UpdateMinimapButton()
 	BankViewerDB._minimap = BankViewerDB._minimap or {}
 	local angle = BankViewerDB._minimap.angle or DEFAULT_ANGLE
 	minimapButton:ClearAllPoints()
