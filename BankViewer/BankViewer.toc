@@ -1,4 +1,4 @@
-## Interface: 11508, 20505, 50503, 120001
+## Interface: 11508, 16001, 20505, 50503, 120001
 ## X-Curse-Project-ID: 1466666
 ## Title: BankViewer
 ## Author: derpierre65
