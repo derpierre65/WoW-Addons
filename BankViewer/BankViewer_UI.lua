@@ -71,7 +71,7 @@ closeBtn:SetPoint("TOPRIGHT", -5, -5)
 -- Settings panel
 local settingsPanel = CreateFrame("Frame", nil, mainFrame, "BackdropTemplate")
 settingsPanel:SetPoint("TOPLEFT", mainFrame, "TOPRIGHT", 2, 0)
-settingsPanel:SetSize(200, 135)
+settingsPanel:SetSize(200, 163)
 settingsPanel:SetBackdrop({
 	bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
 	edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -97,7 +97,7 @@ guildBankVerticalCheck.text:SetText(L.settingGuildBankVertical)
 guildBankVerticalCheck.text:SetFontObject("GameFontNormalSmall")
 if not hasGuildBank then
 	guildBankVerticalCheck:Hide()
-	settingsPanel:SetSize(200, 105)
+	settingsPanel:SetSize(200, 133)
 end
 
 local mergeBagsCheck = CreateFrame("CheckButton", "BankViewerMergeBagsCheck", settingsPanel, "UICheckButtonTemplate")
@@ -128,6 +128,18 @@ showEmptyCheck:SetScript("OnClick", function(self)
 	BankViewer.UpdateUI()
 end)
 
+local stackItemsCheck = CreateFrame("CheckButton", "BankViewerStackItemsCheck", settingsPanel, "UICheckButtonTemplate")
+stackItemsCheck:SetSize(26, 26)
+stackItemsCheck:SetPoint("TOPLEFT", showEmptyCheck, "BOTTOMLEFT", 0, -2)
+stackItemsCheck.text = _G["BankViewerStackItemsCheckText"]
+stackItemsCheck.text:SetText(L.settingStackItems)
+stackItemsCheck.text:SetFontObject("GameFontNormalSmall")
+stackItemsCheck:SetScript("OnClick", function(self)
+	BankViewerDB._settings = BankViewerDB._settings or {}
+	BankViewerDB._settings.stackItems = self:GetChecked()
+	BankViewer.UpdateUI()
+end)
+
 local function SetCheckboxEnabled(checkbox, enabled, tooltip)
 	checkbox:SetMouseClickEnabled(enabled)
 	checkbox:SetAlpha(enabled and 1 or 0.4)
@@ -150,6 +162,7 @@ end
 SetupCheckboxTooltip(guildBankVerticalCheck)
 SetupCheckboxTooltip(mergeBagsCheck)
 SetupCheckboxTooltip(showEmptyCheck)
+SetupCheckboxTooltip(stackItemsCheck)
 
 local function UpdateSettingsState()
 	local isGuildSelected = selectedType == "guild"
@@ -159,6 +172,7 @@ local function UpdateSettingsState()
 	guildBankVerticalCheck.disabledTooltip = not isGuildSelected and L.tooltipGuildOnly or nil
 	SetCheckboxEnabled(mergeBagsCheck, not verticalEnabled, L.tooltipVerticalLayoutActive)
 	SetCheckboxEnabled(showEmptyCheck, not verticalEnabled, L.tooltipVerticalLayoutActive)
+	SetCheckboxEnabled(stackItemsCheck, not verticalEnabled, L.tooltipVerticalLayoutActive)
 end
 
 guildBankVerticalCheck:SetScript("OnClick", function(self)
@@ -182,6 +196,7 @@ settingsBtn:SetScript("OnClick", function()
 		BankViewerDB._settings = BankViewerDB._settings or {}
 		mergeBagsCheck:SetChecked(BankViewerDB._settings.mergeBags)
 		showEmptyCheck:SetChecked(BankViewerDB._settings.showEmpty)
+		stackItemsCheck:SetChecked(BankViewerDB._settings.stackItems)
 		guildBankVerticalCheck:SetChecked(BankViewerDB._settings.guildBankVertical ~= false)
 		UpdateSettingsState()
 		settingsPanel:Show()
@@ -589,6 +604,48 @@ local function CollectItems(itemsTable, slotCount, showEmpty)
 	return items
 end
 
+local function GetItemID(itemData)
+	return itemData and itemData.itemLink and C_Item.GetItemInfoInstant(itemData.itemLink)
+end
+
+local function StackIdenticalItems(items)
+	local isStackableByItemID = {}
+	for _, itemData in ipairs(items) do
+		local itemID = GetItemID(itemData)
+		if itemID and not isStackableByItemID[itemID] then
+			local maxStackSize = select(8, C_Item.GetItemInfo(itemData.itemLink))
+			-- Item info may not be cached yet, a slot holding more than one proves it stacks
+			isStackableByItemID[itemID] = (maxStackSize and maxStackSize > 1) or (itemData.count or 1) > 1
+		end
+	end
+
+	local stackedItems = {}
+	local stackByItemID = {}
+	for _, itemData in ipairs(items) do
+		local itemID = GetItemID(itemData)
+		if itemID and isStackableByItemID[itemID] then
+			local stack = stackByItemID[itemID]
+			if stack then
+				stack.count = stack.count + (itemData.count or 1)
+			else
+				-- Copy so the saved scan data is not modified
+				stack = {
+					itemLink = itemData.itemLink,
+					count = itemData.count or 1,
+					icon = itemData.icon,
+					quality = itemData.quality,
+				}
+				stackByItemID[itemID] = stack
+				table.insert(stackedItems, stack)
+			end
+		else
+			table.insert(stackedItems, itemData)
+		end
+	end
+
+	return stackedItems
+end
+
 local function ContainerHasItems(itemsTable, slotCount)
 	for slot = 1, slotCount do
 		if itemsTable[tostring(slot)] or itemsTable[slot] then
@@ -643,6 +700,9 @@ local GUILD_BANK_COLUMNS = 14
 local GUILD_BANK_ROWS = 7
 
 local function RenderItemGrid(items, columns, yOffset)
+	if BankViewerDB._settings.stackItems then
+		items = StackIdenticalItems(items)
+	end
 	SortItems(items)
 
 	local startIndex = #slotButtons + 1
@@ -971,6 +1031,7 @@ local function ApplyElvUISkin()
 	-- Checkboxes
 	S:HandleCheckBox(mergeBagsCheck)
 	S:HandleCheckBox(showEmptyCheck)
+	S:HandleCheckBox(stackItemsCheck)
 	S:HandleCheckBox(guildBankVerticalCheck)
 
 	-- Scroll bar
