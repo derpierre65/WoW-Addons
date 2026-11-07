@@ -50,8 +50,18 @@ if isWarbandBankAvailable then
 	pcall(frame.RegisterEvent, frame, "PLAYER_ACCOUNT_BANK_TAB_SLOTS_CHANGED")
 end
 
+-- WoW Forever (project "Camelot") characters have a surname
+local isForever = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
+
 local function GetCharKey()
-	local name = UnitName("player")
+	local name
+	if isForever then
+		-- On Forever the second value is the surname, not the realm
+		local firstName, surname = UnitName("player")
+		name = firstName .. " " .. surname
+	else
+		name = UnitName("player")
+	end
 	local realm = GetRealmName()
 	return realm, name
 end
@@ -85,6 +95,11 @@ local function ScanBank()
 	local realm, name = GetCharKey()
 
 	BankViewerDB[realm] = BankViewerDB[realm] or {}
+	-- Drop the entry saved before surnames were part of the key
+	local firstName = UnitName("player")
+	if firstName ~= name then
+		BankViewerDB[realm][firstName] = nil
+	end
 
 	local charData = {
 		bags = {},
