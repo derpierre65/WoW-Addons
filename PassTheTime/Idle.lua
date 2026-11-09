@@ -9,6 +9,9 @@ Idle.PROFESSION_MAX_LEVEL = 75
 -- Every this many levels a profession level costs one more soul.
 Idle.PROFESSION_COST_STEP = 25
 Idle.TIER_DAMAGE_BONUS = 0.03
+Idle.MILESTONE_START = 200
+Idle.MILESTONE_STEP = 25
+Idle.MILESTONE_FACTOR = 4
 Idle.MAX_TICK = 5
 Idle.FIGHT_INTERVAL = 0.2
 Idle.MAX_CLICKS_PER_SECOND = 20
@@ -433,9 +436,18 @@ end
 -- Damage and gold
 ---------------------------------------------------------------------------
 
--- Damage of one hero of this kind; only spells raise it.
+-- Heroes multiply their damage at level MILESTONE_START and then every MILESTONE_STEP levels.
+function Idle.GetMilestoneMultiplier(level)
+	if level < Idle.MILESTONE_START then
+		return 1
+	end
+	return Idle.MILESTONE_FACTOR ^ (math.floor((level - Idle.MILESTONE_START) / Idle.MILESTONE_STEP) + 1)
+end
+
+-- Damage of one hero of this kind; only spells and milestones raise it.
 function Idle.GetAllyUnitDamage(definition)
 	return definition.damage
+		* Idle.GetMilestoneMultiplier(Idle.GetOwned("ally", definition.id))
 		* (1 + Idle.GetOwnSpellBonus(definition.id))
 		* (1 + Idle.GetAllHeroesSpellBonus())
 end

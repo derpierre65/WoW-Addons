@@ -468,6 +468,13 @@ Near(Idle.GetAllyDamage(mage), 25 * mage.damage * 2 * 1.1, "mage spells: own and
 Near(Idle.GetAllyDamage(recruit), 25 * recruit.damage * 3 * 1.1, "all-heroes bonus applies to other heroes")
 Check(Idle.GetDamagePerSecond() > damageBefore, "spells raise total damage")
 
+Check(Idle.GetMilestoneMultiplier(199) == 1, "no milestone below 200")
+Check(Idle.GetMilestoneMultiplier(200) == 4 and Idle.GetMilestoneMultiplier(224) == 4, "x4 at level 200")
+Check(Idle.GetMilestoneMultiplier(225) == 16 and Idle.GetMilestoneMultiplier(250) == 64, "x4 every 25 levels")
+FreshDatabase()
+PTT.database.idle.allies.recruit = 200
+Near(Idle.GetAllyDamage(recruit), 200 * recruit.damage * 4, "milestone multiplies hero damage")
+
 FreshDatabase()
 local seenAll = false
 for _, spell in ipairs(Idle.spells.recruit) do
