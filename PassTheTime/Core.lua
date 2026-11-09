@@ -14,7 +14,7 @@ local DEFAULTS = {
 		clicks = 0, renown = 0, renownEarned = 0, prestiges = 0,
 		unlocked = 1, tierKills = {}, kills = 0, bossKills = 0, groupBossKills = 0, guildBossKills = 0, monsterIndex = 1, monsterDamage = 0,
 		allies = {}, upgrades = {}, spells = {}, heroesRevealed = 1, professions = {}, buffs = {},
-		buyAmount = 1, lifetimeKills = 0, eventsClaimed = 0,
+		buyAmount = 1, autoAdvance = false, lifetimeKills = 0, eventsClaimed = 0,
 		goldSpent = 0, bestReward = 0, highestEnemy = 1, sessions = 0, longestSession = 0, worldBonuses = 0,
 	},
 	minesweeper = { difficulty = "elwynn", played = 0, won = 0, streak = 0, bestStreak = 0, flaglessWins = 0, bestTimes = {}, wonBy = {} },

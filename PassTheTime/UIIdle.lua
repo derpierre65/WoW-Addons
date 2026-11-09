@@ -266,6 +266,14 @@ local function BuildIdleView(parent)
 	tierBar:SetPoint("TOPLEFT", tierLabel, "BOTTOMLEFT", 0, -12)
 	tierBar:SetWidth(ENEMY_WIDTH - 4)
 
+	-- Moves on to the next enemy after each unlock; a failed boss switches it off again.
+	local autoButton = UI.CreateButton(view, L.autoAdvance, 60, 20, function()
+		local state = GetState()
+		state.autoAdvance = not state.autoAdvance
+		view.Refresh()
+	end)
+	autoButton:SetPoint("TOPRIGHT", modelHolder, "BOTTOMRIGHT", 0, -6)
+
 	local modelFrame = CreateFrame("PlayerModel", nil, modelHolder)
 	modelFrame:SetPoint("TOPLEFT", 4, -4)
 	modelFrame:SetPoint("BOTTOMRIGHT", -4, 4)
@@ -495,6 +503,12 @@ local function BuildIdleView(parent)
 		clickDamageLabel:SetText(string.format(L.clickHint, PTT.FormatNumber(Idle.GetClickDamage())))
 
 		local state = GetState()
+		if state.autoAdvance then
+			autoButton:LockHighlight()
+		else
+			autoButton:UnlockHighlight()
+		end
+
 		-- Only the newest unlocked enemy has kills counting towards the next unlock.
 		local needsUnlock = monster.index == state.unlocked and state.unlocked < Idle.GetMonsterCount()
 		tierLabel:SetShown(needsUnlock)

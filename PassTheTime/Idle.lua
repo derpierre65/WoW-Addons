@@ -560,6 +560,7 @@ local function FailBoss()
 
 	state.monsterIndex = math.max(1, state.monsterIndex - 1)
 	state.monsterDamage = 0
+	state.autoAdvance = false
 	Idle.bossTimer = nil
 
 	for _, listener in ipairs(bossFailedListeners) do
@@ -657,6 +658,10 @@ local function KillMonster()
 		for _, listener in ipairs(unlockListeners) do
 			listener(state.unlocked)
 		end
+	end
+
+	if state.autoAdvance and Idle.IsUnlocked(monster.index + 1) then
+		state.monsterIndex = monster.index + 1
 	end
 
 	for _, listener in ipairs(killListeners) do
