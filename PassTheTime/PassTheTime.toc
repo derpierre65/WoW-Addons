@@ -1,0 +1,36 @@
+## Interface: 11508, 16001
+## X-Curse-Project-ID: 1793651
+## Title: Pass the Time
+## Author: derpierre65
+## Notes: Idle clicker and mini games for waiting times (boats, zeppelins, flights).
+## Version: 0.1.0
+## SavedVariables: PassTheTimeDB
+
+Localization.lua
+Core.lua
+Idle.lua
+World.lua
+Events.lua
+Achievements.lua
+Network.lua
+Bosses.lua
+Game2048.lua
+WordleWords.lua
+Wordle.lua
+Minesweeper.lua
+Breakout.lua
+Memory.lua
+Sudoku.lua
+UI.lua
+UIIdle.lua
+UIGames.lua
+UIMinesweeper.lua
+UIBreakout.lua
+UIMemory.lua
+UISudoku.lua
+UIDebug.lua
+UIExtras.lua
+UISocial.lua
+UISettings.lua
+UIMiniWidget.lua
+Main.lua

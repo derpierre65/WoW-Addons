@@ -1,0 +1,633 @@
+local _, PTT = ...
+local L = PTT.L
+local UI = PTT.UI
+local Idle = PTT.Idle
+
+local ROW_HEIGHT = 38
+local MODEL_HEIGHT = 380
+local MONSTER_ROW_HEIGHT = 24
+local REFRESH_INTERVAL = 0.2
+local LIST_TOP = -34
+local MONSTER_LIST_TOP = 0
+
+-- Left column: current enemy. Right column: the selected list or panel.
+local LEFT_WIDTH = 320
+local RIGHT_X = LEFT_WIDTH + 14
+local RIGHT_WIDTH = UI.contentWidth - RIGHT_X
+local AMOUNTS = { 1, 10, 100, "max" }
+
+local function GetState()
+	return PTT.database.idle
+end
+
+local function GetEntries(tabId)
+	local entries = {}
+	if tabId == "ally" then
+		entries[1] = { kind = "upgrade", definition = Idle.definitions.upgrade[1] }
+		for _, definition in ipairs(Idle.definitions.ally) do
+			entries[#entries + 1] = { kind = "ally", definition = definition }
+		end
+	elseif tabId == "profession" then
+		for _, definition in ipairs(Idle.definitions.profession) do
+			entries[#entries + 1] = { kind = "profession", definition = definition }
+		end
+	end
+	return entries
+end
+
+-- How many units one press on the buy button buys (at least 1, so the cost can always be shown).
+local function ResolveAmount(kind, definition)
+	local capacity = Idle.GetRemainingCapacity(kind, definition)
+	if capacity <= 0 then
+		return 0
+	end
+
+	local mode = GetState().buyAmount
+	if mode == "max" then
+		return math.max(1, Idle.GetMaxAffordable(kind, definition))
+	end
+	return math.min(mode, capacity)
+end
+
+local function GetDetailText(kind, definition)
+	local owned = Idle.GetOwned(kind, definition.id)
+	local gray = "  |cff999999%s|r"
+
+	if kind == "upgrade" then
+		return string.format(L.level, owned) .. string.format(gray, string.format(L.clickDamage, PTT.FormatNumber(Idle.GetClickDamage())))
+	elseif kind == "ally" then
+		local damage = definition.damage * Idle.GetMilestoneMultiplier(owned) * Idle.GetDamageMultiplier()
+		return string.format(L.owned, owned) .. string.format(gray, string.format(L.damageEach, PTT.FormatNumber(damage)))
+	end
+
+	local bonus
+	if definition.effect == "bossTime" then
+		bonus = string.format(L.professionBossTime, definition.perLevel)
+	else
+		bonus = string.format(L["profession_" .. definition.effect], definition.perLevel * 100)
+	end
+	return string.format(L.level, owned) .. " / " .. Idle.PROFESSION_MAX_LEVEL .. string.format(gray, bonus)
+end
+
+local function ShowRowTooltip(row)
+	local definition, kind = row.definition, row.kind
+	if not definition then
+		return
+	end
+
+	GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+	GameTooltip:AddLine(Idle.GetName(definition))
+
+	if kind == "ally" then
+		local owned = Idle.GetOwned(kind, definition.id)
+		GameTooltip:AddLine(string.format(L.totalDamage, PTT.FormatNumber(Idle.GetAllyDamage(definition) * Idle.GetDamageMultiplier())), 1, 1, 1)
+		GameTooltip:AddLine(string.format(L.nextDoubling, (math.floor(owned / Idle.MILESTONE_STEP) + 1) * Idle.MILESTONE_STEP), 0.6, 0.6, 0.6)
+	end
+	GameTooltip:Show()
+end
+
+-- Floating combat text that rises and fades.
+local function CreateFloater(parent, anchor, offsetX, color)
+	local floater = CreateFrame("Frame", nil, parent)
+	floater:SetSize(140, 20)
+	floater:SetFrameLevel(parent:GetFrameLevel() + 10)
+	floater.text = UI.CreateLabel(floater, "GameFontNormalLarge")
+	floater.text:SetPoint("CENTER")
+	floater.text:SetTextColor(color[1], color[2], color[3])
+	floater.anchor, floater.offsetX, floater.age = anchor, offsetX, 1
+	floater:Hide()
+	return floater
+end
+
+local function ShowFloater(floater, text)
+	floater.text:SetText(text)
+	floater.age = 0
+	floater:Show()
+end
+
+local function UpdateFloater(floater, delta)
+	if not floater:IsShown() then
+		return
+	end
+
+	floater.age = floater.age + delta
+	if floater.age >= 0.7 then
+		floater:Hide()
+		return
+	end
+
+	floater:SetAlpha(1 - floater.age / 0.7)
+	floater:ClearAllPoints()
+	floater:SetPoint("BOTTOM", floater.anchor, "TOP", floater.offsetX, 2 + floater.age * 28)
+end
+
+local BOSS_COLOR, NORMAL_COLOR = "|cffff8800", "|cffffd100"
+
+-- Per NPC id: zoom multiplier (above 1 zooms out), z moves it up/down, y left/right.
+local MODEL_ADJUSTMENTS = {
+	[12201] = { zoom = 2 }, -- Princess Theradras
+	[11502] = { z = -4 }, -- Ragnaros
+}
+
+local function BuildIdleView(parent)
+	local view = CreateFrame("Frame", nil, parent)
+	local activeTab = "monster"
+
+	-- Monster panel
+	local monsterName = UI.CreateLabel(view, "GameFontNormalLarge")
+	monsterName:SetPoint("TOP", view, "TOPLEFT", LEFT_WIDTH / 2, -2)
+
+	local healthBar = UI.CreateSkillBar(view, 16, { 0.75, 0.15, 0.15 }, "GameFontHighlight")
+	healthBar:SetPoint("TOPLEFT", 5, -30)
+	healthBar:SetWidth(LEFT_WIDTH - 10)
+
+	-- The enemy itself is the attack button: click the 3D model.
+	local modelHolder = UI.CreatePanel(view)
+	modelHolder:SetSize(LEFT_WIDTH, MODEL_HEIGHT)
+	modelHolder:SetPoint("TOPLEFT", 0, -52)
+	modelHolder:SetBackdropColor(0.02, 0.02, 0.04, 0.9)
+
+	-- Progress towards the next enemy tier.
+	local tierLabel = UI.CreateLabel(view, "GameFontNormalSmall")
+	tierLabel:SetPoint("TOPLEFT", modelHolder, "BOTTOMLEFT", 2, -10)
+	local tierBar = UI.CreateSkillBar(view, 14, { 0.3, 0.5, 0.9 })
+	tierBar:SetPoint("TOPLEFT", tierLabel, "BOTTOMLEFT", 0, -12)
+	tierBar:SetWidth(LEFT_WIDTH - 4)
+
+	local modelFrame = CreateFrame("PlayerModel", nil, modelHolder)
+	modelFrame:SetPoint("TOPLEFT", 4, -4)
+	modelFrame:SetPoint("BOTTOMRIGHT", -4, 4)
+	modelFrame:EnableMouse(true)
+	modelFrame:SetScript("OnMouseUp", function(_, button)
+		if button ~= "LeftButton" then
+			return
+		end
+
+		local damage = Idle.Click()
+		if damage > 0 then
+			ShowFloater(view.damageFloater, "-" .. PTT.FormatNumber(damage))
+		end
+		view.Refresh()
+	end)
+
+	local hintFrame = CreateFrame("Frame", nil, modelHolder)
+	hintFrame:SetAllPoints()
+	hintFrame:SetFrameLevel(modelFrame:GetFrameLevel() + 2)
+	local clickDamageLabel = UI.CreateLabel(hintFrame, "GameFontDisableSmall")
+	clickDamageLabel:SetPoint("BOTTOMLEFT", 8, 6)
+
+	local shownMonster
+
+	function UI.ResetModel()
+		shownMonster = nil
+	end
+
+	local function Try(method, ...)
+		if modelFrame[method] then
+			pcall(modelFrame[method], modelFrame, ...)
+		end
+	end
+
+	local function ApplyModel(monster)
+		local adjustment = MODEL_ADJUSTMENTS[monster.npc] or {}
+		Try("ClearModel")
+		Try("SetCreature", monster.npc)
+		Try("SetPosition", 0, adjustment.y or 0, adjustment.z or 0)
+		Try("SetCamDistanceScale", (monster.boss and PTT.database.window.bossZoom or PTT.database.window.modelZoom) * (adjustment.zoom or 1))
+	end
+
+	-- Unseen creatures sometimes only show up on a second attempt, so the model is applied again shortly after.
+	local function UpdateModel(monster)
+		if shownMonster == monster.index then
+			return
+		end
+		shownMonster = monster.index
+		ApplyModel(monster)
+
+		for _, delay in ipairs({ 0.5, 2 }) do
+			C_Timer.After(delay, function()
+				if shownMonster == monster.index then
+					ApplyModel(monster)
+				end
+			end)
+		end
+	end
+
+	view.damageFloater = CreateFloater(view, healthBar, -80, { 1, 0.35, 0.35 })
+	view.goldFloater = CreateFloater(view, healthBar, 80, { 1, 0.82, 0 })
+	Idle.OnKill(function(_, gold)
+		ShowFloater(view.goldFloater, "+" .. PTT.FormatNumber(gold))
+	end)
+
+	-- The window's navigation picks the inner tab.
+	function view.SetTab(tabId)
+		activeTab = tabId
+		view.Refresh()
+	end
+
+	-- Buy amount selector
+	local amountLabel = UI.CreateLabel(view, "GameFontNormalSmall", L.buyAmount)
+	amountLabel:SetPoint("TOPLEFT", RIGHT_X, -8)
+
+	local amountButtons = {}
+	local previousAmount
+	for _, amount in ipairs(AMOUNTS) do
+		local button = UI.CreateButton(view, amount == "max" and L.buyMax or ("x" .. amount), 44, 20, function()
+			GetState().buyAmount = amount
+			view.Refresh()
+		end)
+		if previousAmount then
+			button:SetPoint("LEFT", previousAmount, "RIGHT", 3, 0)
+		else
+			button:SetPoint("LEFT", amountLabel, "RIGHT", 8, 0)
+		end
+		amountButtons[amount] = button
+		previousAmount = button
+	end
+
+	-- Upgrade rows (heroes and professions)
+	local rows = {}
+	for index = 1, 9 do
+		local row = CreateFrame("Frame", nil, view)
+		row:SetSize(RIGHT_WIDTH, ROW_HEIGHT - 2)
+		row:EnableMouse(true)
+		row.background = row:CreateTexture(nil, "BACKGROUND")
+		row.background:SetAllPoints()
+		row.background:SetColorTexture(1, 1, 1, 0.05)
+
+		row.nameLabel = UI.CreateLabel(row, "GameFontNormal")
+		row.nameLabel:SetPoint("TOPLEFT", 6, -4)
+		row.detailLabel = UI.CreateLabel(row, "GameFontHighlightSmall")
+		row.detailLabel:SetPoint("BOTTOMLEFT", 6, 4)
+
+		row.buyButton = UI.CreateButton(row, L.buy, 110, 22, function()
+			if row.definition then
+				Idle.Buy(row.kind, row.definition, row.amount)
+				view.Refresh()
+			end
+		end)
+		row.buyButton:SetPoint("RIGHT", -4, 0)
+
+		row:SetScript("OnEnter", ShowRowTooltip)
+		row:SetScript("OnLeave", UI.HideTooltip)
+		row.buyButton:SetScript("OnEnter", function()
+			ShowRowTooltip(row)
+		end)
+		row.buyButton:SetScript("OnLeave", UI.HideTooltip)
+
+		rows[index] = row
+	end
+
+	-- Monster list
+	local monsterScroll = CreateFrame("ScrollFrame", "PassTheTimeMonsterScroll", view, "UIPanelScrollFrameTemplate")
+	monsterScroll:SetPoint("TOPLEFT", RIGHT_X, MONSTER_LIST_TOP)
+	monsterScroll:SetPoint("BOTTOMRIGHT", -26, 0)
+
+	local monsterContent = CreateFrame("Frame", nil, monsterScroll)
+	monsterContent:SetSize(RIGHT_WIDTH - 26, Idle.GetMonsterCount() * MONSTER_ROW_HEIGHT)
+	monsterScroll:SetScrollChild(monsterContent)
+
+	local monsterRows = {}
+	for index = 1, Idle.GetMonsterCount() do
+		local row = CreateFrame("Button", nil, monsterContent)
+		row:SetSize(RIGHT_WIDTH - 26, MONSTER_ROW_HEIGHT - 2)
+		row:SetPoint("TOPLEFT", 0, -(index - 1) * MONSTER_ROW_HEIGHT)
+		row.background = row:CreateTexture(nil, "BACKGROUND")
+		row.background:SetAllPoints()
+		row:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+
+		row.nameLabel = UI.CreateLabel(row, "GameFontNormal")
+		row.nameLabel:SetPoint("LEFT", 6, 0)
+		row.nameLabel:SetWidth(170)
+		row.nameLabel:SetWordWrap(false)
+		row.nameLabel:SetJustifyH("LEFT")
+		row.infoLabel = UI.CreateLabel(row, "GameFontHighlightSmall")
+		row.infoLabel:SetPoint("RIGHT", -6, 0)
+		row.infoLabel:SetJustifyH("RIGHT")
+
+		row.index = index
+		row:SetScript("OnClick", function()
+			if Idle.SelectMonster(index) then
+				view.Refresh()
+			end
+		end)
+		monsterRows[index] = row
+	end
+
+	-- Prestige panel
+	local prestigePanel = CreateFrame("Frame", nil, view)
+	prestigePanel:SetSize(RIGHT_WIDTH, 140)
+	prestigePanel:SetPoint("TOPLEFT", RIGHT_X, MONSTER_LIST_TOP)
+
+	local prestigeInfo = UI.CreateLabel(prestigePanel, "GameFontHighlight", L.prestigeInfo)
+	prestigeInfo:SetPoint("TOPLEFT", 4, -4)
+	prestigeInfo:SetWidth(RIGHT_WIDTH - 8)
+	prestigeInfo:SetJustifyH("LEFT")
+
+	local prestigeProgress = UI.CreateLabel(prestigePanel, "GameFontNormal")
+	prestigeProgress:SetPoint("TOPLEFT", 4, -56)
+
+	local prestigeLocked = UI.CreateLabel(prestigePanel, "GameFontDisable")
+	prestigeLocked:SetPoint("TOPLEFT", 4, -80)
+	prestigeLocked:SetWidth(RIGHT_WIDTH - 8)
+	prestigeLocked:SetJustifyH("LEFT")
+
+	local prestigeButton = UI.CreateButton(prestigePanel, "", 260, 28, function()
+		StaticPopup_Show("PASSTHETIME_PRESTIGE", Idle.GetPrestigeGain())
+	end)
+	prestigeButton:SetPoint("TOPLEFT", 4, -104)
+
+	StaticPopupDialogs["PASSTHETIME_PRESTIGE"] = {
+		text = L.prestigeConfirm,
+		button1 = YES,
+		button2 = NO,
+		OnAccept = function()
+			Idle.Prestige()
+			view.Refresh()
+		end,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		preferredIndex = 3,
+	}
+
+	local function RefreshMonsterPanel()
+		local monster = Idle.GetCurrentMonster()
+		monsterName:SetText("|cff999999" .. string.format(L.levelShort, monster.index) .. "|r  " .. (monster.boss and BOSS_COLOR or NORMAL_COLOR) .. Idle.GetName(monster) .. "|r")
+
+		healthBar:SetValue(monster.currentHealth / monster.health)
+
+		local text = PTT.FormatNumber(monster.currentHealth) .. " / " .. PTT.FormatNumber(monster.health)
+		local timeLeft = Idle.GetBossTimeLeft()
+		if timeLeft then
+			text = text .. "     |cffffd100" .. math.ceil(timeLeft) .. " s|r"
+			healthBar:SetStatusBarColor(0.9, 0.5, 0.1)
+		else
+			healthBar:SetStatusBarColor(0.75, 0.15, 0.15)
+		end
+		healthBar.text:SetText(text)
+		clickDamageLabel:SetText(string.format(L.clickHint, PTT.FormatNumber(Idle.GetClickDamage())))
+
+		local state = GetState()
+		if state.unlocked >= Idle.GetMonsterCount() then
+			tierLabel:SetText(L.allUnlocked)
+			tierBar:SetValue(1)
+			tierBar.text:SetText(L.maxLevel)
+		else
+			tierLabel:SetText(string.format(L.nextUnlock, "???"))
+			local kills = math.min(Idle.GetTierKills(state.unlocked), Idle.KILLS_TO_UNLOCK)
+			tierBar:SetValue(kills / Idle.KILLS_TO_UNLOCK)
+			tierBar.text:SetText(string.format("%d / %d", kills, Idle.KILLS_TO_UNLOCK))
+		end
+
+		UpdateModel(monster)
+	end
+
+	local function RefreshMonsterList()
+		local state = GetState()
+		monsterContent:SetHeight(math.max(1, state.unlocked * MONSTER_ROW_HEIGHT))
+
+		for index, row in ipairs(monsterRows) do
+			-- Enemies that are not unlocked yet stay hidden.
+			row:SetShown(Idle.IsUnlocked(index))
+
+			if row:IsShown() then
+				local monster = Idle.GetMonster(index)
+
+				if index == state.monsterIndex then
+					row.background:SetColorTexture(0.2, 0.5, 0.2, 0.35)
+				else
+					row.background:SetColorTexture(1, 1, 1, index % 2 == 0 and 0.06 or 0.02)
+				end
+
+				row.nameLabel:SetText("|cff999999" .. string.format(L.levelShort, index) .. "|r  " .. (monster.boss and BOSS_COLOR or NORMAL_COLOR) .. Idle.GetName(monster) .. "|r")
+
+				local info = string.format(L.monsterInfo, PTT.FormatNumber(monster.health), PTT.FormatNumber(monster.gold * Idle.GetGoldMultiplier()))
+				if index == state.unlocked and index < Idle.GetMonsterCount() then
+					info = string.format("|cff88ccff%d/%d|r  ", Idle.GetTierKills(index), Idle.KILLS_TO_UNLOCK) .. info
+				end
+				row.infoLabel:SetText(info)
+			end
+		end
+	end
+
+	function view.Refresh()
+		local state = GetState()
+		RefreshMonsterPanel()
+
+		local isMonster = activeTab == "monster"
+		local isPrestige = activeTab == "prestige"
+		local hasRows = not isMonster and not isPrestige
+
+		monsterScroll:SetShown(isMonster)
+		prestigePanel:SetShown(isPrestige)
+		amountLabel:SetShown(hasRows)
+		for amount, button in pairs(amountButtons) do
+			button:SetShown(hasRows)
+			if amount == state.buyAmount then
+				button:LockHighlight()
+			else
+				button:UnlockHighlight()
+			end
+		end
+
+		if isMonster then
+			RefreshMonsterList()
+		end
+
+		local entries = GetEntries(activeTab)
+		for index, row in ipairs(rows) do
+			local entry = entries[index]
+			if not entry then
+				row:Hide()
+				row.definition = nil
+			else
+				local kind, definition = entry.kind, entry.definition
+				row:Show()
+				row:ClearAllPoints()
+				row:SetPoint("TOPLEFT", RIGHT_X, LIST_TOP - (index - 1) * ROW_HEIGHT)
+				row.definition = definition
+				row.kind = kind
+				row.amount = ResolveAmount(kind, definition)
+
+				row.nameLabel:SetText(Idle.GetName(definition))
+				row.detailLabel:SetText(GetDetailText(kind, definition))
+
+				if row.amount == 0 then
+					row.buyButton:SetText(L.maxLevel)
+					row.buyButton:Disable()
+				else
+					local cost = Idle.GetCost(kind, definition, row.amount)
+					local label = row.amount > 1 and ("x" .. row.amount .. "  ") or ""
+					local unit = kind == "profession" and (" " .. L.renownShort) or ""
+					row.buyButton:SetText(label .. PTT.FormatNumber(cost) .. unit)
+					row.buyButton:SetEnabled(Idle.GetBalance(kind) >= cost)
+				end
+			end
+		end
+
+		if isPrestige then
+			local gain = Idle.GetPrestigeGain()
+			prestigeButton:SetText(string.format(L.prestigeGain, gain))
+			prestigeProgress:SetText(string.format(L.prestigeProgress, PTT.FormatNumber(Idle.GetHeroLevels()), PTT.FormatNumber((gain + 1) * Idle.LEVELS_PER_SOUL)))
+
+			local canPrestige = Idle.CanPrestige()
+			prestigeButton:SetEnabled(canPrestige)
+			if canPrestige then
+				prestigeLocked:SetText("")
+			else
+				prestigeLocked:SetText(string.format(L.prestigeLocked, Idle.PRESTIGE_UNLOCK_LEVEL))
+			end
+		end
+	end
+
+	local elapsed = 0
+	view:SetScript("OnUpdate", function(_, delta)
+		UpdateFloater(view.damageFloater, delta)
+		UpdateFloater(view.goldFloater, delta)
+
+		elapsed = elapsed + delta
+		if elapsed >= REFRESH_INTERVAL then
+			elapsed = 0
+			view.Refresh()
+		end
+	end)
+
+	view:HookScript("OnShow", view.Refresh)
+	view.Refresh()
+	return view
+end
+
+PTT.RegisterView({ id = "idle", label = "idle", build = BuildIdleView })
+
+---------------------------------------------------------------------------
+-- Always-visible header strip (Adventure)
+---------------------------------------------------------------------------
+
+local STAT_WIDTH = 104
+local BUFF_SLOTS, BUFF_SLOT_SIZE, BUFF_SLOT_GAP = 5, 60, 6
+local BUFF_ICON_FALLBACK = "Interface\\Icons\\INV_Misc_QuestionMark"
+local BUFF_ICONS = {
+	world = "Interface\\Icons\\INV_Misc_Map_01",
+	levelUp = "Interface\\Icons\\Spell_ChargePositive",
+	event_goblin = "Interface\\Icons\\INV_Misc_Coin_02",
+	boss_group = "Interface\\Icons\\Spell_Holy_PrayerOfHealing",
+	boss_guild = "Interface\\Icons\\Spell_Holy_GreaterBlessingofKings",
+}
+
+function UI.BuildHeader(panel)
+	panel:SetBackdropColor(0.08, 0.08, 0.12, 0.9)
+
+	local function CreateStat(index, title, template)
+		local offsetX = 12 + (index - 1) * STAT_WIDTH
+		local titleLabel = UI.CreateLabel(panel, "GameFontNormalSmall", title)
+		titleLabel:SetPoint("TOPLEFT", offsetX, -10)
+		local value = UI.CreateLabel(panel, template)
+		value:SetPoint("TOPLEFT", offsetX, -24)
+		value:SetWidth(STAT_WIDTH - 6)
+		value:SetJustifyH("LEFT")
+		return value
+	end
+
+	local goldValue = CreateStat(1, L.gold, "GameFontNormalLarge")
+	local damageValue = CreateStat(2, L.damagePerSecond, "GameFontHighlightLarge")
+	local renownValue = CreateStat(3, L.renownSouls, "GameFontHighlightLarge")
+	local groupValue = CreateStat(4, L.groupBonus, "GameFontHighlightLarge")
+	local timeValue = CreateStat(5, L.activeTime, "GameFontHighlightLarge")
+
+	local worldValue = UI.CreateLabel(panel, "GameFontHighlightSmall")
+	worldValue:SetPoint("TOPLEFT", 12, -52)
+	worldValue:SetWidth(360)
+	worldValue:SetJustifyH("LEFT")
+	worldValue:SetWordWrap(false)
+
+	local slots = {}
+	for index = 1, BUFF_SLOTS do
+		local slot = CreateFrame("Frame", nil, panel, BackdropTemplateMixin and "BackdropTemplate" or nil)
+		slot:SetSize(BUFF_SLOT_SIZE, BUFF_SLOT_SIZE)
+		slot:SetPoint("TOPRIGHT", -12 - (BUFF_SLOTS - index) * (BUFF_SLOT_SIZE + BUFF_SLOT_GAP), -8)
+		slot:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12 })
+		slot:EnableMouse(true)
+
+		slot.icon = slot:CreateTexture(nil, "ARTWORK")
+		slot.icon:SetSize(32, 32)
+		slot.icon:SetPoint("TOP", 0, -7)
+		slot.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+		slot.multiplier = UI.CreateLabel(slot, "NumberFontNormalSmall")
+		slot.multiplier:SetPoint("BOTTOMRIGHT", slot.icon, "BOTTOMRIGHT", 2, 0)
+		slot.time = UI.CreateLabel(slot, "GameFontHighlightSmall")
+		slot.time:SetPoint("BOTTOM", 0, 7)
+		slot.more = UI.CreateLabel(slot, "GameFontNormalSmall")
+		slot.more:SetPoint("TOPRIGHT", -5, -5)
+
+		slot:SetScript("OnEnter", function(self)
+			if self.buff then
+				GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+				GameTooltip:SetText(L[self.buff.nameKey])
+				GameTooltip:AddLine(string.format("x%.2f (%s)", self.buff.multiplier, PTT.FormatDuration(self.buff.remaining)), 1, 1, 1)
+				GameTooltip:Show()
+			end
+		end)
+		slot:SetScript("OnLeave", GameTooltip_Hide)
+		slots[index] = slot
+	end
+
+	local function Refresh()
+		local state = GetState()
+		goldValue:SetText(PTT.FormatNumber(state.gold))
+		damageValue:SetText(PTT.FormatNumber(Idle.GetDamagePerSecond()))
+
+		timeValue:SetText(PTT.FormatDuration(state.runTime))
+		groupValue:SetText(string.format("+%d%%", math.floor(Idle.groupBonus * 100 + 0.5)))
+		renownValue:SetText(state.renown)
+
+		local active = {}
+		for id, buff in pairs(state.buffs) do
+			active[#active + 1] = { id = id, buff = buff }
+		end
+		-- Id as tie-breaker keeps the slot order stable.
+		table.sort(active, function(a, b)
+			if a.buff.remaining ~= b.buff.remaining then
+				return a.buff.remaining > b.buff.remaining
+			end
+			return a.id < b.id
+		end)
+
+		for index, slot in ipairs(slots) do
+			local entry = active[index]
+			slot.buff = entry and entry.buff
+			if entry then
+				slot:SetBackdropBorderColor(1, 0.82, 0, 1)
+				slot.icon:SetTexture(BUFF_ICONS[entry.id] or BUFF_ICON_FALLBACK)
+				slot.icon:Show()
+				slot.multiplier:SetText(string.format("x%.2f", entry.buff.multiplier))
+				slot.time:SetText(PTT.FormatDuration(entry.buff.remaining))
+			else
+				slot:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.6)
+				slot.icon:Hide()
+				slot.multiplier:SetText("")
+				slot.time:SetText("")
+			end
+			local extra = index == #slots and #active - #slots or 0
+			slot.more:SetText(extra > 0 and ("+" .. extra) or "")
+		end
+
+		local world = PTT.World
+		if world.stacks > 0 and world.last then
+			worldValue:SetText(string.format(L.worldBonusValue, world.GetBonus() * 100, L[world.labelKeys[world.last.kind]]))
+		else
+			worldValue:SetText("|cff999999" .. L.worldBonusHint .. "|r")
+		end
+	end
+
+	local elapsed = 0
+	panel:SetScript("OnUpdate", function(_, delta)
+		elapsed = elapsed + delta
+		if elapsed >= REFRESH_INTERVAL then
+			elapsed = 0
+			Refresh()
+		end
+	end)
+	panel:HookScript("OnShow", Refresh)
+	Refresh()
+end
