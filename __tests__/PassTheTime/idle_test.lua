@@ -389,6 +389,7 @@ local goldBefore = PTT.database.idle.gold
 for _ = 1, 3 do Idle.Tick(2) end
 Check(PTT.database.idle.lifetimeKills >= 1 and PTT.database.idle.gold > goldBefore, "strong damage kills the boss within the limit")
 Check(PTT.database.idle.monsterIndex == 5, "stays on the boss after killing it")
+Check(Idle.GetKillsToUnlock(5) == 5 and Idle.GetKillsToUnlock(1) == Idle.KILLS_TO_UNLOCK, "a boss needs five kills, other enemies ten")
 
 -- Prestige
 FreshDatabase()

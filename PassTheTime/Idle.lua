@@ -21,6 +21,7 @@ Idle.BOSS_HEALTH_FACTOR = 10
 Idle.BOSS_TIME_LIMIT = 30
 Idle.BOSS_GOLD_MULTIPLIER = 10
 Idle.KILLS_TO_UNLOCK = 10
+Idle.BOSS_KILLS_TO_UNLOCK = 5
 
 -- Set by the network layer, not saved.
 Idle.groupBonus = 0
@@ -416,9 +417,8 @@ function Idle.GetTierKills(index)
 	return GetState().tierKills[index] or 0
 end
 
--- Bosses open the next enemy after a single kill.
 function Idle.GetKillsToUnlock(index)
-	return Idle.monsterDefinitions[index].boss and 1 or Idle.KILLS_TO_UNLOCK
+	return Idle.monsterDefinitions[index].boss and Idle.BOSS_KILLS_TO_UNLOCK or Idle.KILLS_TO_UNLOCK
 end
 
 -- Saves from before the unlock system stored a level instead.
@@ -481,7 +481,7 @@ local function KillMonster()
 		state.bossKills = state.bossKills + 1
 	end
 
-	-- Ten kills (one for a boss) of the highest unlocked enemy open up the next one.
+	-- Ten kills (five for a boss) of the highest unlocked enemy open up the next one.
 	state.tierKills[monster.index] = (state.tierKills[monster.index] or 0) + 1
 	if monster.index == state.unlocked
 		and state.unlocked < Idle.GetMonsterCount()

@@ -86,7 +86,8 @@ local function ShowRowTooltip(row)
 	GameTooltip:Show()
 end
 
--- Floating combat text that rises and fades.
+-- Floating combat text that rises and fades, starting inside the model area.
+local FLOATER_START = -110
 local function CreateFloater(parent, anchor, offsetX, color)
 	local floater = CreateFrame("Frame", nil, parent)
 	floater:SetSize(140, 20)
@@ -118,7 +119,7 @@ local function UpdateFloater(floater, delta)
 
 	floater:SetAlpha(1 - floater.age / 0.7)
 	floater:ClearAllPoints()
-	floater:SetPoint("BOTTOM", floater.anchor, "TOP", floater.offsetX, 2 + floater.age * 28)
+	floater:SetPoint("BOTTOM", floater.anchor, "TOP", floater.offsetX, FLOATER_START + floater.age * 28)
 end
 
 local BOSS_COLOR, NORMAL_COLOR = "|cffff8800", "|cffffd100"
@@ -213,8 +214,8 @@ local function BuildIdleView(parent)
 		end
 	end
 
-	view.damageFloater = CreateFloater(view, healthBar, -80, { 1, 0.35, 0.35 })
-	view.goldFloater = CreateFloater(view, healthBar, 80, { 1, 0.82, 0 })
+	view.damageFloater = CreateFloater(view, modelHolder, -80, { 1, 0.35, 0.35 })
+	view.goldFloater = CreateFloater(view, modelHolder, 80, { 1, 0.82, 0 })
 	Idle.OnKill(function(_, gold)
 		ShowFloater(view.goldFloater, "+" .. PTT.FormatNumber(gold))
 	end)
