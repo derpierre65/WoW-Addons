@@ -220,6 +220,34 @@ AddAll({
 	Define("breakoutClear", "minigames", 25, function() return PTT.database.breakout.raidsCleared end, 1),
 })
 
+-- Per hero: one spell bought, and all of its spells bought. Name and description are templates filled with the hero name.
+local function HeroSpellAchievements()
+	local list = {}
+	for _, hero in ipairs(PTT.Idle.definitions.ally) do
+		local function GetSpellCount()
+			return PTT.Idle.GetSpellCount(hero.id)
+		end
+
+		local first = Define("heroSpell_" .. hero.id, "progress", 5, GetSpellCount, 1)
+		first.nameTemplate = "achievementHeroSpellFirst"
+		first.descriptionTemplate = "achievementHeroSpellFirstDesc"
+
+		local all = Define("heroSpellAll_" .. hero.id, "progress", 10, GetSpellCount, #PTT.Idle.spells[hero.id])
+		all.nameTemplate = "achievementHeroSpellAll"
+		all.descriptionTemplate = "achievementHeroSpellAllDesc"
+
+		for _, definition in ipairs({ first, all }) do
+			definition.textArgument = function()
+				return PTT.L[hero.nameKey]
+			end
+			list[#list + 1] = definition
+		end
+	end
+	return list
+end
+
+AddAll(HeroSpellAchievements())
+
 local unlockListeners = {}
 
 function Achievements.OnUnlock(listener)
@@ -227,10 +255,16 @@ function Achievements.OnUnlock(listener)
 end
 
 function Achievements.GetName(definition)
+	if definition.nameTemplate then
+		return string.format(PTT.L[definition.nameTemplate], definition.textArgument())
+	end
 	return PTT.L["achievement_" .. definition.id]
 end
 
 function Achievements.GetDescription(definition)
+	if definition.textArgument then
+		return string.format(PTT.L[definition.descriptionTemplate], definition.textArgument())
+	end
 	if definition.descriptionTemplate then
 		return string.format(PTT.L[definition.descriptionTemplate], NumberText(definition.target))
 	end
