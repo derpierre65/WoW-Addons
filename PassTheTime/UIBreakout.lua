@@ -38,7 +38,7 @@ local function BuildBreakout(parent)
 		UI.ConfirmNewGame(function()
 			Breakout.NewGame()
 			Refresh()
-		end)
+		end, Breakout.game.state == "won" or Breakout.game.state == "lost")
 	end)
 	newGameButton:SetPoint("TOPRIGHT", 0, 0)
 

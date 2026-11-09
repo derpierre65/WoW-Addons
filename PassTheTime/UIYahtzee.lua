@@ -38,7 +38,7 @@ local function BuildYahtzee(parent)
 		UI.ConfirmNewGame(function()
 			Yahtzee.NewGame()
 			Refresh()
-		end)
+		end, Yahtzee.game.state == "over")
 	end)
 	newGameButton:SetPoint("TOPRIGHT", 0, 0)
 

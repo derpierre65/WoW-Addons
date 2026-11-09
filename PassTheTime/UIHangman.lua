@@ -61,7 +61,7 @@ local function BuildHangman(parent)
 	local StartNewWord
 
 	local newWordButton = UI.CreateButton(view, L.newGame, 110, 50, function()
-		UI.ConfirmNewGame(StartNewWord)
+		UI.ConfirmNewGame(StartNewWord, Hangman.game.state ~= "playing")
 	end)
 	newWordButton:SetPoint("TOPRIGHT", 0, 0)
 

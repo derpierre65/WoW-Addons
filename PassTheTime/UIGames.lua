@@ -106,7 +106,7 @@ local function Build2048(parent)
 		UI.ConfirmNewGame(function()
 			Game.Reset()
 			Refresh()
-		end)
+		end, Game.over)
 	end)
 	newGameButton:SetPoint("TOPRIGHT", 0, 0)
 

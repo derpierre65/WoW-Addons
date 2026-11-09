@@ -38,7 +38,7 @@ local function BuildMemory(parent)
 	end
 
 	local newGameButton = UI.CreateButton(view, L.newGame, 110, 50, function()
-		UI.ConfirmNewGame(StartGame)
+		UI.ConfirmNewGame(StartGame, Memory.game.state == "won")
 	end)
 	newGameButton:SetPoint("TOPRIGHT", 0, 0)
 

@@ -131,7 +131,12 @@ StaticPopupDialogs["PASSTHETIME_NEW_GAME"] = {
 	preferredIndex = 3,
 }
 
-function UI.ConfirmNewGame(onAccept)
+-- A finished game has no progress left to lose, so it starts the new game without asking.
+function UI.ConfirmNewGame(onAccept, isFinished)
+	if isFinished then
+		onAccept()
+		return
+	end
 	StaticPopup_Show("PASSTHETIME_NEW_GAME", nil, nil, onAccept)
 end
 
