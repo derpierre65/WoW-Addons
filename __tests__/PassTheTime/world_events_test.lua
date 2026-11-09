@@ -18,7 +18,7 @@ PTT.database = {
 		buyAmount = 1, lifetimeKills = 0, eventsClaimed = 0,
 	},
 	achievements = {},
-	wordle = { won = 0, played = 0 },
+	hangman = { won = 0, played = 0 },
 	minesweeper = { won = 0, flaglessWins = 0, bestTimes = {}, wonBy = {} },
 	memory = { won = 0, wonBy = {}, perfectWins = 0, bestTimes = {} },
 	sudoku = { won = 0, wonBy = {}, flawlessWins = 0, pureWins = 0 },

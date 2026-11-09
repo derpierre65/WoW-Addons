@@ -53,7 +53,7 @@ local GROUPS = {
 				label = "navGames",
 				entries = {
 					{ label = "game2048", view = "game2048" },
-					{ label = "wordle", view = "wordle" },
+					{ label = "hangman", view = "hangman" },
 					{ label = "minesweeper", view = "minesweeper" },
 					{ label = "breakout", view = "breakout" },
 					{ label = "memory", view = "memory" },

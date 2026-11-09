@@ -12,12 +12,12 @@ local function Load(path)
 end
 
 Load("PassTheTime/Game2048.lua")
-Load("PassTheTime/WordleWords.lua")
-Load("PassTheTime/Wordle.lua")
+Load("PassTheTime/HangmanWords.lua")
+Load("PassTheTime/Hangman.lua")
 
 PTT.database = {
 	game2048 = { score = 0, best = 0, wonShown = false },
-	wordle = { language = "auto", category = "all", played = 0, won = 0 },
+	hangman = { language = "auto", category = "all", difficulty = "medium", played = 0, won = 0 },
 }
 for _, callback in ipairs(initializeCallbacks) do
 	callback()
@@ -112,64 +112,128 @@ Game.Reset(random)
 Check(PTT.database.game2048.played == playedBefore + 1, "a played game is counted on reset")
 Check(PTT.database.game2048.highestTile == 1024, "highest tile survives a reset")
 
--- Wordle evaluate
-local function Evaluate(guess, answer)
-	return table.concat(PTT.Wordle.Evaluate(guess, answer), ",")
+-- Hangman helpers
+local Hangman = PTT.Hangman
+
+local function StartGame(word, difficulty)
+	Hangman.game = { word = word, category = "cities", difficulty = difficulty or "medium", letters = {}, wrongWords = 0, state = "playing" }
+	PTT.database.hangman.game = Hangman.game
 end
-Check(Evaluate("ROGUE", "ROGUE") == "correct,correct,correct,correct,correct", "all correct")
-Check(Evaluate("ABBEY", "KEBAB") == "present,present,correct,present,absent", "duplicate handling")
-Check(Evaluate("LLAMA", "ALLOY") == "present,correct,present,absent,absent", "double letters 1")
-Check(Evaluate("EEL", "TEE") == "present,correct,absent", "double letters 2")
 
--- Wordle flow
-Check(PTT.Wordle.Normalize("Jäger") == "JÄGER", "umlaut kept and capitalised")
-Check(PTT.Wordle.Length("JÄGER") == 5, "umlaut counts as one letter")
-Check(#PTT.Wordle.Split("ÖÜ") == 2, "umlauts split per character")
-Check(PTT.Wordle.Normalize("Fuß") == "FUSS", "sharp s normalized")
+local function Shown()
+	return table.concat(Hangman.GetDisplay())
+end
 
-PTT.Wordle.game = { word = "MAGE", guesses = {}, state = "playing" }
-PTT.database.wordle.game = PTT.Wordle.game
-Check(select(2, PTT.Wordle.Submit("abc")) == "length", "wrong length rejected")
-Check(select(2, PTT.Wordle.Submit("ab1d")) == "letters", "non letters rejected")
-Check(#PTT.Wordle.game.guesses == 0, "rejected guesses are not stored")
-Check(PTT.Wordle.Submit("gams"), "valid guess accepted")
-Check(PTT.Wordle.GetLetterStates().G == "present", "letter state present")
-Check(PTT.Wordle.Submit("mage") and PTT.Wordle.game.state == "won", "win detected")
-Check(PTT.database.wordle.won == 1 and PTT.database.wordle.played == 1, "stats updated")
-Check(PTT.database.wordle.streak == 1 and PTT.database.wordle.bestStreak == 1, "win starts a streak")
-Check(select(2, PTT.Wordle.Submit("mage")) == "finished", "no guesses after finish")
+Check(Hangman.Normalize("Jäger") == "JAGER", "umlauts become their base letter")
+Check(Hangman.Normalize("Fuß") == "FUSS", "sharp s normalized")
+Check(Hangman.Length("JÄGER") == 5, "umlaut counts as one letter")
+Check(#Hangman.Split("ÖÜ") == 2, "umlauts split per character")
 
-PTT.Wordle.game = { word = "MAGE", guesses = {}, state = "playing" }
+-- Letter guesses
+StartGame("MAGE")
+Check(select(2, Hangman.GuessLetter("1")) == "letters", "non letters rejected")
+Check(select(2, Hangman.GuessLetter("ab")) == "letters", "more than one letter rejected")
+Check(Shown() == "____", "word starts hidden")
+Check(Hangman.GuessLetter("m") and Shown() == "M___", "correct letter revealed")
+Check(select(2, Hangman.GuessLetter("M")) == "used", "repeated letter rejected")
+Check(Hangman.GetErrors() == 0, "correct letter costs nothing")
+Check(Hangman.GuessLetter("x") and Hangman.GetErrors() == 1, "wrong letter costs an error")
+Check(Hangman.GetWrongLetters()[1] == "X" and #Hangman.GetWrongLetters() == 1, "wrong letters listed")
+Hangman.GuessLetter("g")
+Hangman.GuessLetter("a")
+Check(Hangman.game.state == "playing", "still playing with a letter missing")
+Hangman.GuessLetter("e")
+Check(Hangman.game.state == "won" and Shown() == "MAGE", "last letter wins")
+Check(PTT.database.hangman.won == 1 and PTT.database.hangman.played == 1, "stats updated")
+Check(PTT.database.hangman.streak == 1 and PTT.database.hangman.bestStreak == 1, "win starts a streak")
+Check(select(2, Hangman.GuessLetter("z")) == "finished", "no guesses after finish")
+
+-- Losing, per difficulty
+StartGame("MAGE")
+for _, letter in ipairs({ "X", "Y", "Z", "Q", "W" }) do
+	Hangman.GuessLetter(letter)
+end
+Check(Hangman.game.state == "playing" and Hangman.GetErrors() == 5, "medium survives five errors")
+Hangman.GuessLetter("K")
+Check(Hangman.game.state == "lost" and PTT.database.hangman.played == 2, "medium loses on the sixth error")
+Check(PTT.database.hangman.streak == 0 and PTT.database.hangman.bestStreak == 1, "loss resets the streak but keeps the best")
+Check(Shown() == "MAGE", "word is revealed after a loss")
+
+StartGame("MAGE", "hard")
+for _, letter in ipairs({ "X", "Y", "Z", "Q" }) do
+	Hangman.GuessLetter(letter)
+end
+Check(Hangman.game.state == "lost" and Hangman.GetMaxErrors() == 4, "hard loses on the fourth error")
+
+StartGame("MAGE", "easy")
+for _, letter in ipairs({ "X", "Y", "Z", "Q", "W", "K", "J" }) do
+	Hangman.GuessLetter(letter)
+end
+Check(Hangman.game.state == "playing" and Hangman.GetMaxErrors() == 8, "easy survives seven errors")
+
+StartGame("MAGE")
+Hangman.GuessLetter("m")
+Hangman.GuessLetter("a")
+Hangman.GuessLetter("g")
+Hangman.GuessLetter("e")
+StartGame("MAGE")
+Hangman.GuessLetter("m")
+Hangman.GuessLetter("a")
+Hangman.GuessLetter("g")
+Hangman.GuessLetter("e")
+Check(PTT.database.hangman.streak == 2 and PTT.database.hangman.bestStreak == 2, "streak grows and updates the best")
+
+-- Whole-word guesses
+StartGame("MAGE")
+Check(select(2, Hangman.GuessWord("")) == "letters", "empty word rejected")
+Check(Hangman.GuessWord("rest") and Hangman.GetErrors() == 1, "wrong word costs an error")
+Check(Shown() == "____", "wrong word reveals no letter")
+Check(Hangman.GuessWord("mage") and Hangman.game.state == "won", "right word wins")
+
+StartGame("MAGE")
 for _ = 1, 6 do
-	PTT.Wordle.Submit("rest")
+	Hangman.GuessWord("rest")
 end
-Check(PTT.Wordle.game.state == "lost" and PTT.database.wordle.played == 2, "loss after six attempts")
-Check(PTT.database.wordle.streak == 0 and PTT.database.wordle.bestStreak == 1, "loss resets the streak but keeps the best")
+Check(Hangman.game.state == "lost", "wrong words can lose the game")
 
-PTT.Wordle.game = { word = "MAGE", guesses = {}, state = "playing" }
-PTT.Wordle.Submit("mage")
-PTT.Wordle.game = { word = "MAGE", guesses = {}, state = "playing" }
-PTT.Wordle.Submit("mage")
-Check(PTT.database.wordle.streak == 2 and PTT.database.wordle.bestStreak == 2, "streak grows and updates the best")
+-- Special characters and umlauts
+StartGame("MAL'GANIS")
+Check(Shown() == "___'_____", "special characters are shown from the start")
+Hangman.GuessLetter("m")
+Check(Shown() == "M__'_____", "letters are revealed around special characters")
+Check(Hangman.GuessWord("mal ganis") and Hangman.game.state == "won", "punctuation is ignored in a word guess")
+
+StartGame("DÄMMERWALD")
+Hangman.GuessLetter("a")
+Check(Shown() == "_Ä_____A__", "a reveals the umlaut and the plain letter")
+Check(Hangman.GuessLetter("Ä") == false, "umlaut key counts as its base letter")
+StartGame("DÄMMERWALD")
+Check(Hangman.GuessWord("dammerwald") and Hangman.game.state == "won", "word guess without umlauts is accepted")
+StartGame("DÜSTERMOOR")
+Check(Hangman.GuessWord("düstermoor") and Hangman.game.state == "won", "word guess with umlauts is accepted")
+
+-- Hint
+Check(Hangman.ShowsCategory("easy") and Hangman.ShowsCategory("medium"), "easy and medium show the category")
+Check(not Hangman.ShowsCategory("hard"), "hard hides the category")
 
 -- Word lists
 local function WordsOf(language, category)
 	local words = {}
-	for length, categories in pairs(PTT.WordleWords[language]) do
-		for _, word in ipairs(categories[category] or {}) do
-			words[#words + 1] = { word = word, length = length }
+	for _, entry in ipairs(PTT.HangmanWords[language]) do
+		if entry.category == category then
+			words[#words + 1] = entry
 		end
 	end
 	return words
 end
 
-for language in pairs(PTT.WordleWords) do
-	for _, category in ipairs(PTT.WordleCategories) do
+for language in pairs(PTT.HangmanWords) do
+	for _, category in ipairs(PTT.HangmanCategories) do
 		Check(#WordsOf(language, category) > 0, language .. " has " .. category)
 		for _, entry in ipairs(WordsOf(language, category)) do
 			local asciiLetters = entry.word:gsub("Ä", ""):gsub("Ö", ""):gsub("Ü", "")
 			Check(asciiLetters:match("^%u+$") ~= nil, language .. "/" .. category .. " invalid word " .. entry.word)
-			Check(PTT.Wordle.Length(entry.word) == entry.length, language .. " word in wrong length group " .. entry.word)
+			Check(entry.difficulty >= 1 and entry.difficulty <= 3, language .. " invalid difficulty " .. entry.word)
 		end
 	end
 end
@@ -183,38 +247,45 @@ local function Contains(entries, word)
 	return false
 end
 
-PTT.database.wordle.category = "cities"
-PTT.Wordle.NewGame()
-Check(Contains(WordsOf("enUS", "cities"), PTT.Wordle.game.word), "new game honours category")
+local settings = PTT.database.hangman
 
-PTT.database.wordle.language = "deDE"
-PTT.Wordle.NewGame()
-Check(Contains(WordsOf("deDE", "cities"), PTT.Wordle.game.word), "new game honours language")
+settings.language, settings.category = "enUS", "cities"
+Hangman.NewGame()
+Check(Contains(WordsOf("enUS", "cities"), Hangman.game.word), "new game honours category")
+Check(settings.game == Hangman.game, "new game is stored for the next session")
 
-PTT.database.wordle.category = "all"
-PTT.database.wordle.length = 8
-for _ = 1, 20 do
-	PTT.Wordle.NewGame()
-	Check(PTT.Wordle.Length(PTT.Wordle.game.word) == 8, "new game honours length")
+settings.language = "deDE"
+Hangman.NewGame()
+Check(Contains(WordsOf("deDE", "cities"), Hangman.game.word), "new game honours language")
+
+settings.language, settings.category = "enUS", "all"
+settings.difficulty = "easy"
+for _ = 1, 40 do
+	Hangman.NewGame()
+	Check(not Contains(WordsOf("enUS", "bosses"), Hangman.game.word), "easy draws no hard words")
+	Check(Hangman.game.difficulty == "easy", "game keeps its difficulty")
 end
 
-PTT.database.wordle.length = 99
-PTT.Wordle.NewGame()
-Check(PTT.database.wordle.length == "all" and PTT.Wordle.game.word ~= nil, "unavailable length falls back to all")
+settings.difficulty = "hard"
+for _ = 1, 40 do
+	Hangman.NewGame()
+	Check(not Contains(WordsOf("enUS", "cities"), Hangman.game.word), "hard draws no easy words")
+end
 
-local lengths = PTT.Wordle.GetLengths("deDE", "all")
-Check(lengths[1] == 4 and lengths[#lengths] == 16, "German lengths span 4 to 16")
-Check(#PTT.Wordle.GetLengths("enUS", "all") == 10, "English has ten lengths")
+settings.category = "cities"
+Hangman.NewGame()
+Check(Contains(WordsOf("enUS", "cities"), Hangman.game.word), "empty difficulty pool falls back to the category")
 
--- Umlaut words
-PTT.database.wordle.length = "all"
-PTT.Wordle.game = { word = "DÄMMERWALD", guesses = {}, state = "playing" }
-Check(PTT.Wordle.Submit("dämmerwald") and PTT.Wordle.game.state == "won", "umlaut guess solves the word")
-PTT.Wordle.game = { word = "DÄMMERWALD", guesses = {}, state = "playing" }
-Check(PTT.Wordle.Submit("daemmerwald") == false, "ae is no longer an umlaut stand-in")
-PTT.Wordle.Submit("DÜMMERWALD")
-Check(PTT.Wordle.Evaluate("DÜMMERWALD", "DÄMMERWALD")[2] == "absent", "umlauts are compared as letters")
-Check(PTT.Wordle.GetLetterStates()["Ü"] == "absent", "umlaut letter state tracked")
+-- A saved game survives a reload
+settings.difficulty, settings.category = "medium", "all"
+Hangman.NewGame()
+local saved = Hangman.game
+Hangman.game = nil
+Hangman.Load()
+Check(Hangman.game == saved, "saved game is restored")
+settings.game = { word = "MAGE" }
+Hangman.Load()
+Check(Hangman.game ~= nil and Hangman.game.letters ~= nil, "unusable saved game is replaced")
 
 print(failures == 0 and "ALL OK" or (failures .. " FAILURES"))
 os.exit(failures == 0 and 0 or 1)

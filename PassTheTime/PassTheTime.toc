@@ -15,8 +15,8 @@ Achievements.lua
 Network.lua
 Bosses.lua
 Game2048.lua
-WordleWords.lua
-Wordle.lua
+HangmanWords.lua
+Hangman.lua
 Minesweeper.lua
 Breakout.lua
 Memory.lua
@@ -25,6 +25,7 @@ Yahtzee.lua
 UI.lua
 UIIdle.lua
 UIGames.lua
+UIHangman.lua
 UIMinesweeper.lua
 UIBreakout.lua
 UIMemory.lua

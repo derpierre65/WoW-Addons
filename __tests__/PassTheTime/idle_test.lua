@@ -20,7 +20,7 @@ local function FreshDatabase()
 			buyAmount = 1, lifetimeKills = 0, eventsClaimed = 0,
 		},
 		achievements = {},
-		wordle = { won = 0, played = 0 },
+		hangman = { won = 0, played = 0 },
 	}
 	PTT.Idle.groupBonus = 0
 	PTT.Idle.ResetClickLimit()

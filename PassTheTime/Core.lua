@@ -8,7 +8,7 @@ local DEFAULTS = {
 	settings = { miniWidget = false },
 	miniWidget = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 250 },
 	game2048 = { score = 0, best = 0, wonShown = false, played = 0, highestTile = 0 },
-	wordle = { language = "auto", category = "all", length = "all", played = 0, won = 0, streak = 0, bestStreak = 0 },
+	hangman = { language = "auto", category = "all", difficulty = "medium", played = 0, won = 0, streak = 0, bestStreak = 0 },
 	idle = {
 		gold = 0, runGold = 0, lifetimeGold = 0, runTime = 0, totalTime = 0,
 		clicks = 0, renown = 0, renownEarned = 0, prestiges = 0,

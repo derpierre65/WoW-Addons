@@ -178,8 +178,8 @@ AddAll({
 	Define("tile512", "minigames", 10, HighestTile, 512),
 	Define("tile1024", "minigames", 15, HighestTile, 1024),
 	Define("tile2048", "minigames", 25, function() return PTT.Game2048.won == true and 1 or 0 end, 1),
-	Define("wordle1", "minigames", 5, function() return PTT.database.wordle.won end, 1),
-	Define("wordle10", "minigames", 10, function() return PTT.database.wordle.won end, 10),
+	Define("hangman1", "minigames", 5, function() return PTT.database.hangman.won end, 1),
+	Define("hangman10", "minigames", 10, function() return PTT.database.hangman.won end, 10),
 
 	Define("mines1", "minigames", 5, function() return PTT.database.minesweeper.won end, 1),
 	Define("mines10", "minigames", 10, function() return PTT.database.minesweeper.won end, 10),
