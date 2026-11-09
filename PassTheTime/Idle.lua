@@ -8,6 +8,7 @@ Idle.LEVELS_PER_SOUL = 2000
 Idle.PROFESSION_MAX_LEVEL = 75
 Idle.TIER_DAMAGE_BONUS = 0.03
 Idle.MAX_TICK = 5
+Idle.FIGHT_INTERVAL = 0.2
 Idle.MAX_CLICKS_PER_SECOND = 20
 
 Idle.MONSTER_BASE_HEALTH = 10
@@ -715,10 +716,10 @@ local function Fight(dt)
 		return
 	end
 
-	-- One hit per second, at most one kill per hit, overkill is lost.
+	-- One hit per FIGHT_INTERVAL, at most one kill per hit, overkill is lost.
 	local remaining = dt
-	while remaining > 0 do
-		local step = math.min(1, remaining)
+	while remaining > 1e-9 do
+		local step = math.min(Idle.FIGHT_INTERVAL, remaining)
 		remaining = remaining - step
 
 		state.monsterDamage = state.monsterDamage + damagePerSecond * step

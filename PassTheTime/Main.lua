@@ -2,6 +2,7 @@ local _, PTT = ...
 local L = PTT.L
 
 local lastTick
+local slowDelta = 0
 
 local function RunTick()
 	local now = GetTime()
@@ -9,6 +10,15 @@ local function RunTick()
 	lastTick = now
 
 	PTT.Idle.Tick(delta)
+
+	-- Everything except the fight only needs a one second resolution.
+	slowDelta = slowDelta + delta
+	if slowDelta < 1 then
+		return
+	end
+	delta = slowDelta
+	slowDelta = 0
+
 	PTT.World.Tick(delta)
 
 	-- Events only appear while the window is open, so they never pop up in combat or cutscenes.
@@ -55,7 +65,7 @@ PTT.OnInitialize(function()
 	end)
 
 	lastTick = GetTime()
-	C_Timer.NewTicker(1, RunTick)
+	C_Timer.NewTicker(PTT.Idle.FIGHT_INTERVAL, RunTick)
 end)
 
 SLASH_PASSTHETIME1 = "/ptt"
