@@ -369,15 +369,16 @@ local function BuildIdleView(parent)
 		clickDamageLabel:SetText(string.format(L.clickHint, PTT.FormatNumber(Idle.GetClickDamage())))
 
 		local state = GetState()
-		if state.unlocked >= Idle.GetMonsterCount() then
-			tierLabel:SetText(L.allUnlocked)
-			tierBar:SetValue(1)
-			tierBar.text:SetText(L.maxLevel)
-		else
+		-- Only the newest unlocked enemy has kills counting towards the next unlock.
+		local needsUnlock = monster.index == state.unlocked and state.unlocked < Idle.GetMonsterCount()
+		tierLabel:SetShown(needsUnlock)
+		tierBar:SetShown(needsUnlock)
+		if needsUnlock then
 			tierLabel:SetText(string.format(L.nextUnlock, "???"))
-			local kills = math.min(Idle.GetTierKills(state.unlocked), Idle.KILLS_TO_UNLOCK)
-			tierBar:SetValue(kills / Idle.KILLS_TO_UNLOCK)
-			tierBar.text:SetText(string.format("%d / %d", kills, Idle.KILLS_TO_UNLOCK))
+			local needed = Idle.GetKillsToUnlock(state.unlocked)
+			local kills = math.min(Idle.GetTierKills(state.unlocked), needed)
+			tierBar:SetValue(kills / needed)
+			tierBar.text:SetText(string.format("%d / %d", kills, needed))
 		end
 
 		UpdateModel(monster)
@@ -404,7 +405,7 @@ local function BuildIdleView(parent)
 
 				local info = string.format(L.monsterInfo, PTT.FormatNumber(monster.health), PTT.FormatNumber(monster.gold * Idle.GetGoldMultiplier()))
 				if index == state.unlocked and index < Idle.GetMonsterCount() then
-					info = string.format("|cff88ccff%d/%d|r  ", Idle.GetTierKills(index), Idle.KILLS_TO_UNLOCK) .. info
+					info = string.format("|cff88ccff%d/%d|r  ", Idle.GetTierKills(index), Idle.GetKillsToUnlock(index)) .. info
 				end
 				row.infoLabel:SetText(info)
 			end

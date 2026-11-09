@@ -416,6 +416,11 @@ function Idle.GetTierKills(index)
 	return GetState().tierKills[index] or 0
 end
 
+-- Bosses open the next enemy after a single kill.
+function Idle.GetKillsToUnlock(index)
+	return Idle.monsterDefinitions[index].boss and 1 or Idle.KILLS_TO_UNLOCK
+end
+
 -- Saves from before the unlock system stored a level instead.
 function Idle.Migrate()
 	local state = GetState()
@@ -476,11 +481,11 @@ local function KillMonster()
 		state.bossKills = state.bossKills + 1
 	end
 
-	-- Ten kills of the highest unlocked enemy open up the next one.
+	-- Ten kills (one for a boss) of the highest unlocked enemy open up the next one.
 	state.tierKills[monster.index] = (state.tierKills[monster.index] or 0) + 1
 	if monster.index == state.unlocked
 		and state.unlocked < Idle.GetMonsterCount()
-		and state.tierKills[monster.index] >= Idle.KILLS_TO_UNLOCK then
+		and state.tierKills[monster.index] >= Idle.GetKillsToUnlock(monster.index) then
 		state.unlocked = state.unlocked + 1
 		for _, listener in ipairs(unlockListeners) do
 			listener(state.unlocked)

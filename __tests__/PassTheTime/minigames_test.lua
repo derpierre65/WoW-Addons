@@ -14,6 +14,7 @@ Load("PassTheTime/Minesweeper.lua")
 Load("PassTheTime/Breakout.lua")
 Load("PassTheTime/Memory.lua")
 Load("PassTheTime/Sudoku.lua")
+Load("PassTheTime/Yahtzee.lua")
 
 local function FreshDatabase()
 	PTT.database = {
@@ -21,6 +22,7 @@ local function FreshDatabase()
 		breakout = { played = 0, highScore = 0, bestLevel = 0, bossesKilled = 0, raidsCleared = 0, flawlessClears = 0 },
 		memory = { difficulty = "easy", played = 0, won = 0, perfectWins = 0, bestTimes = {}, bestMoves = {}, wonBy = {} },
 		sudoku = { difficulty = "easy", played = 0, won = 0, flawlessWins = 0, pureWins = 0, bestTimes = {}, wonBy = {} },
+		yahtzee = { completed = 0, highScore = 0, yahtzees = 0, bonuses = 0, played = 0 },
 	}
 end
 FreshDatabase()
@@ -708,6 +710,83 @@ Check(Sudoku.game == sudoku and Sudoku.game.difficulty == "hard", "saved game is
 sudokuSettings.game = { givens = {} }
 Sudoku.Load()
 Check(#Sudoku.game.givens == 81, "a broken save is replaced by a new puzzle")
+
+---------------------------------------------------------------------------
+-- Yahtzee
+---------------------------------------------------------------------------
+
+local Yahtzee = PTT.Yahtzee
+local yahtzeeSettings = PTT.database.yahtzee
+
+local function Points(categoryId, ...)
+	return Yahtzee.Score(categoryId, { ... })
+end
+
+Check(Points("threes", 3, 3, 1, 3, 6) == 9, "upper category sums its face")
+Check(Points("threeKind", 2, 2, 2, 5, 6) == 17 and Points("threeKind", 2, 2, 3, 5, 6) == 0, "three of a kind sums all dice")
+Check(Points("fourKind", 4, 4, 4, 4, 1) == 17 and Points("fourKind", 4, 4, 4, 1, 1) == 0, "four of a kind sums all dice")
+Check(Points("fullHouse", 2, 2, 5, 5, 5) == 25 and Points("fullHouse", 2, 2, 2, 2, 2) == 0 and Points("fullHouse", 2, 2, 5, 5, 6) == 0, "full house needs a pair and a triple")
+Check(Points("smallStraight", 1, 2, 3, 4, 4) == 30 and Points("smallStraight", 2, 3, 4, 5, 5) == 30 and Points("smallStraight", 1, 2, 3, 5, 6) == 0, "small straight")
+Check(Points("largeStraight", 2, 3, 4, 5, 6) == 40 and Points("largeStraight", 1, 2, 3, 4, 6) == 0, "large straight")
+Check(Points("yahtzee", 6, 6, 6, 6, 6) == 50 and Points("yahtzee", 6, 6, 6, 6, 5) == 0, "yahtzee")
+Check(Points("chance", 1, 2, 3, 4, 6) == 16, "chance sums all dice")
+
+local seedYahtzee = 7
+Yahtzee.random = function(range)
+	seedYahtzee = (seedYahtzee * 1103515245 + 12345) % 2147483648
+	return seedYahtzee % range + 1
+end
+
+local yahtzeeGame = Yahtzee.NewGame()
+Check(not Yahtzee.Choose("chance") and not Yahtzee.ToggleHold(1), "nothing to score or hold before the first roll")
+Check(Yahtzee.Roll() and yahtzeeGame.rollsLeft == 2 and yahtzeeSettings.played == 1, "first roll counts the game")
+for index = 1, 5 do
+	Check(yahtzeeGame.dice[index] >= 1 and yahtzeeGame.dice[index] <= 6, "die " .. index .. " shows a face")
+end
+
+local keptValue = yahtzeeGame.dice[1]
+Check(Yahtzee.ToggleHold(1) and yahtzeeGame.held[1], "a die can be kept")
+for _ = 1, 20 do
+	yahtzeeGame.rollsLeft = 2
+	Yahtzee.Roll()
+	if yahtzeeGame.dice[1] ~= keptValue then
+		Check(false, "a kept die stays")
+		break
+	end
+end
+yahtzeeGame.rollsLeft = 1
+Yahtzee.Roll()
+Check(yahtzeeGame.rollsLeft == 0 and not Yahtzee.Roll() and not Yahtzee.ToggleHold(2), "no more rolls or holds after the third roll")
+
+yahtzeeGame.dice = { 5, 5, 5, 5, 5 }
+Check(Yahtzee.Choose("yahtzee") and yahtzeeGame.scores.yahtzee == 50 and yahtzeeSettings.yahtzees == 1, "a yahtzee is written down and counted")
+Check(yahtzeeGame.turn == 2 and yahtzeeGame.rollsLeft == 3 and next(yahtzeeGame.held) == nil and #yahtzeeGame.dice == 0, "the next turn starts fresh")
+Yahtzee.Roll()
+Check(not Yahtzee.Choose("yahtzee"), "a used category cannot be taken again")
+
+-- Upper bonus and the end of the game
+Yahtzee.NewGame()
+local order = { "ones", "twos", "threes", "fours", "fives", "sixes", "threeKind", "fourKind", "fullHouse", "smallStraight", "largeStraight", "yahtzee", "chance" }
+for turn, categoryId in ipairs(order) do
+	Yahtzee.Roll()
+	local face = turn <= 6 and turn or 1
+	Yahtzee.game.dice = { face, face, face, face, face }
+	if turn == 13 then
+		Check(Yahtzee.Choose(categoryId) and Yahtzee.game.state == "over", "the last row ends the game")
+	else
+		Check(Yahtzee.Choose(categoryId), "row " .. categoryId .. " accepted")
+	end
+end
+Check(Yahtzee.GetUpperSum() == 5 + 10 + 15 + 20 + 25 + 30 and Yahtzee.GetBonus() == 35, "upper sum 105 earns the bonus")
+Check(Yahtzee.game.total == Yahtzee.GetTotal() and yahtzeeSettings.completed == 1 and yahtzeeSettings.bonuses == 1, "a finished game is counted")
+Check(yahtzeeSettings.highScore == Yahtzee.GetTotal(), "high score stored")
+Check(not Yahtzee.Roll() and not Yahtzee.Choose("chance"), "no input after the game")
+
+Yahtzee.NewGame()
+Yahtzee.Roll()
+Yahtzee.game.dice = { 1, 1, 1, 1, 1 }
+Yahtzee.Choose("ones")
+Check(Yahtzee.GetBonus() == 0 and Yahtzee.GetTotal() == 5, "no bonus below the threshold")
 
 print(failures == 0 and "MINIGAMES OK" or (failures .. " FAILURES"))
 os.exit(failures == 0 and 0 or 1)

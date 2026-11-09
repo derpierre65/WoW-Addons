@@ -41,20 +41,32 @@ function UI.BuildEventFrame()
 	local Events = PTT.Events
 
 	local frame = UI.CreatePanel(UIParent)
-	frame:SetSize(210, 56)
+	frame:SetSize(320, 96)
 	frame:SetPoint("TOP", UIParent, "TOP", 0, -170)
-	frame:SetFrameStrata("DIALOG")
+	frame:SetFrameStrata("FULLSCREEN_DIALOG")
 	frame:EnableMouse(true)
 	frame:Hide()
+	frame:SetBackdropColor(0.15, 0.1, 0, 0.97)
 
 	local highlight = frame:CreateTexture(nil, "HIGHLIGHT")
 	highlight:SetAllPoints()
 	highlight:SetColorTexture(1, 1, 1, 0.12)
 
 	local title = UI.CreateLabel(frame, "GameFontNormalLarge")
-	title:SetPoint("TOP", 0, -10)
-	local subtitle = UI.CreateLabel(frame, "GameFontHighlightSmall")
-	subtitle:SetPoint("TOP", title, "BOTTOM", 0, -4)
+	title:SetFont(select(1, title:GetFont()), 22, "OUTLINE")
+	title:SetPoint("TOP", 0, -16)
+	title:SetTextColor(1, 0.82, 0)
+	local subtitle = UI.CreateLabel(frame, "GameFontHighlight")
+	subtitle:SetPoint("TOP", title, "BOTTOM", 0, -8)
+
+	local pulse = 0
+	frame:SetScript("OnShow", function()
+		pulse = 0
+		frame:SetBackdropBorderColor(1, 0.82, 0, 1)
+		if PlaySound and SOUNDKIT and SOUNDKIT.READY_CHECK then
+			PlaySound(SOUNDKIT.READY_CHECK)
+		end
+	end)
 
 	frame:SetScript("OnMouseUp", function()
 		local message = Events.Claim()
@@ -63,7 +75,11 @@ function UI.BuildEventFrame()
 		end
 	end)
 
-	frame:SetScript("OnUpdate", function()
+	frame:SetScript("OnUpdate", function(_, delta)
+		pulse = pulse + delta
+		-- Pulsing border so the event cannot be missed.
+		local strength = 0.5 + 0.5 * math.sin(pulse * 6)
+		frame:SetBackdropBorderColor(1, 0.5 + 0.4 * strength, 0.1 * strength, 1)
 		if Events.active then
 			subtitle:SetText(string.format("%s (%d s)", L.eventClickNow, math.ceil(Events.active.remaining)))
 		end

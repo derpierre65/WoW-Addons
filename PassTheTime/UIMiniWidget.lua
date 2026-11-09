@@ -38,12 +38,24 @@ function UI.CreateMiniWidget()
 	widget:SetMovable(true)
 	widget:EnableMouse(true)
 	widget:RegisterForDrag("LeftButton")
-	widget:SetScript("OnDragStart", widget.StartMoving)
+	local dragged = false
+	widget:SetScript("OnDragStart", function(self)
+		dragged = true
+		self:StartMoving()
+	end)
 	widget:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
 		local point, _, relativePoint, x, y = self:GetPoint()
 		local saved = PTT.database.miniWidget
 		saved.point, saved.relativePoint, saved.x, saved.y = point, relativePoint, x, y
+	end)
+	-- OnMouseUp also fires after a drag, which must not count as a click.
+	widget:SetScript("OnMouseUp", function(_, button)
+		if button == "LeftButton" and not dragged then
+			PTT.Idle.Click()
+			Refresh()
+		end
+		dragged = false
 	end)
 
 	local saved = PTT.database.miniWidget
@@ -51,7 +63,14 @@ function UI.CreateMiniWidget()
 
 	widget.name = UI.CreateLabel(widget, "GameFontNormal")
 	widget.name:SetPoint("TOP", 0, -9)
-	widget.name:SetWidth(WIDGET_WIDTH - 16)
+	widget.name:SetWidth(WIDGET_WIDTH - 44)
+
+	local open = UI.CreateButton(widget, "+", 20, 20, function()
+		if not UI.IsShown() then
+			UI.Toggle()
+		end
+	end)
+	open:SetPoint("TOPRIGHT", -5, -5)
 
 	widget.health = UI.CreateSkillBar(widget, 12)
 	widget.health:SetPoint("TOPLEFT", 12, -27)

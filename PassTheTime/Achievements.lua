@@ -206,6 +206,12 @@ AddAll({
 	Define("sudokuFlawless", "minigames", 15, function() return PTT.database.sudoku.flawlessWins end, 1),
 	Define("sudokuPure", "minigames", 15, function() return PTT.database.sudoku.pureWins end, 1),
 
+	Define("yahtzee1", "minigames", 10, function() return PTT.database.yahtzee.yahtzees end, 1),
+	Define("yahtzeeGames10", "minigames", 10, function() return PTT.database.yahtzee.completed end, 10),
+	Define("yahtzeeBonus", "minigames", 10, function() return PTT.database.yahtzee.bonuses end, 1),
+	Define("yahtzeeScore200", "minigames", 15, function() return PTT.database.yahtzee.highScore end, 200),
+	Define("yahtzeeScore300", "minigames", 25, function() return PTT.database.yahtzee.highScore end, 300),
+
 	Define("breakoutBoss1", "minigames", 5, function() return PTT.database.breakout.bossesKilled end, 1),
 	Define("breakoutBoss25", "minigames", 15, function() return PTT.database.breakout.bossesKilled end, 25),
 	Define("breakoutRaid3", "minigames", 10, function() return PTT.database.breakout.bestLevel end, 3),

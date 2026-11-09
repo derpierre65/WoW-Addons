@@ -23,6 +23,7 @@ local GROUPS = {
 		id = "adventure",
 		label = "tabAdventure",
 		header = true,
+		plain = true,
 		sections = {
 			{
 				label = "navPlay",
@@ -46,6 +47,7 @@ local GROUPS = {
 	{
 		id = "minigames",
 		label = "tabMiniGames",
+		plain = true,
 		sections = {
 			{
 				label = "navGames",
@@ -56,6 +58,7 @@ local GROUPS = {
 					{ label = "breakout", view = "breakout" },
 					{ label = "memory", view = "memory" },
 					{ label = "sudoku", view = "sudoku" },
+					{ label = "yahtzee", view = "yahtzee" },
 				},
 			},
 		},
@@ -64,6 +67,7 @@ local GROUPS = {
 		id = "achievements",
 		label = "achievements",
 		hideNav = true,
+		plain = true,
 		sections = {
 			{
 				label = "achievements",
@@ -323,6 +327,10 @@ local function CreateWindowFrame()
 			if ButtonFrameTemplate_HideButtonBar then
 				ButtonFrameTemplate_HideButtonBar(frame)
 			end
+			-- Its default top edge leaves a grey band between title and content.
+			if type(frame.Inset) == "table" then
+				frame.Inset:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -(BODY_TOP - 2))
+			end
 			return frame, true
 		end
 	end
@@ -468,6 +476,10 @@ function UI.CreateWindow()
 	table.insert(UISpecialFrames, "PassTheTimeWindow")
 
 	return window
+end
+
+function UI.IsShown()
+	return window and window:IsShown()
 end
 
 function UI.Toggle()
