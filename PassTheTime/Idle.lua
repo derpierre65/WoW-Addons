@@ -124,15 +124,15 @@ local SPELL_COST_FACTORS = { 40, 150, 800, 4500, 25000, 200000 }
 -- Effect per spell: own = this hero's damage, all = every hero's damage, click = click damage,
 -- clickShare = share of the total hero damage added to the click, gold = gold from kills. Values are fractions.
 local SPELL_EFFECTS = {
-	click = { { click = 0.5 }, { click = 0.75 }, { click = 1 }, { click = 1.25 }, { click = 1.5 }, { click = 2 } },
-	recruit = { { own = 0.25 }, { own = 0.5 }, { own = 0.75 }, { own = 1 }, { own = 2 } },
-	scout = { { own = 0.4 }, { gold = 0.1 }, { own = 0.8 }, { own = 1.2 }, { gold = 0.15 } },
-	footman = { { own = 0.5 }, { own = 1 }, { own = 1.5 }, { all = 0.05 }, { own = 3 } },
-	hunter = { { own = 0.75 }, { own = 1.5 }, { clickShare = 0.005 }, { own = 2.5 }, { own = 4 } },
-	mage = { { own = 0.6 }, { all = 0.1 }, { own = 1.2 }, { all = 0.15 }, { own = 2.4 } },
-	warlock = { { own = 0.5 }, { all = 0.08 }, { own = 1.5 }, { all = 0.12 }, { own = 3 } },
-	paladin = { { own = 0.5 }, { all = 0.1 }, { own = 1.5 }, { all = 0.2 }, { own = 3 } },
-	slayer = { { own = 0.6 }, { all = 0.15 }, { own = 1.8 }, { all = 0.25 }, { own = 4 } },
+	click = { { click = 1 }, { click = 1 }, { click = 1 }, { click = 1.25 }, { click = 1.5 }, { click = 2 } },
+	recruit = { { own = 1 }, { own = 1 }, { own = 1.5 }, { own = 2 }, { own = 2 } },
+	scout = { { own = 1 }, { gold = 0.1 }, { own = 1 }, { own = 1.5 }, { gold = 0.15 } },
+	footman = { { own = 1 }, { own = 1 }, { own = 1.5 }, { all = 0.05 }, { own = 3 } },
+	hunter = { { own = 1 }, { own = 1.5 }, { clickShare = 0.005 }, { own = 2.5 }, { own = 4 } },
+	mage = { { own = 1 }, { all = 0.1 }, { own = 1.2 }, { all = 0.15 }, { own = 2.4 } },
+	warlock = { { own = 1 }, { all = 0.08 }, { own = 1.5 }, { all = 0.12 }, { own = 3 } },
+	paladin = { { own = 1 }, { all = 0.1 }, { own = 1.5 }, { all = 0.2 }, { own = 3 } },
+	slayer = { { own = 1 }, { all = 0.15 }, { own = 1.8 }, { all = 0.25 }, { own = 4 } },
 }
 
 -- Idle.spells[id] = list of { id, kind, index, level, cost, nameKey, plus the effect field }.

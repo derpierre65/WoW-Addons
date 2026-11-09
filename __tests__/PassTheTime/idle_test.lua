@@ -433,7 +433,7 @@ local function Spell(id, index)
 end
 
 local clickSpell = Spell("click", 1)
-Check(clickSpell.level == 10 and clickSpell.click == 0.5, "first click spell is level 10")
+Check(clickSpell.level == 10 and clickSpell.click == 1, "first click spell is level 10")
 PTT.database.idle.gold = 1e12
 Check(not Idle.IsSpellVisible(clickSpell) and not Idle.CanBuySpell(clickSpell), "spells stay hidden until the hero is level 1")
 PTT.database.idle.upgrades.click = 1
@@ -441,7 +441,7 @@ Check(Idle.IsSpellVisible(clickSpell) and Idle.CanBuySpell(clickSpell), "first s
 Check(not Idle.IsSpellVisible(Spell("click", 2)), "second spell hidden below its level")
 local clickBeforeSpell = Idle.GetClickDamage()
 Check(Idle.BuySpell(clickSpell), "first spell bought")
-Near(Idle.GetClickDamage(), clickBeforeSpell * 1.5, "click spell adds 50% click damage")
+Near(Idle.GetClickDamage(), clickBeforeSpell * 2, "click spell adds 100% click damage")
 Check(Idle.IsSpellVisible(Spell("click", 2)) and Idle.CanBuySpell(Spell("click", 2)), "buying a spell shows and unlocks the next")
 Check(not Idle.BuySpell(clickSpell), "a bought spell cannot be bought again")
 Check(not Idle.IsSpellVisible(Spell("click", 3)), "third spell still hidden")
@@ -458,14 +458,14 @@ PTT.database.idle.allies.recruit = 25
 PTT.database.idle.allies.mage = 25
 local damageBefore = Idle.GetDamagePerSecond()
 Check(Idle.BuySpell(Spell("recruit", 1)), "warrior spell 1")
-Near(Idle.GetAllyDamage(recruit), 25 * recruit.damage * 1.25, "own spell raises own damage by 25%")
+Near(Idle.GetAllyDamage(recruit), 25 * recruit.damage * 2, "own spell raises own damage by 100%")
 Check(Idle.BuySpell(Spell("recruit", 2)), "warrior spell 2 at level 25")
 Check(Idle.CanBuySpell(Spell("recruit", 3)), "bought previous spell makes the next one buyable")
 Check(Idle.BuySpell(Spell("mage", 1)), "mage spell 1")
 Check(Idle.BuySpell(Spell("mage", 2)), "mage spell 2 boosts all heroes")
 local mage = Idle.definitions.ally[5]
-Near(Idle.GetAllyDamage(mage), 25 * mage.damage * 1.6 * 1.1, "mage spells: own and all-heroes bonus")
-Near(Idle.GetAllyDamage(recruit), 25 * recruit.damage * 1.75 * 1.1, "all-heroes bonus applies to other heroes")
+Near(Idle.GetAllyDamage(mage), 25 * mage.damage * 2 * 1.1, "mage spells: own and all-heroes bonus")
+Near(Idle.GetAllyDamage(recruit), 25 * recruit.damage * 3 * 1.1, "all-heroes bonus applies to other heroes")
 Check(Idle.GetDamagePerSecond() > damageBefore, "spells raise total damage")
 
 FreshDatabase()
