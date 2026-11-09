@@ -252,6 +252,8 @@ local function BuildIdleView(parent)
 	local healthBar = UI.CreateSkillBar(view, 16, { 0.75, 0.15, 0.15 }, "GameFontHighlight")
 	healthBar:SetPoint("TOPLEFT", ENEMY_X + 5, -30)
 	healthBar:SetWidth(ENEMY_WIDTH - 10)
+	healthBar.timerText = UI.CreateLabel(healthBar, "GameFontHighlight")
+	healthBar.timerText:SetPoint("RIGHT", -8, 0)
 
 	-- The enemy itself is the attack button: click the 3D model.
 	local modelHolder = UI.CreatePanel(view)
@@ -491,15 +493,18 @@ local function BuildIdleView(parent)
 
 		healthBar:SetValue(monster.currentHealth / monster.health)
 
-		local text = PTT.FormatNumber(monster.currentHealth) .. " / " .. PTT.FormatNumber(monster.health)
+		-- Rounded up so a living enemy never shows 0%.
+		local percent = math.ceil(monster.currentHealth / monster.health * 100)
+		healthBar.text:SetText(string.format("%s / %s (%d%%)", PTT.FormatNumber(monster.currentHealth), PTT.FormatNumber(monster.health), percent))
+
 		local timeLeft = Idle.GetBossTimeLeft()
 		if timeLeft then
-			text = text .. "     |cffffd100" .. math.ceil(timeLeft) .. " s|r"
+			healthBar.timerText:SetText("|cffffd100" .. math.ceil(timeLeft) .. " s|r")
 			healthBar:SetStatusBarColor(0.9, 0.5, 0.1)
 		else
+			healthBar.timerText:SetText("")
 			healthBar:SetStatusBarColor(0.75, 0.15, 0.15)
 		end
-		healthBar.text:SetText(text)
 		clickDamageLabel:SetText(string.format(L.clickHint, PTT.FormatNumber(Idle.GetClickDamage())))
 
 		local state = GetState()
