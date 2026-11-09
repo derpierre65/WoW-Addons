@@ -85,12 +85,12 @@ end
 -- Names live in Localization.lua as <kind>_<id>.
 Idle.definitions = {
 	ally = {
-		{ id = "recruit", cost = 15, damage = 0.05 },
-		{ id = "scout", cost = 100, damage = 0.5 },
-		{ id = "footman", cost = 1100, damage = 4 },
-		{ id = "hunter", cost = 12000, damage = 24 },
-		{ id = "mage", cost = 130000, damage = 130 },
-		{ id = "warlock", cost = 1.4e6, damage = 700 },
+		{ id = "recruit", cost = 15, damage = 0.5 },
+		{ id = "scout", cost = 100, damage = 1 },
+		{ id = "footman", cost = 1100, damage = 10 },
+		{ id = "hunter", cost = 12000, damage = 36 },
+		{ id = "mage", cost = 130000, damage = 200 },
+		{ id = "warlock", cost = 1.4e6, damage = 1100 },
 		{ id = "paladin", cost = 2e7, damage = 3900 },
 		{ id = "slayer", cost = 3.3e8, damage = 22000 },
 	},
