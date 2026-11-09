@@ -29,10 +29,10 @@ local SPELL_ICONS = {
 	slayer = { "Spell_Holy_HolySmite", "Spell_Holy_WordFortitude", "Spell_Shadow_UnholyFrenzy", "Spell_Holy_PrayerOfSpirit", "Spell_Holy_SearingLight" },
 }
 
--- Left column: current enemy. Right column: the selected list or panel.
-local LEFT_WIDTH = 320
-local RIGHT_X = LEFT_WIDTH + 14
-local RIGHT_WIDTH = UI.contentWidth - RIGHT_X
+-- Left column: the selected list or panel. Right column: current enemy.
+local ENEMY_WIDTH = 320
+local ENEMY_X = UI.contentWidth - ENEMY_WIDTH
+local LIST_WIDTH = ENEMY_X - 14
 local AMOUNTS = { 1, 10, 100, "max" }
 
 local function GetState()
@@ -247,16 +247,16 @@ local function BuildIdleView(parent)
 
 	-- Monster panel
 	local monsterName = UI.CreateLabel(view, "GameFontNormalLarge")
-	monsterName:SetPoint("TOP", view, "TOPLEFT", LEFT_WIDTH / 2, -2)
+	monsterName:SetPoint("TOP", view, "TOPLEFT", ENEMY_X + ENEMY_WIDTH / 2, -2)
 
 	local healthBar = UI.CreateSkillBar(view, 16, { 0.75, 0.15, 0.15 }, "GameFontHighlight")
-	healthBar:SetPoint("TOPLEFT", 5, -30)
-	healthBar:SetWidth(LEFT_WIDTH - 10)
+	healthBar:SetPoint("TOPLEFT", ENEMY_X + 5, -30)
+	healthBar:SetWidth(ENEMY_WIDTH - 10)
 
 	-- The enemy itself is the attack button: click the 3D model.
 	local modelHolder = UI.CreatePanel(view)
-	modelHolder:SetSize(LEFT_WIDTH, MODEL_HEIGHT)
-	modelHolder:SetPoint("TOPLEFT", 0, -52)
+	modelHolder:SetSize(ENEMY_WIDTH, MODEL_HEIGHT)
+	modelHolder:SetPoint("TOPLEFT", ENEMY_X, -52)
 	modelHolder:SetBackdropColor(0.02, 0.02, 0.04, 0.9)
 
 	-- Progress towards the next enemy tier.
@@ -264,7 +264,7 @@ local function BuildIdleView(parent)
 	tierLabel:SetPoint("TOPLEFT", modelHolder, "BOTTOMLEFT", 2, -10)
 	local tierBar = UI.CreateSkillBar(view, 14, { 0.3, 0.5, 0.9 })
 	tierBar:SetPoint("TOPLEFT", tierLabel, "BOTTOMLEFT", 0, -12)
-	tierBar:SetWidth(LEFT_WIDTH - 4)
+	tierBar:SetWidth(ENEMY_WIDTH - 4)
 
 	local modelFrame = CreateFrame("PlayerModel", nil, modelHolder)
 	modelFrame:SetPoint("TOPLEFT", 4, -4)
@@ -339,7 +339,7 @@ local function BuildIdleView(parent)
 
 	-- Buy amount selector
 	local amountLabel = UI.CreateLabel(view, "GameFontNormalSmall", L.buyAmount)
-	amountLabel:SetPoint("TOPLEFT", RIGHT_X, -8)
+	amountLabel:SetPoint("TOPLEFT", 0, -8)
 
 	local amountButtons = {}
 	local previousAmount
@@ -359,17 +359,17 @@ local function BuildIdleView(parent)
 
 	-- Upgrade rows (heroes with their spell icons, and professions)
 	local rowScroll = CreateFrame("ScrollFrame", "PassTheTimeUpgradeScroll", view, "UIPanelScrollFrameTemplate")
-	rowScroll:SetPoint("TOPLEFT", RIGHT_X, LIST_TOP)
-	rowScroll:SetPoint("BOTTOMRIGHT", -26, 0)
+	rowScroll:SetPoint("TOPLEFT", 0, LIST_TOP)
+	rowScroll:SetPoint("BOTTOMRIGHT", view, "BOTTOMLEFT", LIST_WIDTH - 26, 0)
 
 	local rowContent = CreateFrame("Frame", nil, rowScroll)
-	rowContent:SetSize(RIGHT_WIDTH - 26, MAX_ROWS * SPELL_ROW_HEIGHT)
+	rowContent:SetSize(LIST_WIDTH - 26, MAX_ROWS * SPELL_ROW_HEIGHT)
 	rowScroll:SetScrollChild(rowContent)
 
 	local rows = {}
 	for index = 1, MAX_ROWS do
 		local row = CreateFrame("Frame", nil, rowContent)
-		row:SetSize(RIGHT_WIDTH - 26, ROW_HEIGHT - 2)
+		row:SetSize(LIST_WIDTH - 26, ROW_HEIGHT - 2)
 		row:EnableMouse(true)
 		row.background = row:CreateTexture(nil, "BACKGROUND")
 		row.background:SetAllPoints()
@@ -406,17 +406,17 @@ local function BuildIdleView(parent)
 
 	-- Monster list
 	local monsterScroll = CreateFrame("ScrollFrame", "PassTheTimeMonsterScroll", view, "UIPanelScrollFrameTemplate")
-	monsterScroll:SetPoint("TOPLEFT", RIGHT_X, MONSTER_LIST_TOP)
-	monsterScroll:SetPoint("BOTTOMRIGHT", -26, 0)
+	monsterScroll:SetPoint("TOPLEFT", 0, MONSTER_LIST_TOP)
+	monsterScroll:SetPoint("BOTTOMRIGHT", view, "BOTTOMLEFT", LIST_WIDTH - 26, 0)
 
 	local monsterContent = CreateFrame("Frame", nil, monsterScroll)
-	monsterContent:SetSize(RIGHT_WIDTH - 26, Idle.GetMonsterCount() * MONSTER_ROW_HEIGHT)
+	monsterContent:SetSize(LIST_WIDTH - 26, Idle.GetMonsterCount() * MONSTER_ROW_HEIGHT)
 	monsterScroll:SetScrollChild(monsterContent)
 
 	local monsterRows = {}
 	for index = 1, Idle.GetMonsterCount() do
 		local row = CreateFrame("Button", nil, monsterContent)
-		row:SetSize(RIGHT_WIDTH - 26, MONSTER_ROW_HEIGHT - 2)
+		row:SetSize(LIST_WIDTH - 26, MONSTER_ROW_HEIGHT - 2)
 		row:SetPoint("TOPLEFT", 0, -(index - 1) * MONSTER_ROW_HEIGHT)
 		row.background = row:CreateTexture(nil, "BACKGROUND")
 		row.background:SetAllPoints()
@@ -442,12 +442,12 @@ local function BuildIdleView(parent)
 
 	-- Prestige panel
 	local prestigePanel = CreateFrame("Frame", nil, view)
-	prestigePanel:SetSize(RIGHT_WIDTH, 140)
-	prestigePanel:SetPoint("TOPLEFT", RIGHT_X, MONSTER_LIST_TOP)
+	prestigePanel:SetSize(LIST_WIDTH, 140)
+	prestigePanel:SetPoint("TOPLEFT", 0, MONSTER_LIST_TOP)
 
 	local prestigeInfo = UI.CreateLabel(prestigePanel, "GameFontHighlight", L.prestigeInfo)
 	prestigeInfo:SetPoint("TOPLEFT", 4, -4)
-	prestigeInfo:SetWidth(RIGHT_WIDTH - 8)
+	prestigeInfo:SetWidth(LIST_WIDTH - 8)
 	prestigeInfo:SetJustifyH("LEFT")
 
 	local prestigeProgress = UI.CreateLabel(prestigePanel, "GameFontNormal")
@@ -455,7 +455,7 @@ local function BuildIdleView(parent)
 
 	local prestigeLocked = UI.CreateLabel(prestigePanel, "GameFontDisable")
 	prestigeLocked:SetPoint("TOPLEFT", 4, -80)
-	prestigeLocked:SetWidth(RIGHT_WIDTH - 8)
+	prestigeLocked:SetWidth(LIST_WIDTH - 8)
 	prestigeLocked:SetJustifyH("LEFT")
 
 	local prestigeButton = UI.CreateButton(prestigePanel, "", 260, 28, function()
