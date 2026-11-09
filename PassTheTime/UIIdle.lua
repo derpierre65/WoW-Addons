@@ -9,6 +9,25 @@ local MONSTER_ROW_HEIGHT = 24
 local REFRESH_INTERVAL = 0.2
 local LIST_TOP = -34
 local MONSTER_LIST_TOP = 0
+-- Heroes and the click upgrade carry a row of spell icons below their text.
+local SPELL_ROW_HEIGHT = 72
+local SPELL_ICON_SIZE = 28
+local MAX_ROWS = 9
+local CHECK_TEXTURE = "Interface\\Buttons\\UI-CheckBox-Check"
+local ICON_PATH = "Interface\\Icons\\"
+
+-- Icon file names per hero id, one per spell.
+local SPELL_ICONS = {
+	click = { "Ability_MeleeDamage", "INV_Sword_27", "Ability_DualWield", "Ability_Warrior_Sunder", "Ability_Warrior_BattleShout", "Ability_Warrior_Rampage" },
+	recruit = { "Ability_Rogue_Ambush", "Ability_Gouge", "Ability_Whirlwind", "Ability_Warrior_SavageBlow", "Ability_CriticalStrike" },
+	scout = { "Spell_Shadow_RitualOfSacrifice", "Ability_BackStab", "Ability_Warrior_PunishingBlow", "Spell_Shadow_ShadowWordDominate", "Spell_Ice_Lament" },
+	footman = { "Spell_Nature_Lightning", "Spell_Fire_FlameShock", "Spell_Holy_SealOfMight", "Spell_Nature_ChainLightning", "Spell_Nature_WispHeal" },
+	hunter = { "Ability_ImpalingBolt", "Ability_UpgradeMoonGlaive", "INV_Spear_07", "Ability_Hunter_RunningShot", "Ability_TrueShot" },
+	mage = { "Spell_Fire_FlameBolt", "Spell_Holy_MagicalSentry", "Spell_Fire_Fireball02", "Spell_Holy_ArcaneIntellect", "Spell_Fire_SealOfFire" },
+	warlock = { "Spell_Shadow_ShadowBolt", "Spell_Shadow_ChillTouch", "Spell_Fire_Immolation", "Spell_Shadow_Contagion", "Spell_Shadow_DeathCoil" },
+	paladin = { "Ability_Warrior_InnerRage", "Spell_Holy_FistOfJustice", "Spell_Holy_RighteousFury", "Spell_Magic_MageArmor", "Spell_Holy_AvengineWrath" },
+	slayer = { "Spell_Holy_HolySmite", "Spell_Holy_WordFortitude", "Spell_Shadow_UnholyFrenzy", "Spell_Holy_PrayerOfSpirit", "Spell_Holy_SearingLight" },
+}
 
 -- Left column: current enemy. Right column: the selected list or panel.
 local LEFT_WIDTH = 320
@@ -24,8 +43,11 @@ local function GetEntries(tabId)
 	local entries = {}
 	if tabId == "ally" then
 		entries[1] = { kind = "upgrade", definition = Idle.definitions.upgrade[1] }
-		for _, definition in ipairs(Idle.definitions.ally) do
-			entries[#entries + 1] = { kind = "ally", definition = definition }
+		local revealed = Idle.UpdateRevealedHeroes()
+		for index, definition in ipairs(Idle.definitions.ally) do
+			if index <= revealed then
+				entries[#entries + 1] = { kind = "ally", definition = definition }
+			end
 		end
 	elseif tabId == "profession" then
 		for _, definition in ipairs(Idle.definitions.profession) do
@@ -54,10 +76,11 @@ local function GetDetailText(kind, definition)
 	local gray = "  |cff999999%s|r"
 
 	if kind == "upgrade" then
-		return string.format(L.level, owned) .. string.format(gray, string.format(L.clickDamage, PTT.FormatNumber(Idle.GetClickDamage())))
+		return string.format(L.clickDamage, PTT.FormatNumber(Idle.GetClickDamage()))
 	elseif kind == "ally" then
-		local damage = definition.damage * Idle.GetMilestoneMultiplier(owned) * Idle.GetDamageMultiplier()
-		return string.format(L.owned, owned) .. string.format(gray, string.format(L.damageEach, PTT.FormatNumber(damage)))
+		local multiplier = Idle.GetDamageMultiplier()
+		local current = PTT.FormatNumber(Idle.GetAllyDamage(definition) * multiplier) .. " " .. L.damagePerSecond
+		return current .. string.format(gray, string.format(L.damageEach, PTT.FormatNumber(Idle.GetAllyUnitDamage(definition) * multiplier)))
 	end
 
 	local bonus
@@ -67,6 +90,96 @@ local function GetDetailText(kind, definition)
 		bonus = string.format(L["profession_" .. definition.effect], definition.perLevel * 100)
 	end
 	return string.format(L.level, owned) .. " / " .. Idle.PROFESSION_MAX_LEVEL .. string.format(gray, bonus)
+end
+
+local function GetSpellEffectText(spell)
+	if spell.click then
+		return string.format(L.spellClickDamage, spell.click * 100)
+	elseif spell.clickShare then
+		return string.format(L.spellClickShare, spell.clickShare * 100)
+	elseif spell.gold then
+		return string.format(L.spellGold, spell.gold * 100)
+	elseif spell.all then
+		return string.format(L.spellAllDamage, spell.all * 100)
+	end
+	return string.format(L.spellOwnDamage, spell.own * 100)
+end
+
+local function ShowSpellTooltip(button)
+	local spell = button.spell
+	if not spell then
+		return
+	end
+
+	GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+	GameTooltip:AddLine(Idle.GetName(spell))
+	GameTooltip:AddLine(GetSpellEffectText(spell), 1, 1, 1)
+
+	if Idle.IsSpellBought(spell) then
+		GameTooltip:AddLine(L.spellUnlocked, 0.2, 1, 0.2)
+	elseif Idle.GetBalance("ally") >= spell.cost then
+		GameTooltip:AddLine(string.format(L.spellCost, PTT.FormatNumber(spell.cost)), 1, 0.82, 0)
+	else
+		GameTooltip:AddLine(string.format(L.spellCost, PTT.FormatNumber(spell.cost)), 1, 0.2, 0.2)
+	end
+	GameTooltip:Show()
+end
+
+local function CreateSpellButton(row, position, onChange)
+	local button = CreateFrame("Button", nil, row, BackdropTemplateMixin and "BackdropTemplate" or nil)
+	button:SetSize(SPELL_ICON_SIZE, SPELL_ICON_SIZE)
+	button:SetPoint("BOTTOMLEFT", 6 + (position - 1) * (SPELL_ICON_SIZE + 6), 6)
+	button:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 })
+
+	button.icon = button:CreateTexture(nil, "ARTWORK")
+	button.icon:SetPoint("TOPLEFT", 2, -2)
+	button.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+	button.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+	button.check = button:CreateTexture(nil, "OVERLAY")
+	button.check:SetSize(SPELL_ICON_SIZE * 0.7, SPELL_ICON_SIZE * 0.7)
+	button.check:SetPoint("BOTTOMRIGHT", 3, -3)
+	button.check:SetTexture(CHECK_TEXTURE)
+
+	button:SetScript("OnClick", function()
+		if button.spell and Idle.BuySpell(button.spell) then
+			onChange()
+		end
+	end)
+	button:SetScript("OnEnter", ShowSpellTooltip)
+	button:SetScript("OnLeave", UI.HideTooltip)
+	return button
+end
+
+-- Visible spells; colored when they can be bought, gray otherwise. Returns whether any are shown.
+local function UpdateSpellButtons(row, id)
+	local spells = Idle.spells[id]
+	local anyShown = false
+
+	for position, button in ipairs(row.spellButtons) do
+		local spell = spells and spells[position]
+		if not spell or not Idle.IsSpellVisible(spell) then
+			button:Hide()
+			button.spell = nil
+		else
+			anyShown = true
+			button:Show()
+			button.spell = spell
+			button.icon:SetTexture(ICON_PATH .. ((SPELL_ICONS[id] or {})[position] or "INV_Misc_QuestionMark"))
+
+			if Idle.IsSpellBought(spell) then
+				button.icon:SetVertexColor(1, 1, 1)
+				button.check:Show()
+				button:SetBackdropBorderColor(0.2, 1, 0.2, 1)
+			else
+				local usable = Idle.CanBuySpell(spell)
+				button.icon:SetVertexColor(usable and 1 or 0.4, usable and 1 or 0.4, usable and 1 or 0.4)
+				button.check:Hide()
+				button:SetBackdropBorderColor(usable and 1 or 0.4, usable and 0.82 or 0.4, usable and 0 or 0.4, 1)
+			end
+		end
+	end
+	return anyShown
 end
 
 local function ShowRowTooltip(row)
@@ -79,9 +192,7 @@ local function ShowRowTooltip(row)
 	GameTooltip:AddLine(Idle.GetName(definition))
 
 	if kind == "ally" then
-		local owned = Idle.GetOwned(kind, definition.id)
 		GameTooltip:AddLine(string.format(L.totalDamage, PTT.FormatNumber(Idle.GetAllyDamage(definition) * Idle.GetDamageMultiplier())), 1, 1, 1)
-		GameTooltip:AddLine(string.format(L.nextDoubling, (math.floor(owned / Idle.MILESTONE_STEP) + 1) * Idle.MILESTONE_STEP), 0.6, 0.6, 0.6)
 	end
 	GameTooltip:Show()
 end
@@ -246,11 +357,19 @@ local function BuildIdleView(parent)
 		previousAmount = button
 	end
 
-	-- Upgrade rows (heroes and professions)
+	-- Upgrade rows (heroes with their spell icons, and professions)
+	local rowScroll = CreateFrame("ScrollFrame", "PassTheTimeUpgradeScroll", view, "UIPanelScrollFrameTemplate")
+	rowScroll:SetPoint("TOPLEFT", RIGHT_X, LIST_TOP)
+	rowScroll:SetPoint("BOTTOMRIGHT", -26, 0)
+
+	local rowContent = CreateFrame("Frame", nil, rowScroll)
+	rowContent:SetSize(RIGHT_WIDTH - 26, MAX_ROWS * SPELL_ROW_HEIGHT)
+	rowScroll:SetScrollChild(rowContent)
+
 	local rows = {}
-	for index = 1, 9 do
-		local row = CreateFrame("Frame", nil, view)
-		row:SetSize(RIGHT_WIDTH, ROW_HEIGHT - 2)
+	for index = 1, MAX_ROWS do
+		local row = CreateFrame("Frame", nil, rowContent)
+		row:SetSize(RIGHT_WIDTH - 26, ROW_HEIGHT - 2)
 		row:EnableMouse(true)
 		row.background = row:CreateTexture(nil, "BACKGROUND")
 		row.background:SetAllPoints()
@@ -259,7 +378,13 @@ local function BuildIdleView(parent)
 		row.nameLabel = UI.CreateLabel(row, "GameFontNormal")
 		row.nameLabel:SetPoint("TOPLEFT", 6, -4)
 		row.detailLabel = UI.CreateLabel(row, "GameFontHighlightSmall")
-		row.detailLabel:SetPoint("BOTTOMLEFT", 6, 4)
+
+		row.spellButtons = {}
+		for position = 1, #Idle.SPELL_LEVELS do
+			row.spellButtons[position] = CreateSpellButton(row, position, function()
+				view.Refresh()
+			end)
+		end
 
 		row.buyButton = UI.CreateButton(row, L.buy, 110, 22, function()
 			if row.definition then
@@ -437,7 +562,10 @@ local function BuildIdleView(parent)
 			RefreshMonsterList()
 		end
 
+		rowScroll:SetShown(hasRows)
 		local entries = GetEntries(activeTab)
+		rowContent:SetHeight(math.max(1, #entries * SPELL_ROW_HEIGHT))
+		local offset = 0
 		for index, row in ipairs(rows) do
 			local entry = entries[index]
 			if not entry then
@@ -445,14 +573,36 @@ local function BuildIdleView(parent)
 				row.definition = nil
 			else
 				local kind, definition = entry.kind, entry.definition
+				local isHero = kind ~= "profession"
+				local hasSpells = isHero and UpdateSpellButtons(row, definition.id)
+				local height = hasSpells and SPELL_ROW_HEIGHT or ROW_HEIGHT
 				row:Show()
+				row:SetHeight(height - 2)
 				row:ClearAllPoints()
-				row:SetPoint("TOPLEFT", RIGHT_X, LIST_TOP - (index - 1) * ROW_HEIGHT)
+				row:SetPoint("TOPLEFT", 0, -offset)
+				offset = offset + height
 				row.definition = definition
 				row.kind = kind
 				row.amount = ResolveAmount(kind, definition)
 
-				row.nameLabel:SetText(Idle.GetName(definition))
+				row.detailLabel:ClearAllPoints()
+				if hasSpells then
+					row.detailLabel:SetPoint("TOPLEFT", 6, -22)
+				else
+					row.detailLabel:SetPoint("BOTTOMLEFT", 6, 4)
+				end
+				if not isHero then
+					for _, button in ipairs(row.spellButtons) do
+						button:Hide()
+						button.spell = nil
+					end
+				end
+
+				local name = Idle.GetName(definition)
+				if isHero then
+					name = name .. "  |cff999999" .. string.format(L.level, Idle.GetOwned(kind, definition.id)) .. "|r"
+				end
+				row.nameLabel:SetText(name)
 				row.detailLabel:SetText(GetDetailText(kind, definition))
 
 				if row.amount == 0 then

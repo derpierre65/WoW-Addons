@@ -13,7 +13,7 @@ local DEFAULTS = {
 		gold = 0, runGold = 0, lifetimeGold = 0, runTime = 0, totalTime = 0,
 		clicks = 0, renown = 0, renownEarned = 0, prestiges = 0,
 		unlocked = 1, tierKills = {}, kills = 0, bossKills = 0, groupBossKills = 0, guildBossKills = 0, monsterIndex = 1, monsterDamage = 0,
-		allies = {}, upgrades = {}, professions = {}, buffs = {},
+		allies = {}, upgrades = {}, spells = {}, heroesRevealed = 1, professions = {}, buffs = {},
 		buyAmount = 1, lifetimeKills = 0, eventsClaimed = 0,
 		goldSpent = 0, bestReward = 0, highestEnemy = 1, sessions = 0, longestSession = 0, worldBonuses = 0,
 	},

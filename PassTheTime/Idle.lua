@@ -7,10 +7,8 @@ Idle.PRESTIGE_UNLOCK_LEVEL = 100
 Idle.LEVELS_PER_SOUL = 2000
 Idle.PROFESSION_MAX_LEVEL = 75
 Idle.TIER_DAMAGE_BONUS = 0.03
-Idle.CLICK_SHARE_OF_DPS = 0.05
 Idle.MAX_TICK = 5
 Idle.MAX_CLICKS_PER_SECOND = 20
-Idle.MILESTONE_STEP = 25
 
 Idle.MONSTER_BASE_HEALTH = 10
 Idle.GOLD_PER_HEALTH_BASE = 1 / 15
@@ -115,6 +113,51 @@ end
 
 local STATE_KEYS = { ally = "allies", upgrade = "upgrades", profession = "professions" }
 local GROWTH = { ally = 1.07, upgrade = 1.07 }
+
+-- Every hero has five spells and the click upgrade six, bought in order once the hero reaches the level.
+Idle.SPELL_LEVELS = { 10, 25, 50, 75, 100, 150 }
+local SPELL_COST_FACTORS = { 40, 150, 800, 4500, 25000, 200000 }
+
+-- Effect per spell: own = this hero's damage, all = every hero's damage, click = click damage,
+-- clickShare = share of the total hero damage added to the click, gold = gold from kills. Values are fractions.
+local SPELL_EFFECTS = {
+	click = { { click = 0.5 }, { click = 0.75 }, { click = 1 }, { click = 1.25 }, { click = 1.5 }, { click = 2 } },
+	recruit = { { own = 0.25 }, { own = 0.5 }, { own = 0.75 }, { own = 1 }, { own = 2 } },
+	scout = { { own = 0.4 }, { gold = 0.1 }, { own = 0.8 }, { own = 1.2 }, { gold = 0.15 } },
+	footman = { { own = 0.5 }, { own = 1 }, { own = 1.5 }, { all = 0.05 }, { own = 3 } },
+	hunter = { { own = 0.75 }, { own = 1.5 }, { clickShare = 0.005 }, { own = 2.5 }, { own = 4 } },
+	mage = { { own = 0.6 }, { all = 0.1 }, { own = 1.2 }, { all = 0.15 }, { own = 2.4 } },
+	warlock = { { own = 0.5 }, { all = 0.08 }, { own = 1.5 }, { all = 0.12 }, { own = 3 } },
+	paladin = { { own = 0.5 }, { all = 0.1 }, { own = 1.5 }, { all = 0.2 }, { own = 3 } },
+	slayer = { { own = 0.6 }, { all = 0.15 }, { own = 1.8 }, { all = 0.25 }, { own = 4 } },
+}
+
+-- Idle.spells[id] = list of { id, kind, index, level, cost, nameKey, plus the effect field }.
+Idle.spells = {}
+
+local function BuildSpells(kind, definition)
+	local list = {}
+	for index, effect in ipairs(SPELL_EFFECTS[definition.id]) do
+		local spell = {
+			id = definition.id,
+			kind = kind,
+			index = index,
+			level = Idle.SPELL_LEVELS[index],
+			cost = definition.cost * SPELL_COST_FACTORS[index],
+			nameKey = "spell_" .. definition.id .. "_" .. index,
+		}
+		for field, value in pairs(effect) do
+			spell[field] = value
+		end
+		list[index] = spell
+	end
+	Idle.spells[definition.id] = list
+end
+
+BuildSpells("upgrade", Idle.definitions.upgrade[1])
+for _, definition in ipairs(Idle.definitions.ally) do
+	BuildSpells("ally", definition)
+end
 
 -- Levels 1-100 with a boss every fifth level, then the raid bosses as the strongest enemies.
 -- { boss, NPC id for the 3D model }; the name is npc_<id> in Localization.lua.
@@ -250,18 +293,141 @@ function Idle.Buy(kind, definition, amount)
 	return count
 end
 
+-- The next hero shows up once the player could afford (or owns) the last visible one; it stays visible.
+function Idle.UpdateRevealedHeroes()
+	local state = GetState()
+	local heroes = Idle.definitions.ally
+	local revealed = math.max(1, state.heroesRevealed or 1)
+
+	while revealed < #heroes do
+		local definition = heroes[revealed]
+		if Idle.GetOwned("ally", definition.id) < 1 and state.gold < Idle.GetCost("ally", definition, 1) then
+			break
+		end
+		revealed = revealed + 1
+	end
+
+	state.heroesRevealed = revealed
+	return revealed
+end
+
+---------------------------------------------------------------------------
+-- Spells
+---------------------------------------------------------------------------
+
+-- state.spells[id] is a set of bought spell indexes. Older saves stored a count instead.
+local function GetBoughtSpells(id)
+	local state = GetState()
+	state.spells = state.spells or {}
+
+	local bought = state.spells[id]
+	if type(bought) == "number" then
+		local converted = {}
+		for index = 1, bought do
+			converted[index] = true
+		end
+		state.spells[id] = converted
+		return converted
+	end
+	return bought or {}
+end
+
+function Idle.IsSpellBought(spell)
+	return GetBoughtSpells(spell.id)[spell.index] == true
+end
+
+function Idle.GetSpellCount(id)
+	local count = 0
+	for _ in pairs(GetBoughtSpells(id)) do
+		count = count + 1
+	end
+	return count
+end
+
+-- Shown (and buyable) once the hero exists and either the previous spell is bought or the hero has the spell's level.
+function Idle.IsSpellVisible(spell)
+	if Idle.GetOwned(spell.kind, spell.id) < 1 then
+		return false
+	end
+
+	if spell.index == 1 or Idle.GetOwned(spell.kind, spell.id) >= spell.level or Idle.IsSpellBought(spell) then
+		return true
+	end
+	return GetBoughtSpells(spell.id)[spell.index - 1] == true
+end
+
+function Idle.CanBuySpell(spell)
+	return Idle.IsSpellVisible(spell) and not Idle.IsSpellBought(spell) and GetState().gold >= spell.cost
+end
+
+function Idle.BuySpell(spell)
+	if not Idle.CanBuySpell(spell) then
+		return false
+	end
+
+	local state = GetState()
+	state.gold = state.gold - spell.cost
+	state.goldSpent = (state.goldSpent or 0) + spell.cost
+	GetBoughtSpells(spell.id)
+	state.spells[spell.id] = state.spells[spell.id] or {}
+	state.spells[spell.id][spell.index] = true
+	return true
+end
+
+-- Sum of one effect field over the bought spells of the given ids.
+local function SumSpellBonus(field, ids)
+	local total = 0
+	for _, id in ipairs(ids) do
+		for _, spell in ipairs(Idle.spells[id]) do
+			if Idle.IsSpellBought(spell) then
+				total = total + (spell[field] or 0)
+			end
+		end
+	end
+	return total
+end
+
+function Idle.GetOwnSpellBonus(id)
+	return SumSpellBonus("own", { id })
+end
+
+local function SumHeroSpellBonus(field)
+	local ids = {}
+	for _, definition in ipairs(Idle.definitions.ally) do
+		ids[#ids + 1] = definition.id
+	end
+	return SumSpellBonus(field, ids)
+end
+
+function Idle.GetAllHeroesSpellBonus()
+	return SumHeroSpellBonus("all")
+end
+
+function Idle.GetClickSpellBonus()
+	return SumSpellBonus("click", { "click" })
+end
+
+function Idle.GetClickShareSpellBonus()
+	return SumHeroSpellBonus("clickShare")
+end
+
+function Idle.GetGoldSpellBonus()
+	return SumHeroSpellBonus("gold")
+end
+
 ---------------------------------------------------------------------------
 -- Damage and gold
 ---------------------------------------------------------------------------
 
--- Every 25 allies of one kind double that kind's damage.
-function Idle.GetMilestoneMultiplier(owned)
-	return 2 ^ math.floor(owned / Idle.MILESTONE_STEP)
+-- Damage of one hero of this kind; only spells raise it.
+function Idle.GetAllyUnitDamage(definition)
+	return definition.damage
+		* (1 + Idle.GetOwnSpellBonus(definition.id))
+		* (1 + Idle.GetAllHeroesSpellBonus())
 end
 
 function Idle.GetAllyDamage(definition)
-	local owned = Idle.GetOwned("ally", definition.id)
-	return owned * definition.damage * Idle.GetMilestoneMultiplier(owned)
+	return Idle.GetOwned("ally", definition.id) * Idle.GetAllyUnitDamage(definition)
 end
 
 function Idle.GetBaseDamagePerSecond()
@@ -312,7 +478,7 @@ function Idle.GetDamageMultiplier()
 end
 
 function Idle.GetGoldMultiplier()
-	return 1 + Idle.GetProfessionBonus("gold")
+	return 1 + Idle.GetProfessionBonus("gold") + Idle.GetGoldSpellBonus()
 end
 
 function Idle.GetDamagePerSecond()
@@ -321,8 +487,8 @@ end
 
 function Idle.GetClickDamage()
 	local level = Idle.GetOwned("upgrade", "click")
-	local base = 1 + level * (1 + level * 0.05) + Idle.GetBaseDamagePerSecond() * Idle.CLICK_SHARE_OF_DPS
-	return base * Idle.GetDamageMultiplier() * (1 + Idle.GetProfessionBonus("click"))
+	local base = 1 + level * (1 + level * 0.05) + Idle.GetBaseDamagePerSecond() * Idle.GetClickShareSpellBonus()
+	return base * Idle.GetDamageMultiplier() * (1 + Idle.GetProfessionBonus("click")) * (1 + Idle.GetClickSpellBonus())
 end
 
 ---------------------------------------------------------------------------
@@ -573,6 +739,7 @@ function Idle.Tick(dt)
 	state.highestEnemy = math.max(state.highestEnemy or 1, state.unlocked)
 
 	Fight(dt)
+	Idle.UpdateRevealedHeroes()
 
 	if Idle.GetMonster(state.monsterIndex).boss then
 		Idle.bossTimer = (Idle.bossTimer or Idle.GetBossTimeLimit()) - dt
@@ -642,6 +809,8 @@ function Idle.Prestige()
 	state.monsterDamage = 0
 	state.allies = {}
 	state.upgrades = {}
+	state.spells = {}
+	state.heroesRevealed = 1
 	state.buffs = {}
 	Idle.bossTimer = nil
 	return true

@@ -274,7 +274,7 @@ Check(Idle.GetTierKills(1) == 25, "kills are counted per tier")
 -- Boss kills are counted separately
 FreshDatabase()
 PTT.database.idle.unlocked = 5
-PTT.database.idle.allies.scout = 1000
+PTT.database.idle.allies.scout = 5000
 Idle.SelectMonster(5)
 Idle.Tick(1)
 Check(PTT.database.idle.bossKills >= 1 and PTT.database.idle.lifetimeKills >= PTT.database.idle.bossKills, "boss kills counted")
@@ -383,7 +383,7 @@ Check(Idle.GetBossTimeLeft() == nil, "timer gone after dropping back")
 -- A boss killed in time pays out and starts a fresh timer
 FreshDatabase()
 PTT.database.idle.unlocked = 5
-PTT.database.idle.allies.scout = 100
+PTT.database.idle.allies.scout = 1000
 Idle.SelectMonster(5)
 local goldBefore = PTT.database.idle.gold
 for _ = 1, 3 do Idle.Tick(2) end
@@ -418,6 +418,95 @@ Check(state.renown == 4 and state.renownEarned == 3 and state.gold == 0 and next
 Check(state.professions.mining == 4, "professions kept")
 Check(state.lifetimeGold == 4e6, "lifetime kept")
 
+-- Spells
+FreshDatabase()
+local function Spell(id, index)
+	return Idle.spells[id][index]
+end
+
+local clickSpell = Spell("click", 1)
+Check(clickSpell.level == 10 and clickSpell.click == 0.5, "first click spell is level 10")
+PTT.database.idle.gold = 1e12
+Check(not Idle.IsSpellVisible(clickSpell) and not Idle.CanBuySpell(clickSpell), "spells stay hidden until the hero is level 1")
+PTT.database.idle.upgrades.click = 1
+Check(Idle.IsSpellVisible(clickSpell) and Idle.CanBuySpell(clickSpell), "first spell is buyable at hero level 1")
+Check(not Idle.IsSpellVisible(Spell("click", 2)), "second spell hidden below its level")
+local clickBeforeSpell = Idle.GetClickDamage()
+Check(Idle.BuySpell(clickSpell), "first spell bought")
+Near(Idle.GetClickDamage(), clickBeforeSpell * 1.5, "click spell adds 50% click damage")
+Check(Idle.IsSpellVisible(Spell("click", 2)) and Idle.CanBuySpell(Spell("click", 2)), "buying a spell shows and unlocks the next")
+Check(not Idle.BuySpell(clickSpell), "a bought spell cannot be bought again")
+Check(not Idle.IsSpellVisible(Spell("click", 3)), "third spell still hidden")
+Check(Spell("click", 2).cost > clickSpell.cost, "later spells cost more")
+PTT.database.idle.upgrades.click = 50
+Check(Idle.CanBuySpell(Spell("click", 3)), "a spell is buyable once the hero reaches its level, without the previous one")
+Check(Idle.BuySpell(Spell("click", 3)) and not Idle.IsSpellBought(Spell("click", 2)), "spells can be bought out of order")
+PTT.database.idle.spells = { click = 2 }
+Check(Idle.IsSpellBought(Spell("click", 2)) and Idle.GetSpellCount("click") == 2, "old saves with a spell count still load")
+
+FreshDatabase()
+PTT.database.idle.gold = 1e30
+PTT.database.idle.allies.recruit = 25
+PTT.database.idle.allies.mage = 25
+local damageBefore = Idle.GetDamagePerSecond()
+Check(Idle.BuySpell(Spell("recruit", 1)), "warrior spell 1")
+Near(Idle.GetAllyDamage(recruit), 25 * recruit.damage * 1.25, "own spell raises own damage by 25%")
+Check(Idle.BuySpell(Spell("recruit", 2)), "warrior spell 2 at level 25")
+Check(Idle.CanBuySpell(Spell("recruit", 3)), "bought previous spell makes the next one buyable")
+Check(Idle.BuySpell(Spell("mage", 1)), "mage spell 1")
+Check(Idle.BuySpell(Spell("mage", 2)), "mage spell 2 boosts all heroes")
+local mage = Idle.definitions.ally[5]
+Near(Idle.GetAllyDamage(mage), 25 * mage.damage * 1.6 * 1.1, "mage spells: own and all-heroes bonus")
+Near(Idle.GetAllyDamage(recruit), 25 * recruit.damage * 1.75 * 1.1, "all-heroes bonus applies to other heroes")
+Check(Idle.GetDamagePerSecond() > damageBefore, "spells raise total damage")
+
+FreshDatabase()
+local seenAll = false
+for _, spell in ipairs(Idle.spells.recruit) do
+	seenAll = seenAll or spell.all ~= nil
+end
+Check(not seenAll, "cheap heroes only boost themselves")
+Check(#Idle.spells.slayer == 5 and Idle.spells.slayer[5].level == 100, "five spells up to level 100")
+Check(#Idle.spells.click == 6 and Idle.spells.click[6].level == 150 and Idle.spells.click[6].click == 2, "weapon training has a sixth, strongest spell")
+
+-- Gold and click-share spells
+FreshDatabase()
+PTT.database.idle.gold = 1e30
+PTT.database.idle.allies.scout = 25
+PTT.database.idle.allies.hunter = 50
+Idle.BuySpell(Spell("scout", 1))
+local goldBefore = Idle.GetGoldMultiplier()
+Idle.BuySpell(Spell("scout", 2))
+Near(Idle.GetGoldMultiplier(), goldBefore + 0.1, "scout spell adds gold")
+for index = 1, 3 do Idle.BuySpell(Spell("hunter", index)) end
+local hunterDamage = Idle.GetBaseDamagePerSecond()
+Near(Idle.GetClickDamage(), (1 + hunterDamage * 0.005) * Idle.GetDamageMultiplier(), "hunter spell raises the click share of total damage")
+FreshDatabase()
+PTT.database.idle.allies.hunter = 50
+Near(Idle.GetClickDamage(), 1 * Idle.GetDamageMultiplier(), "heroes add no click damage without the spell")
+
+FreshDatabase()
+PTT.database.idle.gold = 1e30
+PTT.database.idle.upgrades.click = 10
+Idle.BuySpell(Spell("click", 1))
+PTT.database.idle.unlocked = Idle.PRESTIGE_UNLOCK_LEVEL
+Idle.Prestige()
+Check(Idle.GetSpellCount("click") == 0, "prestige resets spells")
+
+-- Heroes are revealed one by one
+FreshDatabase()
+Check(Idle.UpdateRevealedHeroes() == 1, "only the first hero at the start")
+PTT.database.idle.gold = 14
+Check(Idle.UpdateRevealedHeroes() == 1, "next hero stays hidden below the price of the last visible one")
+PTT.database.idle.gold = 15
+Check(Idle.UpdateRevealedHeroes() == 2, "next hero shows when the last visible one is affordable")
+PTT.database.idle.gold = 0
+Check(Idle.UpdateRevealedHeroes() == 2, "revealed heroes stay visible")
+PTT.database.idle.allies.scout = 1
+Check(Idle.UpdateRevealedHeroes() == 3, "owning a hero reveals the next")
+PTT.database.idle.gold = 1e30
+Check(Idle.UpdateRevealedHeroes() == #Idle.definitions.ally, "capped at the last hero")
+
 -- Number formatting
 Check(PTT.FormatNumber(0) == "0", "format 0")
 Check(PTT.FormatNumber(999) == "999", "format 999")
@@ -450,8 +539,7 @@ if arg and arg[1] == "simulate" then
 	local function BestPurchase()
 		local best
 		for _, definition in ipairs(Idle.definitions.ally) do
-			local owned = Idle.GetOwned("ally", definition.id)
-			local gain = definition.damage * Idle.GetMilestoneMultiplier(owned) * Idle.GetDamageMultiplier()
+			local gain = Idle.GetAllyUnitDamage(definition) * Idle.GetDamageMultiplier()
 			local score = Idle.GetCost("ally", definition, 1) / gain
 			if not best or score < best.score then
 				best = { kind = "ally", definition = definition, score = score }
