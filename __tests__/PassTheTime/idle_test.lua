@@ -47,9 +47,9 @@ local click = Idle.definitions.upgrade[1]
 -- Costs and buying
 FreshDatabase()
 Near(Idle.GetCost("ally", recruit, 1), 15, "first recruit costs base")
-Near(Idle.GetCost("ally", recruit, 2), 15 + 15 * 1.07, "two recruits")
+Near(Idle.GetCost("ally", recruit, 2), 15 + 15 * 1.05, "two recruits")
 PTT.database.idle.allies.recruit = 3
-Near(Idle.GetCost("ally", recruit, 1), 15 * 1.07 ^ 3, "cost grows with owned")
+Near(Idle.GetCost("ally", recruit, 1), 15 * 1.05 ^ 3, "cost grows with owned")
 
 FreshDatabase()
 Check(Idle.Buy("ally", recruit, 1) == 0, "cannot buy without gold")
@@ -240,7 +240,7 @@ local statState = PTT.database.idle
 statState.gold = 1000
 local recruit = Idle.definitions.ally[1]
 Idle.Buy("ally", recruit, 2)
-Near(statState.goldSpent, Idle.GetCost("ally", { id = "none", cost = recruit.cost }, 0) + recruit.cost * (1 + 1.07), "gold spent is tracked")
+Near(statState.goldSpent, Idle.GetCost("ally", { id = "none", cost = recruit.cost }, 0) + recruit.cost * (1 + 1.05), "gold spent is tracked")
 Idle.AddGold(5)
 Idle.AddGold(3)
 Check(statState.bestReward == 5, "best reward keeps the highest single amount")

@@ -115,7 +115,7 @@ for kind, list in pairs(Idle.definitions) do
 end
 
 local STATE_KEYS = { ally = "allies", upgrade = "upgrades", profession = "professions" }
-local GROWTH = { ally = 1.07, upgrade = 1.07 }
+local GROWTH = { ally = 1.05, upgrade = 1.05 }
 
 -- Every hero has five spells and the click upgrade six, bought in order once the hero reaches the level.
 Idle.SPELL_LEVELS = { 10, 25, 50, 75, 100, 150 }
