@@ -6,6 +6,8 @@ PTT.Idle = Idle
 Idle.PRESTIGE_UNLOCK_LEVEL = 100
 Idle.LEVELS_PER_SOUL = 2000
 Idle.PROFESSION_MAX_LEVEL = 75
+-- Every this many levels a profession level costs one more soul.
+Idle.PROFESSION_COST_STEP = 25
 Idle.TIER_DAMAGE_BONUS = 0.03
 Idle.MAX_TICK = 5
 Idle.FIGHT_INTERVAL = 0.2
@@ -96,13 +98,13 @@ Idle.definitions = {
 		{ id = "click", cost = 10 },
 	},
 	profession = {
-		-- Cost is renown souls per level, perLevel the bonus per level (seconds for bossTime).
+		-- Cost is renown souls per level (plus one per PROFESSION_COST_STEP levels owned), perLevel the bonus per level (seconds for bossTime).
 		{ id = "herbalism", cost = 1, effect = "heroCost", perLevel = 0.005 },
 		{ id = "mining", cost = 1, effect = "gold", perLevel = 0.02 },
 		{ id = "skinning", cost = 1, effect = "click", perLevel = 0.02 },
 		{ id = "alchemy", cost = 2, effect = "buffDuration", perLevel = 0.02 },
 		{ id = "blacksmithing", cost = 2, effect = "damage", perLevel = 0.015 },
-		{ id = "enchanting", cost = 3, effect = "bossTime", perLevel = 5 },
+		{ id = "enchanting", cost = 3, effect = "bossTime", perLevel = 2 },
 	},
 }
 
@@ -225,9 +227,16 @@ function Idle.GetBalance(kind)
 	return kind == "profession" and state.renown or state.gold
 end
 
+-- Sum of floor(level / PROFESSION_COST_STEP) for all levels below the given one.
+local function ProfessionSurcharge(levels)
+	local steps = math.floor(levels / Idle.PROFESSION_COST_STEP)
+	return Idle.PROFESSION_COST_STEP * steps * (steps - 1) / 2 + steps * (levels % Idle.PROFESSION_COST_STEP)
+end
+
 function Idle.GetCost(kind, definition, amount)
 	if kind == "profession" then
-		return definition.cost * amount
+		local owned = Idle.GetOwned(kind, definition.id)
+		return definition.cost * amount + ProfessionSurcharge(owned + amount) - ProfessionSurcharge(owned)
 	end
 
 	local growth = GROWTH[kind]
@@ -250,7 +259,11 @@ function Idle.GetMaxAffordable(kind, definition)
 
 	local balance = Idle.GetBalance(kind)
 	if kind == "profession" then
-		return math.max(0, math.min(math.floor(balance / definition.cost), capacity))
+		local amount = 0
+		while amount < capacity and Idle.GetCost(kind, definition, amount + 1) <= balance do
+			amount = amount + 1
+		end
+		return amount
 	end
 
 	local growth = GROWTH[kind]

@@ -83,6 +83,14 @@ PTT.database.idle.renown = 1e9
 Check(Idle.Buy("profession", alchemy, "max") == Idle.PROFESSION_MAX_LEVEL - 2, "profession capped at max level")
 Check(Idle.Buy("profession", alchemy, 1) == 0, "no levels beyond cap")
 
+PTT.database.idle.professions = {}
+Check(Idle.GetCost("profession", alchemy, 25) == 25 * 2, "first 25 levels cost the base")
+Check(Idle.GetCost("profession", alchemy, 75) == 25 * (2 + 3 + 4), "one more soul every 25 levels")
+PTT.database.idle.professions.alchemy = 24
+Check(Idle.GetCost("profession", alchemy, 2) == 2 + 3, "price rises at level 25")
+PTT.database.idle.renown = 4
+Check(Idle.GetMaxAffordable("profession", alchemy) == 1, "max affordable respects the higher price")
+
 -- Damage and multipliers
 FreshDatabase()
 PTT.database.idle.allies.scout = 10
@@ -124,9 +132,9 @@ Near(Idle.GetDamagePerSecond(), 10 * scout.damage, "skinning adds no passive dam
 ClearProfessions()
 Check(Idle.GetBossTimeLimit() == Idle.BOSS_TIME_LIMIT, "no boss time bonus without enchanting")
 PTT.database.idle.professions.enchanting = 1
-Check(Idle.GetBossTimeLimit() == Idle.BOSS_TIME_LIMIT + 5, "+5s per level")
+Check(Idle.GetBossTimeLimit() == Idle.BOSS_TIME_LIMIT + 2, "+2s per level")
 PTT.database.idle.professions.enchanting = 75
-Check(Idle.GetBossTimeLimit() == Idle.BOSS_TIME_LIMIT + 375, "+375s at max level")
+Check(Idle.GetBossTimeLimit() == Idle.BOSS_TIME_LIMIT + 150, "+150s at max level")
 
 ClearProfessions()
 PTT.database.idle.buffs = {}
