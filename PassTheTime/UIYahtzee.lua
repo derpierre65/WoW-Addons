@@ -35,8 +35,10 @@ local function BuildYahtzee(parent)
 
 	local Refresh
 	local newGameButton = UI.CreateButton(view, L.newGame, 110, 50, function()
-		Yahtzee.NewGame()
-		Refresh()
+		UI.ConfirmNewGame(function()
+			Yahtzee.NewGame()
+			Refresh()
+		end)
 	end)
 	newGameButton:SetPoint("TOPRIGHT", 0, 0)
 

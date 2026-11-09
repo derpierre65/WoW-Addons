@@ -118,6 +118,23 @@ function UI.CreateButton(parent, text, width, height, onClick)
 	return button
 end
 
+StaticPopupDialogs["PASSTHETIME_NEW_GAME"] = {
+	text = PTT.L.newGameConfirm,
+	button1 = YES,
+	button2 = NO,
+	OnAccept = function(_, onAccept)
+		onAccept()
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
+function UI.ConfirmNewGame(onAccept)
+	StaticPopup_Show("PASSTHETIME_NEW_GAME", nil, nil, onAccept)
+end
+
 function UI.HideTooltip()
 	GameTooltip:Hide()
 end

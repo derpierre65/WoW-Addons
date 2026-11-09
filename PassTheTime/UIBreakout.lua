@@ -35,8 +35,10 @@ local function BuildBreakout(parent)
 
 	local Refresh
 	local newGameButton = UI.CreateButton(view, L.newGame, 110, 50, function()
-		Breakout.NewGame()
-		Refresh()
+		UI.ConfirmNewGame(function()
+			Breakout.NewGame()
+			Refresh()
+		end)
 	end)
 	newGameButton:SetPoint("TOPRIGHT", 0, 0)
 

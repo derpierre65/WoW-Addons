@@ -103,8 +103,10 @@ local function Build2048(parent)
 	local function Refresh() end
 
 	local newGameButton = UI.CreateButton(view, L.newGame, 110, 50, function()
-		Game.Reset()
-		Refresh()
+		UI.ConfirmNewGame(function()
+			Game.Reset()
+			Refresh()
+		end)
 	end)
 	newGameButton:SetPoint("TOPRIGHT", 0, 0)
 
@@ -300,21 +302,28 @@ local function BuildWordle(parent)
 	statusLabel:SetWidth(BOARD_WIDTH - 8)
 	statusLabel:SetJustifyH("LEFT")
 
+	-- Assigned below; the new game button is created before it.
+	local StartNewWord
+
+	local newWordButton = UI.CreateButton(view, L.newGame, 110, 50, function()
+		UI.ConfirmNewGame(StartNewWord)
+	end)
+	newWordButton:SetPoint("TOPRIGHT", 0, 0)
+
+	local winRateTile, winRateValue = CreateStatTile(view, 90, L.wordleWinRate)
+	winRateTile:SetPoint("RIGHT", newWordButton, "LEFT", -8, 0)
+	winRateValue:SetTextColor(1, 1, 1)
+	local streakTile, streakValue = CreateStatTile(view, 90, L.wordleStreak)
+	streakTile:SetPoint("RIGHT", winRateTile, "LEFT", -8, 0)
+	streakValue:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+
 	-- Stats column on the right
 	local side = CreateFrame("Frame", nil, view)
 	side:SetSize(SIDE_WIDTH, 320)
-	side:SetPoint("TOPRIGHT", 0, -36)
-
-	local tileWidth = (SIDE_WIDTH - 8) / 2
-	local streakTile, streakValue = CreateStatTile(side, tileWidth, L.wordleStreak)
-	streakTile:SetPoint("TOPLEFT", 0, 0)
-	streakValue:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-	local winRateTile, winRateValue = CreateStatTile(side, tileWidth, L.wordleWinRate)
-	winRateTile:SetPoint("TOPLEFT", tileWidth + 8, 0)
-	winRateValue:SetTextColor(1, 1, 1)
+	side:SetPoint("TOPRIGHT", 0, -58)
 
 	local statsBox = CreateBox(side, SIDE_WIDTH, 96)
-	statsBox:SetPoint("TOPLEFT", 0, -58)
+	statsBox:SetPoint("TOPLEFT", 0, 0)
 	CreateBoxHeader(statsBox, L.wordleYourStats)
 	local playedValue = CreateStatRow(statsBox, 1, L.wordlePlayed)
 	local currentStreakValue = CreateStatRow(statsBox, 2, L.wordleCurrentStreak)
@@ -463,7 +472,7 @@ local function BuildWordle(parent)
 	-- Forward declarations: a new word can change the language (keyboard) and fall back to other options.
 	local ShowKeyboard, UpdateDropdownTexts
 
-	local function StartNewWord()
+	StartNewWord = function()
 		Wordle.NewGame()
 		input = {}
 		ShowKeyboard()
@@ -548,9 +557,6 @@ local function BuildWordle(parent)
 		UIDropDownMenu_SetText(categoryDropdown, GetCategoryText())
 		UIDropDownMenu_SetText(lengthDropdown, GetLengthText())
 	end
-
-	local newWordButton = UI.CreateButton(view, L.newGame, 90, 24, StartNewWord)
-	newWordButton:SetPoint("TOPRIGHT", 0, -4)
 
 	-- On-screen keyboard
 	local function CreateKey(text, width, onClick)

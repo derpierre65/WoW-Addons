@@ -70,7 +70,7 @@ local function BuildSudoku(parent)
 	end
 
 	local newGameButton = UI.CreateButton(view, L.newGame, 110, 50, function()
-		StartGame()
+		UI.ConfirmNewGame(StartGame)
 	end)
 	newGameButton:SetPoint("TOPRIGHT", 0, 0)
 
