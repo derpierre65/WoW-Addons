@@ -19,6 +19,23 @@ local ITEM_ICONS = {
 	wide = "Interface\\Icons\\Spell_Magic_GreaterBlessingofKings",
 }
 local ITEM_LABELS = { shield = "itemShield", rage = "itemRage", multi = "itemMulti", wide = "itemWide" }
+local EFFECT_SOUNDS = {
+	launch = "brickLaunch",
+	wall = "brickWall",
+	paddle = "brickPaddle",
+	hit = "brickHit",
+	["break"] = "brickBreak",
+	bossHit = "brickBossHit",
+	boss = "brickBoss",
+	shield = "brickShield",
+	rage = "brickRage",
+	multi = "brickMulti",
+	wide = "brickWide",
+	ballLost = "brickBallLost",
+	level = "brickLevel",
+	won = "brickWon",
+	lost = "brickLost",
+}
 
 local function BuildBreakout(parent)
 	local Breakout = PTT.Breakout
@@ -257,9 +274,26 @@ local function BuildBreakout(parent)
 		end
 	end
 
+	-- Several balls can hit things in the same frame; each sound plays once.
+	local function PlaySounds()
+		local effects = Breakout.game.effects
+		if #effects == 0 then
+			return
+		end
+		Breakout.game.effects = {}
+		local played = {}
+		for _, kind in ipairs(effects) do
+			if not played[kind] then
+				played[kind] = true
+				UI.PlayGameSound(EFFECT_SOUNDS[kind])
+			end
+		end
+	end
+
 	arena:SetScript("OnUpdate", function(_, delta)
 		FollowMouse()
 		Breakout.Update(math.min(delta, MAX_FRAME_TIME))
+		PlaySounds()
 		Refresh()
 	end)
 

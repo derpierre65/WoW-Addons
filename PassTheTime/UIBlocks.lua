@@ -201,9 +201,32 @@ local function BuildBlocks(parent)
 		end
 	end
 
+	-- Sounds come from comparing with the last drawn state, so key input and gravity share one place.
+	local last = {}
+	local hardDropped = false
+	local function PlaySounds(game)
+		if last.game == game then
+			if game.state == "lost" and last.state ~= "lost" then
+				UI.PlayGameSound("blockLost")
+			elseif game.level > last.level then
+				UI.PlayGameSound("blockLevel")
+			elseif game.lines > last.lines then
+				UI.PlayGameSound(game.lines - last.lines >= 4 and "blockQuad" or "blockLine")
+			elseif game.piece ~= last.piece then
+				UI.PlayGameSound(hardDropped and "blockDrop" or "blockLock")
+			elseif game.piece.rotation ~= last.rotation then
+				UI.PlayGameSound("blockRotate")
+			end
+		end
+		hardDropped = false
+		last.game, last.state, last.level, last.lines = game, game.state, game.level, game.lines
+		last.piece, last.rotation = game.piece, game.piece.rotation
+	end
+
 	Refresh = function()
 		local game = Blocks.game
 		local settings = PTT.database.blocks
+		PlaySounds(game)
 
 		DrawField(game)
 		DrawPreview(game.next)
@@ -270,6 +293,7 @@ local function BuildBlocks(parent)
 			heldActions[action] = -REPEAT_DELAY
 		end
 		if Blocks.Input(action) then
+			hardDropped = action == "drop"
 			Refresh()
 		end
 		return true

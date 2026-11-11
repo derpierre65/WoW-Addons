@@ -175,6 +175,7 @@ function Breakout.NewGame()
 		balls = {},
 		rageTimers = {},
 		wideTimers = {},
+		effects = {},
 		counted = false,
 	}
 	Breakout.StartLevel(1)
@@ -184,8 +185,14 @@ function Breakout.Load()
 	Breakout.NewGame()
 end
 
+-- Reported in game.effects for the UI sounds.
+local function Emit(game, kind)
+	game.effects[#game.effects + 1] = kind
+end
+
 local function Finish(game, state)
 	game.state = state
+	Emit(game, state)
 	local settings = GetSettings()
 	settings.highScore = math.max(settings.highScore, game.score)
 end
@@ -216,6 +223,7 @@ function Breakout.Launch()
 	end
 
 	game.state = "playing"
+	Emit(game, "launch")
 	local ball = game.balls[1]
 	local angle = (Breakout.random() - 0.5) * 0.6
 	local speed = Breakout.GetSpeed()
@@ -284,6 +292,7 @@ local function ClearLevel(game)
 		settings.raidsCleared = settings.raidsCleared + 1
 		Finish(game, "won")
 	else
+		Emit(game, "level")
 		Breakout.StartLevel(game.level + 1)
 	end
 end
@@ -327,7 +336,10 @@ local function HitBricks(game, ball)
 
 				brick.health = brick.health - 1
 				if brick.health <= 0 then
+					Emit(game, brick.boss and "boss" or "break")
 					DestroyBrick(game, brick)
+				else
+					Emit(game, brick.boss and "bossHit" or "hit")
 				end
 				return
 			end
@@ -351,6 +363,7 @@ local function HitPaddle(game, ball)
 		ball.velocityX = speed * math.sin(angle)
 		ball.velocityY = -speed * math.cos(angle)
 		ball.y = top - radius
+		Emit(game, "paddle")
 	end
 end
 
@@ -364,6 +377,7 @@ local function LoseLife(game)
 	if game.lives <= 0 then
 		Finish(game, "lost")
 	else
+		Emit(game, "ballLost")
 		game.state = "ready"
 		game.paddleX = ClampPaddle(game, game.paddleX)
 		PlaceBallOnPaddle(game)
@@ -382,6 +396,7 @@ local function UpdateItems(game, step)
 
 		if caught then
 			table.remove(game.items, index)
+			Emit(game, item.kind)
 			ApplyItem(game, item.kind)
 		elseif item.y - Breakout.ITEM_SIZE / 2 > Breakout.FIELD_HEIGHT then
 			table.remove(game.items, index)
@@ -398,13 +413,16 @@ local function StepBall(game, ball, step)
 	if ball.x - radius < 0 then
 		ball.x = radius
 		ball.velocityX = math.abs(ball.velocityX)
+		Emit(game, "wall")
 	elseif ball.x + radius > Breakout.FIELD_WIDTH then
 		ball.x = Breakout.FIELD_WIDTH - radius
 		ball.velocityX = -math.abs(ball.velocityX)
+		Emit(game, "wall")
 	end
 	if ball.y - radius < 0 then
 		ball.y = radius
 		ball.velocityY = math.abs(ball.velocityY)
+		Emit(game, "wall")
 	end
 
 	if ball.y - radius > Breakout.FIELD_HEIGHT then

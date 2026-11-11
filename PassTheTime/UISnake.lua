@@ -147,9 +147,24 @@ local function BuildSnake(parent)
 		end
 	end
 
+	local lastGame, lastState, lastEaten
+	local function PlaySounds(game)
+		if lastGame == game then
+			if game.state == "lost" and lastState ~= "lost" then
+				UI.PlayGameSound("snakeCrash")
+			elseif game.state == "won" and lastState ~= "won" then
+				UI.PlayGameSound("snakeWin")
+			elseif game.eaten > lastEaten then
+				UI.PlayGameSound("snakeEat")
+			end
+		end
+		lastGame, lastState, lastEaten = game, game.state, game.eaten
+	end
+
 	Refresh = function()
 		local game = Snake.game
 		local settings = PTT.database.snake
+		PlaySounds(game)
 
 		DrawSnake(game)
 

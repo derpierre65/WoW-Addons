@@ -293,6 +293,96 @@ for _, frame in ipairs(createdFrames) do
 end
 assert(playedSounds.diceRoll, "yahtzee roll sound")
 
+-- Only the selected view is shown, so only its keyboard handler gets the key.
+local function PressKey(key)
+	for _, frame in ipairs(createdFrames) do
+		if frame._shown and frame._scripts.OnKeyDown then
+			frame._scripts.OnKeyDown(frame, key)
+		end
+	end
+end
+local function FindFrames(match)
+	local found = {}
+	for _, frame in ipairs(createdFrames) do
+		if frame._scripts.OnClick and match(frame) then
+			found[#found + 1] = frame
+		end
+	end
+	return found
+end
+
+-- Memory: flipping a matching pair
+PTT.UI.SelectView("memory")
+PTT.Memory.NewGame("easy")
+PTT.Memory.game.symbols[2] = PTT.Memory.game.symbols[1]
+playedSounds = {}
+local memoryCards = FindFrames(function(frame) return frame.mark end)
+memoryCards[1]._scripts.OnClick(memoryCards[1])
+memoryCards[2]._scripts.OnClick(memoryCards[2])
+assert(playedSounds.cardFlip and playedSounds.cardMatch, "memory flip and match sounds")
+
+-- Blockfall: rotate, then hard drop
+PTT.UI.SelectView("blocks")
+PTT.Blocks.random = function() return 0.5 end
+PTT.Blocks.NewGame()
+playedSounds = {}
+PressKey("UP")
+PressKey("UP")
+PressKey("SPACE")
+assert(playedSounds.blockRotate and playedSounds.blockDrop, "blockfall rotate and drop sounds")
+
+-- Snake: eat the food straight ahead, then run into the wall
+PTT.UI.SelectView("snake")
+local Snake = PTT.Snake
+Snake.NewGame()
+playedSounds = {}
+PressKey("RIGHT")
+local head = Snake.game.segments[1]
+Snake.game.food = { x = head.x + 1, y = head.y }
+Snake.Update(Snake.GetInterval())
+PressKey("RIGHT")
+Snake.Update(10)
+PressKey("SPACE")
+assert(playedSounds.snakeEat and playedSounds.snakeCrash, "snake eat and crash sounds")
+
+-- Breakout: launch and let the ball reach the bricks
+PTT.UI.SelectView("breakout")
+PTT.Breakout.NewGame()
+playedSounds = {}
+PressKey("SPACE")
+for _ = 1, 40 do
+	for _, frame in ipairs(createdFrames) do
+		if frame._scripts.OnUpdate and frame._shown then frame._scripts.OnUpdate(frame, 0.05) end
+	end
+end
+assert(playedSounds.brickLaunch, "breakout launch sound")
+assert(playedSounds.brickHit or playedSounds.brickBreak, "breakout brick sound")
+
+-- Minesweeper: first click opens safely, right click plants a banner
+PTT.UI.SelectView("minesweeper")
+local Minesweeper = PTT.Minesweeper
+Minesweeper.NewGame()
+playedSounds = {}
+local mineCells = FindFrames(function(frame) return frame.label and frame.icon end)
+mineCells[1]._scripts.OnClick(mineCells[1], "LeftButton")
+assert(playedSounds.mineReveal or playedSounds.mineCascade or playedSounds.mineWin, "minesweeper reveal sound")
+for index, cell in ipairs(mineCells) do
+	if index <= Minesweeper.game.width * Minesweeper.game.height and not Minesweeper.game.revealed[index] then
+		cell._scripts.OnClick(cell, "RightButton")
+		break
+	end
+end
+assert(playedSounds.mineFlag, "minesweeper flag sound")
+
+-- Hangman: one right and one wrong letter
+PTT.UI.SelectView("hangman")
+PTT.Hangman.NewGame()
+PTT.Hangman.game.word = "TEST"
+playedSounds = {}
+PressKey("T")
+PressKey("Q")
+assert(playedSounds.hangRight and playedSounds.hangWrong, "hangman right and wrong sounds")
+
 PTT.database.settings.gameSounds = false
 playedSounds = {}
 PTT.UI.PlayGameSound("orbPop1")
@@ -304,14 +394,27 @@ local function AssertSoundFile(name)
 	assert(handle, "missing sound file " .. name)
 	handle:close()
 end
-for _, file in ipairs({ "UIBubbles.lua", "UIYahtzee.lua" }) do
+local SOUND_PREFIXES = {
+	["UIBubbles.lua"] = "orb",
+	["UIYahtzee.lua"] = "dice",
+	["UIMemory.lua"] = "card",
+	["UIBlocks.lua"] = "block",
+	["UISnake.lua"] = "snake",
+	["UIBreakout.lua"] = "brick",
+	["UIMinesweeper.lua"] = "mine",
+	["UIHangman.lua"] = "hang",
+}
+for file, prefix in pairs(SOUND_PREFIXES) do
 	local gameSource = io.open("PassTheTime/" .. file):read("*a")
+	local count = 0
 	for name in gameSource:gmatch('"(%l+%u%a+)"') do
 		-- "orbPop" is only the prefix of the numbered pop sounds.
-		if (name:match("^orb") or name:match("^dice")) and name ~= "orbPop" then
+		if name:sub(1, #prefix) == prefix and name ~= "orbPop" then
 			AssertSoundFile(name)
+			count = count + 1
 		end
 	end
+	assert(count > 0, "no sounds found in " .. file)
 end
 for step = 1, 5 do
 	AssertSoundFile("orbPop" .. step)

@@ -68,7 +68,18 @@ local function BuildMemory(parent)
 		card.mark:SetTextColor(colors.gold[1], colors.gold[2], colors.gold[3])
 		card:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 		card:SetScript("OnClick", function()
-			Memory.Flip(index)
+			local game = Memory.game
+			local pairsBefore, mismatchesBefore = game.pairsFound, game.mismatches
+			if Memory.Flip(index) then
+				UI.PlayGameSound("cardFlip")
+				if game.state == "won" then
+					UI.PlayGameSound("cardWin")
+				elseif game.pairsFound > pairsBefore then
+					UI.PlayGameSound("cardMatch")
+				elseif game.mismatches > mismatchesBefore then
+					UI.PlayGameSound("cardMiss")
+				end
+			end
 			Refresh()
 		end)
 		cards[index] = card

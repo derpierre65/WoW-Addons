@@ -199,13 +199,26 @@ local function BuildHangman(parent)
 		bestStreakValue:SetText(settings.bestStreak or 0)
 	end
 
+	local function PlayGuessSound(errorsBefore)
+		local state = Hangman.game.state
+		if state == "won" then
+			UI.PlayGameSound("hangWon")
+		elseif state == "lost" then
+			UI.PlayGameSound("hangLost")
+		else
+			UI.PlayGameSound(Hangman.GetErrors() > errorsBefore and "hangWrong" or "hangRight")
+		end
+	end
+
 	solveInput:SetScript("OnEnterPressed", function(self)
 		local text = self:GetText()
 		if text == "" then
 			return
 		end
 
+		local errorsBefore = Hangman.GetErrors()
 		if Hangman.GuessWord(text) then
+			PlayGuessSound(errorsBefore)
 			self:SetText("")
 			self:ClearFocus()
 			Refresh()
@@ -214,7 +227,9 @@ local function BuildHangman(parent)
 	solveInput:SetScript("OnEscapePressed", solveInput.ClearFocus)
 
 	local function PressLetter(letter)
+		local errorsBefore = Hangman.GetErrors()
 		if Hangman.GuessLetter(letter) then
+			PlayGuessSound(errorsBefore)
 			Refresh()
 		end
 	end

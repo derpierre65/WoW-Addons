@@ -81,10 +81,22 @@ local function BuildMinesweeper(parent)
 		cell.label:SetPoint("CENTER")
 		cell:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 		cell:SetScript("OnClick", function(_, button)
+			local game = Minesweeper.game
 			if button == "RightButton" then
-				Minesweeper.ToggleFlag(index)
+				if Minesweeper.ToggleFlag(index) then
+					UI.PlayGameSound(game.flagged[index] and "mineFlag" or "mineUnflag")
+				end
 			else
-				Minesweeper.Reveal(index)
+				local revealedBefore = game.revealedCount
+				if Minesweeper.Reveal(index) then
+					if game.state == "lost" then
+						UI.PlayGameSound("mineExplode")
+					elseif game.state == "won" then
+						UI.PlayGameSound("mineWin")
+					else
+						UI.PlayGameSound(game.revealedCount - revealedBefore > 1 and "mineCascade" or "mineReveal")
+					end
+				end
 			end
 			Refresh()
 		end)
