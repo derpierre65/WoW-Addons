@@ -25,6 +25,7 @@ local DEFAULTS = {
 	breakout = { played = 0, highScore = 0, bestLevel = 0, bossesKilled = 0, raidsCleared = 0, flawlessClears = 0 },
 	snake = { played = 0, highScore = 0, longest = 0, foodEaten = 0 },
 	blocks = { played = 0, highScore = 0, mostLines = 0, linesCleared = 0, fourLineClears = 0, bestLevel = 0 },
+	bubbles = { played = 0, highScore = 0, bestLevel = 0, bubblesPopped = 0, biggestDrop = 0 },
 	achievements = {},
 	guildRanking = {},
 	realmRanking = {},

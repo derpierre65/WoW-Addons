@@ -14,6 +14,7 @@ Load("PassTheTime/Minesweeper.lua")
 Load("PassTheTime/Breakout.lua")
 Load("PassTheTime/Snake.lua")
 Load("PassTheTime/Blocks.lua")
+Load("PassTheTime/Bubbles.lua")
 Load("PassTheTime/Memory.lua")
 Load("PassTheTime/Sudoku.lua")
 Load("PassTheTime/Yahtzee.lua")
@@ -24,6 +25,7 @@ local function FreshDatabase()
 		breakout = { played = 0, highScore = 0, bestLevel = 0, bossesKilled = 0, raidsCleared = 0, flawlessClears = 0 },
 		snake = { played = 0, highScore = 0, longest = 0, foodEaten = 0 },
 		blocks = { played = 0, highScore = 0, mostLines = 0, linesCleared = 0, fourLineClears = 0, bestLevel = 0 },
+		bubbles = { played = 0, highScore = 0, bestLevel = 0, bubblesPopped = 0, biggestDrop = 0 },
 		memory = { difficulty = "easy", played = 0, won = 0, perfectWins = 0, bestTimes = {}, bestMoves = {}, wonBy = {} },
 		sudoku = { difficulty = "easy", played = 0, won = 0, flawlessWins = 0, pureWins = 0, bestTimes = {}, wonBy = {} },
 		yahtzee = { completed = 0, highScore = 0, yahtzees = 0, bonuses = 0, played = 0 },
@@ -1007,6 +1009,130 @@ Blocks.Input("drop")
 Check(blocks.state == "lost", "a blocked spawn ends the game")
 Check(blocksSettings.highScore >= 1234, "high score stored")
 Check(not Blocks.Input("left") and not Blocks.Update(1), "no input after the game")
+
+-- Spell Orbs
+local Bubbles = PTT.Bubbles
+local bubblesSettings = PTT.database.bubbles
+Bubbles.random = function() return 0 end
+
+local function ClearGrid(game)
+	for row = 1, Bubbles.MAX_ROWS + 1 do
+		game.grid[row] = {}
+	end
+end
+
+local function FireAt(row, column)
+	local x, y = Bubbles.GetCellCenter(row, column)
+	Bubbles.Aim(math.atan(x - Bubbles.SHOOTER_X, Bubbles.SHOOTER_Y - y))
+	Bubbles.Shoot()
+	for _ = 1, 200 do
+		if not Bubbles.game.shot then
+			break
+		end
+		Bubbles.Update(0.01)
+	end
+end
+
+Bubbles.NewGame()
+local orbs = Bubbles.game
+Check(orbs.state == "ready" and orbs.current == 1 and orbs.next == 1, "new game has ammo")
+Check(Bubbles.GetCell(1, 1) and Bubbles.GetCell(Bubbles.GetStartRows(1), 1) and not Bubbles.GetCell(Bubbles.GetStartRows(1) + 1, 1), "start rows filled")
+Check(Bubbles.GetColumnCount(1) == Bubbles.COLUMNS and Bubbles.GetColumnCount(2) == Bubbles.COLUMNS - 1, "shifted rows hold one bubble less")
+Check(#Bubbles.GetNeighbors(3, 5) == 6 and #Bubbles.GetNeighbors(1, 1) == 2, "hex neighbors")
+
+-- Aim is clamped
+Bubbles.Aim(math.rad(170))
+Check(orbs.angle == Bubbles.MAX_ANGLE, "aim is clamped")
+
+-- Shooting
+Check(Bubbles.Shoot() and orbs.state == "playing" and bubblesSettings.played == 1, "first shot starts and counts the game")
+Check(not Bubbles.Shoot() and not Bubbles.Swap(), "no second shot while one flies")
+local startX = orbs.shot.x
+Bubbles.Update(0.05)
+Check(orbs.shot and orbs.shot.x > startX, "shot moves along the aim")
+
+-- Wall bounce
+Bubbles.NewGame()
+orbs = Bubbles.game
+ClearGrid(orbs)
+orbs.grid[1][1] = 2
+Bubbles.Aim(-Bubbles.MAX_ANGLE)
+Bubbles.Shoot()
+local bounced = false
+for _ = 1, 100 do
+	Bubbles.Update(0.01)
+	if orbs.shot and orbs.shot.directionX > 0 then
+		bounced = true
+		break
+	end
+end
+Check(bounced and orbs.shot.x >= Bubbles.RADIUS, "shot bounces off the wall")
+
+-- Pop a group and drop floating bubbles
+Bubbles.NewGame()
+orbs = Bubbles.game
+ClearGrid(orbs)
+orbs.grid[1][6], orbs.grid[1][7] = 1, 1
+orbs.grid[2][6] = 2
+orbs.grid[3][6] = 3
+orbs.grid[1][1] = 4
+orbs.current = 1
+FireAt(1, 8)
+Check(not Bubbles.GetCell(1, 6) and not Bubbles.GetCell(1, 7) and not Bubbles.GetCell(1, 8), "three of a color pop")
+Check(not Bubbles.GetCell(2, 6) and not Bubbles.GetCell(3, 6) and Bubbles.GetCell(1, 1) == 4, "unattached bubbles drop, attached stay")
+Check(orbs.score == 3 * Bubbles.POP_SCORE + 2 * Bubbles.DROP_SCORE, "pop and drop scored")
+Check(bubblesSettings.biggestDrop == 2 and bubblesSettings.bubblesPopped == 5, "stats stored")
+Check(orbs.current == 4 and orbs.next == 4, "ammo only uses colors on the board")
+
+-- Miss adds rows
+Bubbles.NewGame()
+orbs = Bubbles.game
+ClearGrid(orbs)
+orbs.grid[1][1] = 2
+-- Every shot a different color, so nothing matches.
+local missColors = { 3, 4, 5, 6, 1 }
+for index = 1, Bubbles.MISSES_PER_ROW - 1 do
+	orbs.current = missColors[index]
+	FireAt(1, 12)
+end
+Check(orbs.misses == Bubbles.MISSES_PER_ROW - 1 and Bubbles.GetCell(1, 12) == 3, "misses counted")
+local parity = orbs.parity
+orbs.current = 6
+FireAt(1, 4)
+Check(orbs.misses == 0 and orbs.parity ~= parity and Bubbles.GetCell(2, 1) == 2, "a new row pushes the board down")
+
+-- Clearing the board
+Bubbles.NewGame()
+orbs = Bubbles.game
+ClearGrid(orbs)
+orbs.grid[1][5], orbs.grid[1][6] = 2, 2
+orbs.current = 2
+FireAt(1, 7)
+Check(orbs.level == 2 and orbs.score == 3 * Bubbles.POP_SCORE + Bubbles.CLEAR_BONUS, "a clear board scores and levels up")
+Check(Bubbles.GetCell(Bubbles.GetStartRows(2), 1) and bubblesSettings.bestLevel == 2, "next level gets a new board")
+
+-- Crossing the line
+Bubbles.NewGame()
+orbs = Bubbles.game
+ClearGrid(orbs)
+for row = 1, Bubbles.MAX_ROWS do
+	for column = 1, Bubbles.GetColumnCount(row) do
+		orbs.grid[row][column] = (row % 2) + 1
+	end
+end
+orbs.current = 3
+orbs.score = 4321
+Bubbles.Aim(0)
+Bubbles.Shoot()
+for _ = 1, 200 do
+	if not orbs.shot then
+		break
+	end
+	Bubbles.Update(0.01)
+end
+Check(orbs.state == "lost", "a bubble below the line ends the game")
+Check(bubblesSettings.highScore >= 4321, "high score stored")
+Check(not Bubbles.Shoot(), "no shot after the game")
 
 print(failures == 0 and "MINIGAMES OK" or (failures .. " FAILURES"))
 os.exit(failures == 0 and 0 or 1)

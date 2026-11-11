@@ -226,6 +226,10 @@ AddAll({
 	Define("blocks1", "minigames", 5, function() return PTT.database.blocks.played end, 1),
 	Define("blocksFourLines", "minigames", 10, function() return PTT.database.blocks.fourLineClears end, 1),
 	Define("blocksScore10000", "minigames", 15, function() return PTT.database.blocks.highScore end, 10000),
+
+	Define("bubbles1", "minigames", 5, function() return PTT.database.bubbles.played end, 1),
+	Define("bubblesDrop10", "minigames", 10, function() return PTT.database.bubbles.biggestDrop end, 10),
+	Define("bubblesLevel3", "minigames", 15, function() return PTT.database.bubbles.bestLevel end, 3),
 })
 
 -- Per hero: one spell bought, and all of its spells bought. Name and description are templates filled with the hero name.
