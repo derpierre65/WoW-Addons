@@ -20,6 +20,7 @@ Hangman.lua
 Minesweeper.lua
 Breakout.lua
 Snake.lua
+Blocks.lua
 Memory.lua
 Sudoku.lua
 Yahtzee.lua
@@ -30,6 +31,7 @@ UIHangman.lua
 UIMinesweeper.lua
 UIBreakout.lua
 UISnake.lua
+UIBlocks.lua
 UIMemory.lua
 UISudoku.lua
 UIYahtzee.lua

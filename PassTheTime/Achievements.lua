@@ -222,6 +222,10 @@ AddAll({
 	Define("snake1", "minigames", 5, function() return PTT.database.snake.played end, 1),
 	Define("snakeLength25", "minigames", 10, function() return PTT.database.snake.longest end, 25),
 	Define("snakeScore500", "minigames", 15, function() return PTT.database.snake.highScore end, 500),
+
+	Define("blocks1", "minigames", 5, function() return PTT.database.blocks.played end, 1),
+	Define("blocksFourLines", "minigames", 10, function() return PTT.database.blocks.fourLineClears end, 1),
+	Define("blocksScore10000", "minigames", 15, function() return PTT.database.blocks.highScore end, 10000),
 })
 
 -- Per hero: one spell bought, and all of its spells bought. Name and description are templates filled with the hero name.

@@ -57,6 +57,7 @@ local GROUPS = {
 					{ label = "minesweeper", view = "minesweeper" },
 					{ label = "breakout", view = "breakout" },
 					{ label = "snake", view = "snake" },
+					{ label = "blocks", view = "blocks" },
 					{ label = "memory", view = "memory" },
 					{ label = "sudoku", view = "sudoku" },
 					{ label = "yahtzee", view = "yahtzee" },

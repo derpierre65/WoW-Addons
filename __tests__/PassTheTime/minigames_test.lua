@@ -13,6 +13,7 @@ end
 Load("PassTheTime/Minesweeper.lua")
 Load("PassTheTime/Breakout.lua")
 Load("PassTheTime/Snake.lua")
+Load("PassTheTime/Blocks.lua")
 Load("PassTheTime/Memory.lua")
 Load("PassTheTime/Sudoku.lua")
 Load("PassTheTime/Yahtzee.lua")
@@ -22,6 +23,7 @@ local function FreshDatabase()
 		minesweeper = { difficulty = "elwynn", played = 0, won = 0, streak = 0, bestStreak = 0, flaglessWins = 0, bestTimes = {}, wonBy = {} },
 		breakout = { played = 0, highScore = 0, bestLevel = 0, bossesKilled = 0, raidsCleared = 0, flawlessClears = 0 },
 		snake = { played = 0, highScore = 0, longest = 0, foodEaten = 0 },
+		blocks = { played = 0, highScore = 0, mostLines = 0, linesCleared = 0, fourLineClears = 0, bestLevel = 0 },
 		memory = { difficulty = "easy", played = 0, won = 0, perfectWins = 0, bestTimes = {}, bestMoves = {}, wonBy = {} },
 		sudoku = { difficulty = "easy", played = 0, won = 0, flawlessWins = 0, pureWins = 0, bestTimes = {}, wonBy = {} },
 		yahtzee = { completed = 0, highScore = 0, yahtzees = 0, bonuses = 0, played = 0 },
@@ -892,6 +894,119 @@ snake.direction = "left"
 snake.state = "playing"
 Snake.Update(Snake.START_INTERVAL)
 Check(snake.state == "won" and snake.food == nil, "filling the field wins")
+
+-- Blockfall
+local Blocks = PTT.Blocks
+local blocksSettings = PTT.database.blocks
+Blocks.random = function() return 0 end
+
+local function FillRow(game, y, gap)
+	for x = 1, Blocks.COLUMNS do
+		game.board[y][x] = x ~= gap and "O" or nil
+	end
+end
+
+Blocks.NewGame()
+local blocks = Blocks.game
+Check(blocks.state == "ready" and blocks.piece and blocks.next, "new game has a piece and a next piece")
+Check(#blocks.bag == #Blocks.KINDS - 2, "pieces come from a bag of all kinds")
+local bagKinds = { [blocks.piece.kind] = true, [blocks.next] = true }
+for _, kind in ipairs(blocks.bag) do
+	bagKinds[kind] = true
+end
+local kindCount = 0
+for _ in pairs(bagKinds) do
+	kindCount = kindCount + 1
+end
+Check(kindCount == #Blocks.KINDS, "the bag holds every kind once")
+
+-- Rotation
+local rotated = Blocks.GetCells("T", 1, 0, 0)
+Check(rotated[1].x == 2 and rotated[1].y == 1, "rotation turns cells clockwise")
+local full = Blocks.GetCells("I", 4, 0, 0)
+local base = Blocks.GetCells("I", 0, 0, 0)
+Check(full[1].x == base[1].x and full[4].y == base[4].y, "four rotations return to the start")
+
+-- Start
+local startY = blocks.piece.y
+Check(not Blocks.Update(5) and blocks.piece.y == startY, "piece does not fall before the start")
+Check(Blocks.Input("left") and blocks.state == "playing" and blocksSettings.played == 1, "a key starts and counts the game")
+Check(blocks.piece.y == startY, "the start key does not act")
+Check(Blocks.Update(Blocks.START_INTERVAL) and blocks.piece.y == startY + 1, "piece falls one row per interval")
+
+-- Moving against the wall
+blocks.piece.kind, blocks.piece.rotation, blocks.piece.x = "O", 0, 1
+Check(not Blocks.Input("left") and blocks.piece.x == 1, "wall blocks moving")
+Check(Blocks.Input("right") and blocks.piece.x == 2, "moving right")
+
+-- Rotation kick at the wall
+blocks.piece.kind, blocks.piece.rotation, blocks.piece.x, blocks.piece.y = "I", 1, -1, 5
+Check(Blocks.CanPlace("I", 1, -1, 5), "vertical I fits at the left wall")
+Check(Blocks.Input("rotate") and blocks.piece.rotation == 2 and blocks.piece.x >= 1, "rotation kicks off the wall")
+
+-- Hard drop and line clear
+Blocks.NewGame()
+blocks = Blocks.game
+Blocks.Input("left")
+FillRow(blocks, Blocks.ROWS, 5)
+FillRow(blocks, Blocks.ROWS - 1, 5)
+blocks.piece = { kind = "I", rotation = 1, x = 3, y = 1 }
+Check(Blocks.GetDropY() == Blocks.ROWS - 3, "ghost lands on the floor")
+local scoreBefore = blocks.score
+Check(Blocks.Input("drop"), "hard drop")
+Check(blocks.lines == 2 and blocks.score == scoreBefore + (Blocks.ROWS - 4) * Blocks.HARD_DROP_SCORE + Blocks.LINE_SCORES[2], "two rows cleared and scored")
+Check(blocks.board[Blocks.ROWS][5] == "I" and blocks.board[Blocks.ROWS][4] == nil, "rows above move down")
+Check(blocksSettings.linesCleared == 2 and blocksSettings.mostLines == 2, "lines stored")
+
+-- Four rows at once and level up
+Blocks.NewGame()
+blocks = Blocks.game
+Blocks.Input("left")
+blocks.lines = 8
+for y = Blocks.ROWS - 3, Blocks.ROWS do
+	FillRow(blocks, y, 1)
+end
+blocks.piece = { kind = "I", rotation = 1, x = -1, y = 1 }
+Blocks.Input("drop")
+Check(blocks.lines == 12 and blocks.level == 2 and blocksSettings.fourLineClears == 1, "four rows level up")
+Check(Blocks.GetInterval() < Blocks.START_INTERVAL, "higher level falls faster")
+blocks.level = 1000
+Check(Blocks.GetInterval() == Blocks.MIN_INTERVAL, "speed is capped")
+
+-- Lock delay
+Blocks.NewGame()
+blocks = Blocks.game
+Blocks.Input("left")
+blocks.piece = { kind = "O", rotation = 0, x = 1, y = Blocks.ROWS - 1 }
+Check(not Blocks.Update(Blocks.LOCK_DELAY / 2) and blocks.board[Blocks.ROWS][1] == nil, "grounded piece waits before locking")
+Check(Blocks.Input("right") and blocks.lockTimer == 0, "moving on the ground resets the lock timer")
+Check(Blocks.Update(Blocks.LOCK_DELAY) and blocks.board[Blocks.ROWS][2] == "O", "piece locks after the delay")
+blocks.piece = { kind = "O", rotation = 0, x = 5, y = Blocks.ROWS - 1 }
+Check(Blocks.Input("down") and blocks.board[Blocks.ROWS][5] == "O", "soft drop on the ground locks at once")
+
+-- Pause
+Blocks.NewGame()
+blocks = Blocks.game
+Check(not Blocks.Input("pause"), "cannot pause before the start")
+Blocks.Input("rotate")
+Check(Blocks.Input("pause") and blocks.state == "paused", "pause")
+startY = blocks.piece.y
+Check(not Blocks.Update(5) and blocks.piece.y == startY, "paused piece does not fall")
+Check(Blocks.Input("left") and blocks.state == "playing", "a key resumes")
+Check(blocksSettings.played == 5, "a resumed game is not counted twice")
+
+-- Game over
+Blocks.NewGame()
+blocks = Blocks.game
+Blocks.Input("left")
+blocks.score = 1234
+for y = 1, Blocks.ROWS do
+	FillRow(blocks, y, (y % 2 == 0) and 1 or 10)
+end
+Blocks.Input("drop")
+Check(blocks.state == "lost", "a blocked spawn ends the game")
+Check(blocksSettings.highScore >= 1234, "high score stored")
+Check(not Blocks.Input("left") and not Blocks.Update(1), "no input after the game")
 
 print(failures == 0 and "MINIGAMES OK" or (failures .. " FAILURES"))
 os.exit(failures == 0 and 0 or 1)
