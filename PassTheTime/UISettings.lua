@@ -32,7 +32,8 @@ local OPTIONS = {
 	},
 }
 
-local function BuildOptions(parent, width)
+-- Returns the lowest element and its indent, so callers can anchor content below the options.
+function UI.BuildOptions(parent, width)
 	local checkButtons = {}
 	-- Each row hangs below the previous row's lowest element, so rows without a hint stay compact.
 	local previousBottom, previousIndent
@@ -71,11 +72,13 @@ local function BuildOptions(parent, width)
 	end
 	parent:HookScript("OnShow", Refresh)
 	Refresh()
+
+	return previousBottom, previousIndent
 end
 
 local function BuildSettingsView(parent)
 	local view = CreateFrame("Frame", nil, parent)
-	BuildOptions(view, UI.fullContentWidth)
+	UI.BuildOptions(view, UI.fullContentWidth)
 	return view
 end
 
@@ -88,7 +91,7 @@ function UI.CreateOptionsPanel()
 	local content = CreateFrame("Frame", nil, panel)
 	content:SetPoint("TOPLEFT", 16, -16)
 	content:SetPoint("BOTTOMRIGHT", -16, 16)
-	BuildOptions(content, 560)
+	UI.BuildOptions(content, 560)
 
 	if Settings and Settings.RegisterCanvasLayoutCategory then
 		Settings.RegisterAddOnCategory(Settings.RegisterCanvasLayoutCategory(panel, panel.name))

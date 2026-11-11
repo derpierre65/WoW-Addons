@@ -38,7 +38,9 @@ PTT.OnInitialize(function()
 	PTT.UI.CreateMinimapButton()
 	PTT.UI.BuildEventFrame()
 	PTT.UI.CreateMiniWidget()
-	PTT.UI.CreateOptionsPanel()	PTT.World.RegisterEvents()
+	PTT.UI.CreateOptionsPanel()
+	PTT.UI.ScheduleSetup()
+	PTT.World.RegisterEvents()
 	PTT.Network.RegisterEvents()
 
 	PTT.Bosses.OnFinish(function(kind, victory)
@@ -79,6 +81,8 @@ SlashCmdList["PASSTHETIME"] = function(message)
 		local settings = PTT.database.minimap
 		settings.hidden = not settings.hidden
 		PTT.UI.minimapButton:SetShown(not settings.hidden)
+	elseif command == "setup" then
+		PTT.UI.ShowSetup()
 	elseif command == "icons" then
 		PTT.UI.ToggleIconDebug()
 	elseif command == "help" then

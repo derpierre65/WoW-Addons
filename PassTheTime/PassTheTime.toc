@@ -35,5 +35,6 @@ UIDebug.lua
 UIExtras.lua
 UISocial.lua
 UISettings.lua
+UISetup.lua
 UIMiniWidget.lua
 Main.lua

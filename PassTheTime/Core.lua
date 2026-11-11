@@ -3,6 +3,7 @@ local addonName, PTT = ...
 PassTheTime = PTT
 
 local DEFAULTS = {
+	setupDone = false,
 	window = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0, entry = "idle:monster", modelZoom = 1.4, bossZoom = 1 },
 	minimap = { angle = 200, hidden = false },
 	settings = { miniWidget = false, closeInCombat = true },

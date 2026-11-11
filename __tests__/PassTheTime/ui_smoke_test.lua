@@ -19,6 +19,8 @@ local function NewFrame(name)
 		SetShown = function(self, shown) if shown then self:Show() else self:Hide() end end,
 		SetScript = function(self, event, handler) self._scripts[event] = handler end,
 		SetText = function(self, text) self._text = text end,
+		GetScript = function(self, event) return self._scripts[event] end,
+		GetText = function(self) return self._text or "" end,
 		HookScript = function(self, event, handler)
 			local previous = self._scripts[event]
 			self._scripts[event] = function(...)
@@ -108,6 +110,27 @@ for _, frame in ipairs(createdFrames) do
 end
 
 assert(PTT.database, "database not initialised")
+
+-- First login shows the setup once; closing it marks it as done.
+assert(PTT.database.setupDone == false, "setup not seen yet")
+for index, frame in ipairs(createdFrames) do
+	if index > 1 and frame._scripts.OnEvent then
+		frame._scripts.OnEvent(frame, "PLAYER_ENTERING_WORLD")
+	end
+end
+assert(PassTheTimeSetup and PassTheTimeSetup:IsShown(), "setup shows on first login")
+for _, frame in ipairs(createdFrames) do
+	if frame._scripts.OnClick and frame._text == PTT.L.setupStart then
+		frame._scripts.OnClick(frame)
+	end
+end
+assert(not PassTheTimeSetup:IsShown(), "start button closes the setup")
+assert(PTT.database.setupDone == true, "closing the setup marks it as done")
+assert(PassTheTimeWindow:IsShown(), "start button opens the window")
+PassTheTimeWindow:Hide()
+SlashCmdList["PASSTHETIME"]("setup")
+assert(PassTheTimeSetup:IsShown(), "setup reopens with /ptt setup")
+PassTheTimeSetup:Hide()
 SlashCmdList["PASSTHETIME"]("")
 assert(PassTheTimeWindow:IsShown(), "window shows")
 
@@ -233,7 +256,7 @@ SlashCmdList["PASSTHETIME"]("")
 
 -- Every localisation key referenced must exist in both locales
 local source = {}
-for _, file in ipairs({ "UI.lua", "UIIdle.lua", "UIGames.lua", "UIExtras.lua", "UISocial.lua", "UISettings.lua", "UIMiniWidget.lua", "Main.lua" }) do
+for _, file in ipairs({ "UI.lua", "UIIdle.lua", "UIGames.lua", "UIExtras.lua", "UISocial.lua", "UISettings.lua", "UISetup.lua", "UIMiniWidget.lua", "Main.lua" }) do
 	local handle = io.open("PassTheTime/" .. file)
 	source[#source + 1] = handle:read("*a")
 	handle:close()
@@ -245,7 +268,7 @@ for key in table.concat(source, "\n"):gmatch("L%.([%w_]+)") do
 		missing = missing + 1
 	end
 end
-for _, label in pairs({ "categoryCities", "categoryZones", "categoryBosses" }) do
+for _, label in pairs({ "categoryCities", "categoryZones", "categoryBosses", "setupFeatureBattle", "setupFeatureHeroes", "setupFeaturePrestige", "setupFeatureWorld", "setupFeatureMiniGames", "setupFeatureSocial" }) do
 	if PTT.L[label] == label then
 		print("MISSING locale key: " .. label)
 		missing = missing + 1
