@@ -5,7 +5,7 @@ PassTheTime = PTT
 local DEFAULTS = {
 	window = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0, entry = "idle:monster", modelZoom = 1.4, bossZoom = 1 },
 	minimap = { angle = 200, hidden = false },
-	settings = { miniWidget = false },
+	settings = { miniWidget = false, closeInCombat = true },
 	miniWidget = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 250 },
 	game2048 = { score = 0, best = 0, wonShown = false, played = 0, highestTile = 0 },
 	hangman = { language = "auto", category = "all", difficulty = "medium", played = 0, won = 0, streak = 0, bestStreak = 0 },

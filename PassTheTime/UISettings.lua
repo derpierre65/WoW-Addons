@@ -2,7 +2,7 @@ local _, PTT = ...
 local L = PTT.L
 local UI = PTT.UI
 
-local ROW_HEIGHT = 56
+local ROW_SPACING = 4
 
 -- get/set work on the "shown" state; Refresh on show keeps every copy of the box in sync.
 local OPTIONS = {
@@ -23,28 +23,44 @@ local OPTIONS = {
 			UI.minimapButton:SetShown(checked)
 		end,
 	},
+	{
+		label = "settingsCloseInCombat",
+		get = function() return PTT.database.settings.closeInCombat end,
+		set = function(checked)
+			PTT.database.settings.closeInCombat = checked
+		end,
+	},
 }
 
 local function BuildOptions(parent, width)
 	local checkButtons = {}
+	-- Each row hangs below the previous row's lowest element, so rows without a hint stay compact.
+	local previousBottom, previousIndent
 
 	for index, option in ipairs(OPTIONS) do
 		local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-		check:SetPoint("TOPLEFT", 0, -(index - 1) * ROW_HEIGHT)
+		if previousBottom then
+			check:SetPoint("TOPLEFT", previousBottom, "BOTTOMLEFT", -previousIndent, -ROW_SPACING)
+		else
+			check:SetPoint("TOPLEFT", 0, 0)
+		end
 		check:SetScript("OnClick", function(self)
 			option.set(self:GetChecked() and true or false)
 		end)
 		checkButtons[index] = check
+		previousBottom, previousIndent = check, 0
 
 		local label = UI.CreateLabel(parent, "GameFontHighlight", L[option.label])
 		label:SetPoint("LEFT", check, "RIGHT", 4, 0)
 
 		if option.hint then
+			local indent = check:GetWidth() + 4
 			local hint = UI.CreateLabel(parent, "GameFontHighlightSmall", L[option.hint])
-			hint:SetPoint("TOPLEFT", check, "BOTTOMLEFT", 30, 0)
-			hint:SetWidth(width - 40)
+			hint:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
+			hint:SetWidth(width - indent)
 			hint:SetJustifyH("LEFT")
 			hint:SetTextColor(0.6, 0.6, 0.6)
+			previousBottom, previousIndent = hint, indent
 		end
 	end
 

@@ -61,7 +61,9 @@ PTT.OnInitialize(function()
 	local combatFrame = CreateFrame("Frame")
 	combatFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 	combatFrame:SetScript("OnEvent", function()
-		PassTheTimeWindow:Hide()
+		if PTT.database.settings.closeInCombat then
+			PassTheTimeWindow:Hide()
+		end
 	end)
 
 	lastTick = GetTime()
