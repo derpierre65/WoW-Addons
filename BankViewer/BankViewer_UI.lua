@@ -464,6 +464,19 @@ end
 UIDropDownMenu_Initialize(sortDropdown, InitSortDropdown)
 
 local slotButtonPool = {}
+-- The EllesmereUI skin API, kept for slot buttons created after login.
+local ellesmereSkin
+
+local function ApplyEllesmereSlotSkin(button)
+	-- EllesmereUI reads the rarity from the shown state and color of IconBorder.
+	button.IconBorder = button.border
+	button.normalTex:SetAlpha(0)
+	if ellesmereSkin.ItemButton then
+		ellesmereSkin.ItemButton(button)
+	else
+		ellesmereSkin.SquareIcon(button.icon, button, true)
+	end
+end
 
 local function CreateSlotButton(parent)
 	local btn = CreateFrame("Button", nil, parent)
@@ -512,6 +525,9 @@ local function AcquireSlotButton()
 	local btn = table.remove(slotButtonPool)
 	if not btn then
 		btn = CreateSlotButton(scrollChild)
+		if ellesmereSkin then
+			ApplyEllesmereSlotSkin(btn)
+		end
 	end
 	btn:SetParent(scrollChild)
 	btn:ClearAllPoints()
@@ -547,6 +563,10 @@ local function SetSlotItem(btn, itemData)
 		btn.itemLink = nil
 		btn.countText:Hide()
 		btn.border:Hide()
+	end
+
+	if ellesmereSkin then
+		ApplyEllesmereSlotSkin(btn)
 	end
 end
 
@@ -1149,6 +1169,100 @@ local function ApplyElvUISkin()
 		btn.normalTex:SetTexCoord(unpack(E.TexCoords))
 		btn.border:SetAlpha(0)
 	end
+end
+
+-- EllesmereUI Skinning
+-- The look picked under Global Settings > Style. Not part of the skinning API, so this reads
+-- the saved variable EllesmereUI itself uses; no recorded look means its default look.
+local function IsEllesmereStyleActive()
+	local slots = EllesmereUIDB and EllesmereUIDB.windowSkinStyleSlots
+	local look = type(slots) == "table" and slots.active or "eui"
+	return look == "eui"
+end
+
+if EllesmereUI and EllesmereUI.RegisterSkin then
+	EllesmereUI.RegisterSkin("BankViewer", function(S)
+		-- The ElvUI skin already restyles everything, both at once would fight.
+		if ElvUI or not IsEllesmereStyleActive() then
+			return
+		end
+
+		local FILTER_HEIGHT = 24
+
+		ellesmereSkin = S
+		S.Shell(mainFrame)
+		S.Font(title)
+		-- Centered in the dark title strip of the shell.
+		title:ClearAllPoints()
+		title:SetPoint("TOP", 0, -7)
+		S.CloseButton(closeBtn)
+		settingsBtn:ClearAllPoints()
+		settingsBtn:SetPoint("RIGHT", closeBtn, "LEFT", -2, 0)
+
+		S.Panel(settingsPanel)
+		S.Font(settingsTitle)
+		for _, checkbox in ipairs({ guildBankVerticalCheck, mergeBagsCheck, showEmptyCheck, stackItemsCheck, hideMinimapCheck }) do
+			S.Checkbox(checkbox)
+			-- The flat box fills the whole checkbox frame, the stock art left a margin there.
+			checkbox.text:ClearAllPoints()
+			checkbox.text:SetPoint("LEFT", checkbox, "RIGHT", 4, 0)
+		end
+
+		-- The skin only knows the newer dropdowns: the arrow button of the old template stays,
+		-- and the template's transparent side padding becomes part of the visible box.
+		for _, dropdownFrame in ipairs({ dropdown, sortDropdown }) do
+			S.Dropdown(dropdownFrame)
+			-- Same height as the search box; the label hung off the now invisible template art.
+			dropdownFrame:SetHeight(FILTER_HEIGHT)
+			-- Other menu refreshes size the template back to its own height. Resizing within this
+			-- handler would unresolve the menu list's position while Blizzard places it.
+			dropdownFrame:HookScript("OnSizeChanged", function(self, _, height)
+				if math.abs(height - FILTER_HEIGHT) > 0.5 then
+					C_Timer.After(0, function()
+						self:SetHeight(FILTER_HEIGHT)
+					end)
+				end
+			end)
+			local label = _G[dropdownFrame:GetName() .. "Text"]
+			if label then
+				label:ClearAllPoints()
+				label:SetPoint("LEFT", 8, 0)
+				label:SetPoint("RIGHT", -24, 0)
+				label:SetJustifyH("LEFT")
+			end
+			local arrowButton = _G[dropdownFrame:GetName() .. "Button"]
+			if arrowButton then
+				S.FadeRegions(arrowButton)
+				arrowButton:ClearAllPoints()
+				arrowButton:SetAllPoints(dropdownFrame)
+			end
+		end
+		-- Opening sizes the template back too; once the list is placed it is safe to shrink again,
+		-- still before the frame is drawn.
+		hooksecurefunc("ToggleDropDownMenu", function(_, _, dropdownFrame)
+			if dropdownFrame == dropdown or dropdownFrame == sortDropdown then
+				dropdownFrame:SetHeight(FILTER_HEIGHT)
+			end
+		end)
+		dropdown:ClearAllPoints()
+		dropdown:SetPoint("TOPLEFT", 15, -32)
+		sortDropdown:ClearAllPoints()
+		sortDropdown:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -10, -32)
+
+		S.EditBox(searchBox)
+		searchBox:SetHeight(FILTER_HEIGHT)
+		searchBox:ClearAllPoints()
+		searchBox:SetPoint("LEFT", dropdown, "RIGHT", 8, 0)
+		searchBox:SetPoint("RIGHT", sortDropdown, "LEFT", -8, 0)
+		S.ScrollBar(BankViewerScrollFrameScrollBar)
+
+		for _, button in ipairs(slotButtonPool) do
+			ApplyEllesmereSlotSkin(button)
+		end
+		for _, button in pairs(slotButtons) do
+			ApplyEllesmereSlotSkin(button)
+		end
+	end)
 end
 
 local skinFrame = CreateFrame("Frame")

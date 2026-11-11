@@ -5,6 +5,7 @@
 ## Notes: Saves information about the bank and displays it everywhere.
 ## Version: 1.4.1
 ## SavedVariables: BankViewerDB
+## OptionalDeps: EllesmereUI
 
 Localization.lua
 BankViewer.lua
