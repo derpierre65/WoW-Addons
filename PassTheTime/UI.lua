@@ -56,6 +56,7 @@ local GROUPS = {
 					{ label = "hangman", view = "hangman" },
 					{ label = "minesweeper", view = "minesweeper" },
 					{ label = "breakout", view = "breakout" },
+					{ label = "snake", view = "snake" },
 					{ label = "memory", view = "memory" },
 					{ label = "sudoku", view = "sudoku" },
 					{ label = "yahtzee", view = "yahtzee" },

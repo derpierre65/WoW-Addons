@@ -12,6 +12,7 @@ end
 
 Load("PassTheTime/Minesweeper.lua")
 Load("PassTheTime/Breakout.lua")
+Load("PassTheTime/Snake.lua")
 Load("PassTheTime/Memory.lua")
 Load("PassTheTime/Sudoku.lua")
 Load("PassTheTime/Yahtzee.lua")
@@ -20,6 +21,7 @@ local function FreshDatabase()
 	PTT.database = {
 		minesweeper = { difficulty = "elwynn", played = 0, won = 0, streak = 0, bestStreak = 0, flaglessWins = 0, bestTimes = {}, wonBy = {} },
 		breakout = { played = 0, highScore = 0, bestLevel = 0, bossesKilled = 0, raidsCleared = 0, flawlessClears = 0 },
+		snake = { played = 0, highScore = 0, longest = 0, foodEaten = 0 },
 		memory = { difficulty = "easy", played = 0, won = 0, perfectWins = 0, bestTimes = {}, bestMoves = {}, wonBy = {} },
 		sudoku = { difficulty = "easy", played = 0, won = 0, flawlessWins = 0, pureWins = 0, bestTimes = {}, wonBy = {} },
 		yahtzee = { completed = 0, highScore = 0, yahtzees = 0, bonuses = 0, played = 0 },
@@ -787,6 +789,109 @@ Yahtzee.Roll()
 Yahtzee.game.dice = { 1, 1, 1, 1, 1 }
 Yahtzee.Choose("ones")
 Check(Yahtzee.GetBonus() == 0 and Yahtzee.GetTotal() == 5, "no bonus below the threshold")
+
+-- Snake
+local Snake = PTT.Snake
+local snakeSettings = PTT.database.snake
+Snake.random = function() return 0 end
+Snake.NewGame()
+local snake = Snake.game
+local head = snake.segments[1]
+Check(#snake.segments == Snake.START_LENGTH and snake.state == "ready", "snake waits for the first key")
+Check(snake.food and not Snake.IsOccupied(snake.food.x, snake.food.y), "food lies on a free cell")
+Check(not Snake.Update(1) and snake.segments[1] == head, "snake does not move before the start")
+Check(not Snake.Steer("left"), "cannot start backwards into the body")
+Check(Snake.Steer("right") and snake.state == "playing" and snakeSettings.played == 1, "a direction key starts and counts the game")
+Check(#snake.queue == 0, "same direction is not queued")
+Check(Snake.Update(Snake.START_INTERVAL) and snake.segments[1].x == head.x + 1 and #snake.segments == Snake.START_LENGTH, "snake moves one cell per interval")
+
+Check(Snake.Steer("up") and Snake.Steer("left") and #snake.queue == 2, "two quick turns are queued")
+Check(not Snake.Steer("right"), "turn back into the last queued direction is ignored")
+Snake.Update(Snake.START_INTERVAL)
+Snake.Update(Snake.START_INTERVAL)
+Check(snake.direction == "left" and #snake.queue == 0, "queued turns are applied step by step")
+
+-- Eating
+Snake.NewGame()
+snake = Snake.game
+head = snake.segments[1]
+snake.food = { x = head.x + 1, y = head.y }
+Snake.Steer("up")
+snake.queue = {}
+snake.direction = "right"
+Snake.Update(Snake.START_INTERVAL)
+Check(#snake.segments == Snake.START_LENGTH + 1 and snake.score == Snake.FOOD_SCORE, "eating grows the snake and scores")
+Check(snakeSettings.longest == Snake.START_LENGTH + 1 and snakeSettings.foodEaten == 1, "longest snake and food stored")
+Check(not (snake.food.x == head.x + 1 and snake.food.y == head.y) and not Snake.IsOccupied(snake.food.x, snake.food.y), "new food on a free cell")
+Check(Snake.GetInterval() < Snake.START_INTERVAL, "snake speeds up after eating")
+snake.eaten = 1000
+Check(Snake.GetInterval() == Snake.MIN_INTERVAL, "speed is capped")
+
+-- Pause
+Snake.NewGame()
+snake = Snake.game
+Check(not Snake.Pause(), "cannot pause before the start")
+Snake.Steer("up")
+Check(Snake.Pause() and snake.state == "paused", "pause")
+head = snake.segments[1]
+Check(not Snake.Update(1) and snake.segments[1] == head, "paused snake does not move")
+Check(Snake.Steer("down") and snake.state == "playing" and #snake.queue == 1, "any direction resumes, a reverse turn is dropped")
+Check(Snake.TogglePause() and snake.state == "paused" and Snake.TogglePause() and snake.state == "playing", "space toggles the pause")
+Check(snakeSettings.played == 3, "a resumed game is not counted twice")
+
+-- Wall
+Snake.NewGame()
+snake = Snake.game
+snake.score = 70
+snake.food = { x = 1, y = 1 }
+Snake.Steer("right")
+for _ = 1, Snake.COLUMNS do
+	Snake.Update(Snake.START_INTERVAL)
+end
+Check(snake.state == "lost" and snake.segments[1].x == Snake.COLUMNS, "hitting the wall ends the game")
+Check(snakeSettings.highScore == 70, "high score stored")
+Check(not Snake.Steer("up") and not Snake.Update(1), "no input after the game")
+
+-- Self
+Snake.NewGame()
+snake = Snake.game
+snake.food = { x = 1, y = 1 }
+snake.segments = { { x = 5, y = 5 }, { x = 6, y = 5 }, { x = 6, y = 6 }, { x = 5, y = 6 }, { x = 4, y = 6 } }
+snake.direction = "up"
+Snake.Steer("left")
+snake.queue = { "down" }
+snake.direction = "left"
+Snake.Update(Snake.START_INTERVAL)
+Check(snake.state == "lost", "biting itself ends the game")
+
+-- Chasing the tail is allowed, the tail moves away in the same step
+Snake.NewGame()
+snake = Snake.game
+snake.food = { x = 1, y = 1 }
+snake.segments = { { x = 5, y = 5 }, { x = 6, y = 5 }, { x = 6, y = 6 }, { x = 5, y = 6 } }
+Snake.Steer("up")
+snake.queue = {}
+snake.direction = "down"
+Snake.Update(Snake.START_INTERVAL)
+Check(snake.state == "playing" and snake.segments[1].x == 5 and snake.segments[1].y == 6, "snake may move into its tail cell")
+
+-- Full field
+Snake.NewGame()
+snake = Snake.game
+snake.segments = {}
+for y = 1, Snake.ROWS do
+	for x = 1, Snake.COLUMNS do
+		if not (x == 1 and y == 1) and not (x == 2 and y == 1) then
+			snake.segments[#snake.segments + 1] = { x = x, y = y }
+		end
+	end
+end
+table.insert(snake.segments, 1, { x = 2, y = 1 })
+snake.food = { x = 1, y = 1 }
+snake.direction = "left"
+snake.state = "playing"
+Snake.Update(Snake.START_INTERVAL)
+Check(snake.state == "won" and snake.food == nil, "filling the field wins")
 
 print(failures == 0 and "MINIGAMES OK" or (failures .. " FAILURES"))
 os.exit(failures == 0 and 0 or 1)

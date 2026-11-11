@@ -19,6 +19,7 @@ HangmanWords.lua
 Hangman.lua
 Minesweeper.lua
 Breakout.lua
+Snake.lua
 Memory.lua
 Sudoku.lua
 Yahtzee.lua
@@ -28,6 +29,7 @@ UIGames.lua
 UIHangman.lua
 UIMinesweeper.lua
 UIBreakout.lua
+UISnake.lua
 UIMemory.lua
 UISudoku.lua
 UIYahtzee.lua
