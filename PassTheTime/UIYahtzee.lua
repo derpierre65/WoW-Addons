@@ -19,6 +19,17 @@ local COLORS = {
 	row = { 0.12, 0.1, 0.08 },
 	rowFree = { 0.17, 0.14, 0.09 },
 }
+-- Lets the rattle finish before the five-of-a-kind fanfare.
+local YAHTZEE_SOUND_DELAY = 0.35
+
+local function IsFiveOfAKind(dice)
+	for index = 2, #dice do
+		if dice[index] ~= dice[1] then
+			return false
+		end
+	end
+	return #dice > 0
+end
 
 local function BuildYahtzee(parent)
 	local Yahtzee = PTT.Yahtzee
@@ -67,14 +78,23 @@ local function BuildYahtzee(parent)
 		die.hold:SetPoint("BOTTOM", 0, 4)
 		die:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 		die:SetScript("OnClick", function()
-			Yahtzee.ToggleHold(index)
+			if Yahtzee.ToggleHold(index) then
+				UI.PlayGameSound(Yahtzee.game.held[index] and "diceHold" or "diceRelease")
+			end
 			Refresh()
 		end)
 		dice[index] = die
 	end
 
 	local rollButton = UI.CreateButton(diceBox, "", 150, 40, function()
-		Yahtzee.Roll()
+		if Yahtzee.Roll() then
+			UI.PlayGameSound("diceRoll")
+			if IsFiveOfAKind(Yahtzee.game.dice) then
+				C_Timer.After(YAHTZEE_SOUND_DELAY, function()
+					UI.PlayGameSound("diceYahtzee")
+				end)
+			end
+		end
 		Refresh()
 	end)
 	rollButton:SetPoint("TOPRIGHT", -12, -12)
@@ -125,7 +145,16 @@ local function BuildYahtzee(parent)
 		local row = CreateRow(sheet, position, true)
 		row.category = category
 		row:SetScript("OnClick", function()
-			Yahtzee.Choose(category.id)
+			local bonusBefore = Yahtzee.GetBonus()
+			if Yahtzee.Choose(category.id) then
+				if Yahtzee.game.state == "over" then
+					UI.PlayGameSound("diceFinish")
+				elseif Yahtzee.GetBonus() > bonusBefore then
+					UI.PlayGameSound("diceBonus")
+				else
+					UI.PlayGameSound(Yahtzee.game.scores[category.id] > 0 and "diceScore" or "diceZero")
+				end
+			end
 			Refresh()
 		end)
 		rows[#rows + 1] = row

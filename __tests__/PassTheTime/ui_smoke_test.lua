@@ -281,6 +281,18 @@ assert(#orbs.effects == 0, "spell orbs effects consumed by the UI")
 for _, name in ipairs({ "orbPop1", "orbDrop", "orbLevel" }) do
 	assert(playedSounds[name], "spell orbs played " .. name)
 end
+
+-- Yahtzee: rolling and holding a die play their sounds
+PTT.UI.SelectView("yahtzee")
+PTT.Yahtzee.NewGame()
+playedSounds = {}
+for _, frame in ipairs(createdFrames) do
+	if frame._scripts.OnClick and frame._text == PTT.L.yahtzeeRoll then
+		frame._scripts.OnClick(frame)
+	end
+end
+assert(playedSounds.diceRoll, "yahtzee roll sound")
+
 PTT.database.settings.gameSounds = false
 playedSounds = {}
 PTT.UI.PlayGameSound("orbPop1")
@@ -292,11 +304,13 @@ local function AssertSoundFile(name)
 	assert(handle, "missing sound file " .. name)
 	handle:close()
 end
-local bubblesSource = io.open("PassTheTime/UIBubbles.lua"):read("*a")
-for name in bubblesSource:gmatch('"(orb%u%a+)"') do
-	-- "orbPop" is only the prefix of the numbered pop sounds.
-	if name ~= "orbPop" then
-		AssertSoundFile(name)
+for _, file in ipairs({ "UIBubbles.lua", "UIYahtzee.lua" }) do
+	local gameSource = io.open("PassTheTime/" .. file):read("*a")
+	for name in gameSource:gmatch('"(%l+%u%a+)"') do
+		-- "orbPop" is only the prefix of the numbered pop sounds.
+		if (name:match("^orb") or name:match("^dice")) and name ~= "orbPop" then
+			AssertSoundFile(name)
+		end
 	end
 end
 for step = 1, 5 do
