@@ -1,4 +1,4 @@
-## Interface: 11508, 16001
+## Interface: 11509, 16001, 20506, 50504, 120105
 ## X-Curse-Project-ID: 1793651
 ## Title: Pass the Time
 ## Author: derpierre65
