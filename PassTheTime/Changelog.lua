@@ -25,6 +25,12 @@ Changelog.entries = {
 					"Hangman: the solve input is now above the keyboard.",
 				},
 			},
+			{
+				title = "Bug fixes",
+				changes = {
+					"A hidden minimap button no longer shows up in minimap button collectors like MinimapButtonButton.",
+				},
+			},
 		},
 		deDE = {
 			{
@@ -42,6 +48,12 @@ Changelog.entries = {
 				title = "Minispiele",
 				changes = {
 					"Hangman: das Eingabefeld zum Lösen ist jetzt über der Tastatur.",
+				},
+			},
+			{
+				title = "Fehlerbehebungen",
+				changes = {
+					"Ein ausgeblendeter Minimap-Button taucht nicht mehr in Sammel-Addons für Minimap-Buttons wie MinimapButtonButton auf.",
 				},
 			},
 		},
