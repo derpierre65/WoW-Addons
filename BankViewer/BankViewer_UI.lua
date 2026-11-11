@@ -71,7 +71,7 @@ closeBtn:SetPoint("TOPRIGHT", -5, -5)
 -- Settings panel
 local settingsPanel = CreateFrame("Frame", nil, mainFrame, "BackdropTemplate")
 settingsPanel:SetPoint("TOPLEFT", mainFrame, "TOPRIGHT", 2, 0)
-settingsPanel:SetSize(200, 163)
+settingsPanel:SetSize(200, 191)
 settingsPanel:SetBackdrop({
 	bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
 	edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -97,7 +97,7 @@ guildBankVerticalCheck.text:SetText(L.settingGuildBankVertical)
 guildBankVerticalCheck.text:SetFontObject("GameFontNormalSmall")
 if not hasGuildBank then
 	guildBankVerticalCheck:Hide()
-	settingsPanel:SetSize(200, 133)
+	settingsPanel:SetSize(200, 161)
 end
 
 local mergeBagsCheck = CreateFrame("CheckButton", "BankViewerMergeBagsCheck", settingsPanel, "UICheckButtonTemplate")
@@ -138,6 +138,18 @@ stackItemsCheck:SetScript("OnClick", function(self)
 	BankViewerDB._settings = BankViewerDB._settings or {}
 	BankViewerDB._settings.stackItems = self:GetChecked()
 	BankViewer.UpdateUI()
+end)
+
+local hideMinimapCheck = CreateFrame("CheckButton", "BankViewerHideMinimapCheck", settingsPanel, "UICheckButtonTemplate")
+hideMinimapCheck:SetSize(26, 26)
+hideMinimapCheck:SetPoint("TOPLEFT", stackItemsCheck, "BOTTOMLEFT", 0, -2)
+hideMinimapCheck.text = _G["BankViewerHideMinimapCheckText"]
+hideMinimapCheck.text:SetText(L.settingHideMinimapButton)
+hideMinimapCheck.text:SetFontObject("GameFontNormalSmall")
+hideMinimapCheck:SetScript("OnClick", function(self)
+	BankViewerDB._settings = BankViewerDB._settings or {}
+	BankViewerDB._settings.hideMinimapButton = self:GetChecked() and true or false
+	BankViewer.UpdateMinimapButton()
 end)
 
 local function SetCheckboxEnabled(checkbox, enabled, tooltip)
@@ -197,6 +209,7 @@ settingsBtn:SetScript("OnClick", function()
 		mergeBagsCheck:SetChecked(BankViewerDB._settings.mergeBags)
 		showEmptyCheck:SetChecked(BankViewerDB._settings.showEmpty)
 		stackItemsCheck:SetChecked(BankViewerDB._settings.stackItems)
+		hideMinimapCheck:SetChecked(BankViewerDB._settings.hideMinimapButton)
 		guildBankVerticalCheck:SetChecked(BankViewerDB._settings.guildBankVertical ~= false)
 		UpdateSettingsState()
 		settingsPanel:Show()
@@ -1032,6 +1045,7 @@ local function ApplyElvUISkin()
 	S:HandleCheckBox(mergeBagsCheck)
 	S:HandleCheckBox(showEmptyCheck)
 	S:HandleCheckBox(stackItemsCheck)
+	S:HandleCheckBox(hideMinimapCheck)
 	S:HandleCheckBox(guildBankVerticalCheck)
 
 	-- Scroll bar
