@@ -31,6 +31,12 @@ local KEY_ROWS = {
 	deDE = { "QWERTZUIOP", "ASDFGHJKL", "YXCVBNM" },
 }
 
+local KEYBOARD_ROW_COUNT, KEYBOARD_MAX_KEYS = 3, 10
+local KEYBOARD_WIDTH = KEYBOARD_MAX_KEYS * (KEY_WIDTH + KEY_GAP) - KEY_GAP
+local KEYBOARD_HEIGHT = KEYBOARD_ROW_COUNT * (KEY_HEIGHT + KEY_GAP) - KEY_GAP
+local KEYBOARD_X = math.floor((BOARD_WIDTH - KEYBOARD_WIDTH) / 2)
+local SOLVE_BUTTON_WIDTH = 100
+
 local CreateBox, CreateBoxHeader, CreateStatTile, CreateStatRow = UI.CreateBox, UI.CreateBoxHeader, UI.CreateStatTile, UI.CreateStatRow
 local SetColor, CreateDropdown = UI.SetColor, UI.CreateDropdown
 local GOLD = UI.gameColors.gold
@@ -120,24 +126,24 @@ local function BuildHangman(parent)
 	wordLabel:SetJustifyH("CENTER")
 	wordLabel:SetTextColor(1, 1, 1)
 
-	-- Whole-word guess
-	local solveLabel = UI.CreateLabel(view, "GameFontNormalSmall", L.hangmanSolveTitle)
-	solveLabel:SetPoint("TOPLEFT", WORD_X + 4, -170)
-	solveLabel:SetTextColor(UI.gameColors.label[1], UI.gameColors.label[2], UI.gameColors.label[3])
+	-- Whole-word guess, built bottom-up above the keyboard and as wide as its longest row.
+	local solveHint = UI.CreateLabel(view, "GameFontDisableSmall", L.hangmanSolveHint)
+	solveHint:SetPoint("BOTTOMLEFT", KEYBOARD_X, KEYBOARD_HEIGHT + 14)
 
 	local solveInput = CreateFrame("EditBox", nil, view, "InputBoxTemplate")
-	solveInput:SetSize(WORD_WIDTH - 130, 22)
-	solveInput:SetPoint("TOPLEFT", solveLabel, "BOTTOMLEFT", 6, -6)
+	solveInput:SetSize(KEYBOARD_WIDTH - SOLVE_BUTTON_WIDTH - 14, 22)
+	solveInput:SetPoint("BOTTOMLEFT", solveHint, "TOPLEFT", 6, 6)
 	solveInput:SetAutoFocus(false)
 	solveInput:SetMaxLetters(40)
 
-	local solveButton = UI.CreateButton(view, L.hangmanSolve, 100, 24, function()
+	local solveButton = UI.CreateButton(view, L.hangmanSolve, SOLVE_BUTTON_WIDTH, 24, function()
 		solveInput:GetScript("OnEnterPressed")(solveInput)
 	end)
 	solveButton:SetPoint("LEFT", solveInput, "RIGHT", 8, 0)
 
-	local solveHint = UI.CreateLabel(view, "GameFontDisableSmall", L.hangmanSolveHint)
-	solveHint:SetPoint("TOPLEFT", solveInput, "BOTTOMLEFT", -6, -6)
+	local solveLabel = UI.CreateLabel(view, "GameFontNormalSmall", L.hangmanSolveTitle)
+	solveLabel:SetPoint("BOTTOMLEFT", solveInput, "TOPLEFT", -6, 6)
+	solveLabel:SetTextColor(UI.gameColors.label[1], UI.gameColors.label[2], UI.gameColors.label[3])
 
 	-- Buttons of the keyboard layout that is currently shown.
 	local keyButtons = {}
