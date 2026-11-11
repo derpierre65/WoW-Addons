@@ -128,13 +128,19 @@ local function BuildLeaderboardView(parent)
 	CreateTab("guild", L.sourceGuild, 100)
 	CreateTab("realm", L.sourceRealm, 200)
 
+	-- Every player reports their own values, so nothing stops a modified addon from faking them.
+	local disclaimer = UI.CreateLabel(view, "GameFontDisableSmall", L.rankDisclaimer)
+	disclaimer:SetPoint("TOPLEFT", 0, -32)
+	disclaimer:SetWidth(ROW_WIDTH)
+	disclaimer:SetJustifyH("LEFT")
+
 	local headerTexts = { L.rankName, L.rankGold, L.rankIncome, L.rankRenown, L.rankSeen }
 	local headerKeys = { "name", "gold", "income", "renown", "seen" }
 	for index, key in ipairs(headerKeys) do
 		for _, column in ipairs(COLUMNS) do
 			if column.key == key then
 				local label = UI.CreateLabel(view, "GameFontNormalSmall", headerTexts[index])
-				label:SetPoint("TOPLEFT", column.x, -34)
+				label:SetPoint("TOPLEFT", disclaimer, "BOTTOMLEFT", column.x, -8)
 				label:SetWidth(column.width)
 				label:SetJustifyH(column.justify)
 			end
@@ -142,7 +148,7 @@ local function BuildLeaderboardView(parent)
 	end
 
 	local scroll = CreateFrame("ScrollFrame", "PassTheTimeLeaderboardScroll", view, "UIPanelScrollFrameTemplate")
-	scroll:SetPoint("TOPLEFT", 0, -52)
+	scroll:SetPoint("TOPLEFT", disclaimer, "BOTTOMLEFT", 0, -26)
 	scroll:SetPoint("BOTTOMRIGHT", -26, 0)
 
 	local content = CreateFrame("Frame", nil, scroll)
@@ -150,7 +156,7 @@ local function BuildLeaderboardView(parent)
 	scroll:SetScrollChild(content)
 
 	local emptyLabel = UI.CreateLabel(view, "GameFontDisable", L.rankNobody)
-	emptyLabel:SetPoint("TOP", 0, -90)
+	emptyLabel:SetPoint("TOP", scroll, "TOP", 0, -38)
 
 	local rows = {}
 	local function GetRow(index)
