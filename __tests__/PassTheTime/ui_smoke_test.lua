@@ -88,6 +88,8 @@ function CombatLogGetCurrentEventInfo() return 0, "PARTY_KILL", false, "player-g
 YES, NO = "Yes", "No"
 StaticPopupDialogs = {}
 function StaticPopup_Show(name, argument) _G.lastPopup = { name = name, argument = argument } end
+playedSounds = {}
+function PlaySoundFile(path) playedSounds[path:match("([%w]+)%.ogg$")] = true end
 
 local PTT = {}
 local function Load(path)
@@ -254,9 +256,56 @@ SlashCmdList["PASSTHETIME"]("help")
 SlashCmdList["PASSTHETIME"]("")
 SlashCmdList["PASSTHETIME"]("")
 
+-- Spell Orbs: one shot that pops, drops and clears the board runs every animation
+-- The OnClick sweep above unticked every option, including the sounds.
+PTT.database.settings.gameSounds = true
+PTT.UI.SelectView("bubbles")
+local Bubbles = PTT.Bubbles
+Bubbles.NewGame()
+local orbs = Bubbles.game
+for row = 1, Bubbles.MAX_ROWS + 1 do
+	orbs.grid[row] = {}
+end
+orbs.grid[1][5], orbs.grid[1][6], orbs.grid[2][5] = 2, 2, 3
+orbs.current = 2
+local targetX, targetY = Bubbles.GetCellCenter(1, 7)
+Bubbles.Aim(math.atan(targetX - Bubbles.SHOOTER_X, Bubbles.SHOOTER_Y - targetY))
+Bubbles.Shoot()
+for _ = 1, 80 do
+	for _, frame in ipairs(createdFrames) do
+		if frame._scripts.OnUpdate and frame._shown then frame._scripts.OnUpdate(frame, 0.05) end
+	end
+end
+assert(orbs.level == 2, "spell orbs board cleared")
+assert(#orbs.effects == 0, "spell orbs effects consumed by the UI")
+for _, name in ipairs({ "orbPop1", "orbDrop", "orbLevel" }) do
+	assert(playedSounds[name], "spell orbs played " .. name)
+end
+PTT.database.settings.gameSounds = false
+playedSounds = {}
+PTT.UI.PlayGameSound("orbPop1")
+assert(not next(playedSounds), "sounds stay off when disabled")
+
+-- Every sound a game references ships as a file
+local function AssertSoundFile(name)
+	local handle = io.open("PassTheTime/Sounds/" .. name .. ".ogg", "rb")
+	assert(handle, "missing sound file " .. name)
+	handle:close()
+end
+local bubblesSource = io.open("PassTheTime/UIBubbles.lua"):read("*a")
+for name in bubblesSource:gmatch('"(orb%u%a+)"') do
+	-- "orbPop" is only the prefix of the numbered pop sounds.
+	if name ~= "orbPop" then
+		AssertSoundFile(name)
+	end
+end
+for step = 1, 5 do
+	AssertSoundFile("orbPop" .. step)
+end
+
 -- Every localisation key referenced must exist in both locales
 local source = {}
-for _, file in ipairs({ "UI.lua", "UIIdle.lua", "UIGames.lua", "UIExtras.lua", "UISocial.lua", "UISettings.lua", "UISetup.lua", "UIMiniWidget.lua", "Main.lua" }) do
+for _, file in ipairs({ "UI.lua", "UIIdle.lua", "UIGames.lua", "UIExtras.lua", "UISocial.lua", "UISettings.lua", "UISetup.lua", "UIMiniWidget.lua", "UIBlocks.lua", "UIBubbles.lua", "Main.lua" }) do
 	local handle = io.open("PassTheTime/" .. file)
 	source[#source + 1] = handle:read("*a")
 	handle:close()

@@ -31,6 +31,13 @@ local OPTIONS = {
 		end,
 	},
 	{
+		label = "settingsGameSounds",
+		get = function() return PTT.database.settings.gameSounds end,
+		set = function(checked)
+			PTT.database.settings.gameSounds = checked
+		end,
+	},
+	{
 		label = "settingsRealmLeaderboard",
 		hint = "settingsRealmLeaderboardHint",
 		get = function() return PTT.database.settings.realmLeaderboard end,

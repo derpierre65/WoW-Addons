@@ -1083,6 +1083,11 @@ Check(not Bubbles.GetCell(2, 6) and not Bubbles.GetCell(3, 6) and Bubbles.GetCel
 Check(orbs.score == 3 * Bubbles.POP_SCORE + 2 * Bubbles.DROP_SCORE, "pop and drop scored")
 Check(bubblesSettings.biggestDrop == 2 and bubblesSettings.bubblesPopped == 5, "stats stored")
 Check(orbs.current == 4 and orbs.next == 4, "ammo only uses colors on the board")
+local effectCounts = {}
+for _, effect in ipairs(orbs.effects) do
+	effectCounts[effect.kind] = (effectCounts[effect.kind] or 0) + 1
+end
+Check(effectCounts.pop == 3 and effectCounts.drop == 2 and effectCounts.score == 1, "pops, drops and points reported for the animations")
 
 -- Miss adds rows
 Bubbles.NewGame()

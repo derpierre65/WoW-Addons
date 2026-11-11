@@ -164,10 +164,12 @@ end
 local function Finish(game)
 	game.state = "lost"
 	game.shot = nil
+	game.effects[#game.effects + 1] = { kind = "lost" }
 end
 
 -- Pushes the board down by one new row.
 local function AddRow(game)
+	game.effects[#game.effects + 1] = { kind = "row" }
 	game.parity = 1 - game.parity
 	table.insert(game.grid, 1, FillRow(game, 1))
 	table.remove(game.grid)
@@ -195,6 +197,7 @@ local function FindGroup(game, row, column)
 end
 
 -- Removes bubbles no longer connected to the top row and returns their count.
+-- Every removed bubble is reported in game.effects for the UI animations.
 local function DropFloating(game)
 	local attached, queue = {}, {}
 	for column in pairs(game.grid[1]) do
@@ -216,6 +219,8 @@ local function DropFloating(game)
 	for row = 1, Bubbles.MAX_ROWS + 1 do
 		for column in pairs(game.grid[row]) do
 			if not attached[row * 100 + column] then
+				local x, y = Bubbles.GetCellCenter(row, column)
+				game.effects[#game.effects + 1] = { kind = "drop", x = x, y = y, color = game.grid[row][column] }
 				game.grid[row][column] = nil
 				dropped = dropped + 1
 			end
@@ -259,16 +264,25 @@ local function Resolve(game, row, column, color)
 
 	local group = FindGroup(game, row, column)
 	if #group >= Bubbles.MIN_GROUP then
+		local impactX, impactY = Bubbles.GetCellCenter(row, column)
 		for _, cell in ipairs(group) do
+			local x, y = Bubbles.GetCellCenter(cell[1], cell[2])
+			game.effects[#game.effects + 1] = {
+				kind = "pop", x = x, y = y, color = color,
+				distance = math.sqrt((x - impactX) ^ 2 + (y - impactY) ^ 2),
+			}
 			game.grid[cell[1]][cell[2]] = nil
 		end
 		local dropped = DropFloating(game)
-		game.score = game.score + #group * Bubbles.POP_SCORE + dropped * Bubbles.DROP_SCORE
+		local points = #group * Bubbles.POP_SCORE + dropped * Bubbles.DROP_SCORE
+		game.score = game.score + points
+		game.effects[#game.effects + 1] = { kind = "score", x = impactX, y = impactY, points = points }
 		settings.bubblesPopped = settings.bubblesPopped + #group + dropped
 		settings.biggestDrop = math.max(settings.biggestDrop, dropped)
 	elseif HasBubblesBelowLimit(game) then
 		Finish(game)
 	else
+		game.effects[#game.effects + 1] = { kind = "land" }
 		game.misses = game.misses + 1
 		if game.misses >= Bubbles.MISSES_PER_ROW then
 			game.misses = 0
@@ -278,8 +292,10 @@ local function Resolve(game, row, column, color)
 
 	if game.state ~= "lost" then
 		if IsBoardEmpty(game) then
-			game.score = game.score + Bubbles.CLEAR_BONUS * game.level
+			local bonus = Bubbles.CLEAR_BONUS * game.level
+			game.score = game.score + bonus
 			game.level = game.level + 1
+			game.effects[#game.effects + 1] = { kind = "level", level = game.level, points = bonus }
 			settings.bestLevel = math.max(settings.bestLevel, game.level)
 			NewBoard(game)
 		else
@@ -297,6 +313,8 @@ function Bubbles.NewGame()
 		state = "ready",
 		counted = false,
 		revision = 0,
+		-- Consumed and cleared by the UI.
+		effects = {},
 	}
 	NewBoard(Bubbles.game)
 end
@@ -359,12 +377,11 @@ function Bubbles.Update(deltaSeconds)
 		shot.x = shot.x + shot.directionX * step
 		shot.y = shot.y + shot.directionY * step
 
-		if shot.x < left then
-			shot.x = 2 * left - shot.x
+		if shot.x < left or shot.x > right then
+			local wall = shot.x < left and left or right
+			shot.x = 2 * wall - shot.x
 			shot.directionX = -shot.directionX
-		elseif shot.x > right then
-			shot.x = 2 * right - shot.x
-			shot.directionX = -shot.directionX
+			game.effects[#game.effects + 1] = { kind = "bounce" }
 		end
 
 		if shot.y <= Bubbles.RADIUS or Bubbles.Touches(shot.x, shot.y) then

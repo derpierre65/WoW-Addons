@@ -50,6 +50,15 @@ end
 UI.CreateBox, UI.CreateBoxHeader, UI.CreateStatTile, UI.CreateStatRow = CreateBox, CreateBoxHeader, CreateStatTile, CreateStatRow
 UI.gameColors = { label = LABEL_COLOR, text = TEXT_COLOR, gold = GOLD }
 
+local SOUND_PATH = "Interface\\AddOns\\PassTheTime\\Sounds\\"
+
+-- Plays Sounds\<name>.ogg on the effects channel, unless mini game sounds are off.
+function UI.PlayGameSound(name)
+	if PTT.database.settings.gameSounds and PlaySoundFile then
+		PlaySoundFile(SOUND_PATH .. name .. ".ogg", "SFX")
+	end
+end
+
 local TILE_SIZE, TILE_GAP = 72, 6
 local BOARD_SIZE = 4 * TILE_SIZE + 5 * TILE_GAP
 local SIDE_PANEL_WIDTH = UI.contentWidth - BOARD_SIZE - 14
