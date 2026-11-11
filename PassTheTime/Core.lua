@@ -2,6 +2,9 @@ local addonName, PTT = ...
 
 PassTheTime = PTT
 
+local GetMetadata = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
+PTT.version = GetMetadata and GetMetadata(addonName, "Version")
+
 local DEFAULTS = {
 	setupDone = false,
 	window = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0, entry = "idle:monster", modelZoom = 1.4, bossZoom = 1 },
@@ -67,6 +70,8 @@ loadFrame:SetScript("OnEvent", function(self, event, loadedAddon)
 	end
 
 	self:UnregisterEvent("ADDON_LOADED")
+	-- Only checkable before the defaults fill the database.
+	PTT.isNewInstall = PassTheTimeDB == nil
 	PassTheTimeDB = PassTheTimeDB or {}
 	CopyDefaults(PassTheTimeDB, DEFAULTS)
 	PTT.database = PassTheTimeDB

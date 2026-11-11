@@ -8,6 +8,7 @@
 
 Localization.lua
 Core.lua
+Changelog.lua
 Idle.lua
 World.lua
 Events.lua
@@ -42,5 +43,6 @@ UIExtras.lua
 UISocial.lua
 UISettings.lua
 UISetup.lua
+UIChangelog.lua
 UIMiniWidget.lua
 Main.lua

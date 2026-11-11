@@ -51,6 +51,8 @@ local function CreateSetupWindow()
 	setup:SetScript("OnDragStop", setup.StopMovingOrSizing)
 	setup:SetScript("OnHide", function()
 		PTT.database.setupDone = true
+		-- Waits for the setup so both windows never open on top of each other.
+		UI.ShowPendingChangelog()
 	end)
 
 	local closeButton = CreateFrame("Button", nil, setup, "UIPanelCloseButton")
@@ -116,9 +118,9 @@ function UI.ShowSetup()
 	end
 end
 
-local function ShowWhenOutOfCombat()
+local function RunOutOfCombat(callback)
 	if not InCombatLockdown() then
-		UI.ShowSetup()
+		callback()
 		return
 	end
 
@@ -126,7 +128,21 @@ local function ShowWhenOutOfCombat()
 	waitFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 	waitFrame:SetScript("OnEvent", function(self)
 		self:UnregisterEvent("PLAYER_REGEN_ENABLED")
-		UI.ShowSetup()
+		callback()
+	end)
+end
+
+function UI.ShowAfterLogin(show)
+	local loginFrame = CreateFrame("Frame")
+	loginFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+	loginFrame:SetScript("OnEvent", function(self, event)
+		if event ~= "PLAYER_ENTERING_WORLD" then
+			return
+		end
+		self:UnregisterEvent("PLAYER_ENTERING_WORLD")
+		C_Timer.After(SHOW_DELAY, function()
+			RunOutOfCombat(show)
+		end)
 	end)
 end
 
@@ -135,13 +151,5 @@ function UI.ScheduleSetup()
 		return
 	end
 
-	local loginFrame = CreateFrame("Frame")
-	loginFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-	loginFrame:SetScript("OnEvent", function(self, event)
-		if event ~= "PLAYER_ENTERING_WORLD" then
-			return
-		end
-		self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-		C_Timer.After(SHOW_DELAY, ShowWhenOutOfCombat)
-	end)
+	UI.ShowAfterLogin(UI.ShowSetup)
 end
