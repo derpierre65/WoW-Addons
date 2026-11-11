@@ -517,7 +517,7 @@ function UI.Toggle()
 	UI.Select(PTT.database.window.entry)
 end
 
-function UI.CreateMinimapButton()
+local function CreateMinimapButton()
 	local button = CreateFrame("Button", "PassTheTimeMinimapButton", Minimap)
 	button:SetSize(33, 33)
 	button:SetFrameStrata("MEDIUM")
@@ -565,6 +565,26 @@ function UI.CreateMinimapButton()
 	button:SetScript("OnLeave", UI.HideTooltip)
 
 	UpdatePosition()
-	button:SetShown(not PTT.database.minimap.hidden)
 	UI.minimapButton = button
+end
+
+-- Button collectors like MinimapButtonButton find the button by its name among the minimap children
+-- and hook Show and Hide, so a hidden button is never created and visibility never changes via SetShown.
+function UI.SetMinimapButtonShown(shown)
+	if not UI.minimapButton then
+		if not shown then
+			return
+		end
+		CreateMinimapButton()
+	end
+
+	if shown then
+		UI.minimapButton:Show()
+	else
+		UI.minimapButton:Hide()
+	end
+end
+
+function UI.CreateMinimapButton()
+	UI.SetMinimapButtonShown(not PTT.database.minimap.hidden)
 end

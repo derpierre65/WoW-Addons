@@ -20,7 +20,7 @@ local OPTIONS = {
 		get = function() return not PTT.database.minimap.hidden end,
 		set = function(checked)
 			PTT.database.minimap.hidden = not checked
-			UI.minimapButton:SetShown(checked)
+			UI.SetMinimapButtonShown(checked)
 		end,
 	},
 	{

@@ -81,7 +81,7 @@ SlashCmdList["PASSTHETIME"] = function(message)
 	if command == "minimap" then
 		local settings = PTT.database.minimap
 		settings.hidden = not settings.hidden
-		PTT.UI.minimapButton:SetShown(not settings.hidden)
+		PTT.UI.SetMinimapButtonShown(not settings.hidden)
 	elseif command == "setup" then
 		PTT.UI.ShowSetup()
 	elseif command == "changelog" then
