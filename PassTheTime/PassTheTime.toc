@@ -3,7 +3,7 @@
 ## Title: Pass the Time
 ## Author: derpierre65
 ## Notes: Idle clicker and mini games for waiting times (boats, zeppelins, flights).
-## Version: 0.3.0
+## Version: 0.4.0
 ## SavedVariables: PassTheTimeDB
 
 Localization.lua
