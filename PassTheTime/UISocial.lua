@@ -5,8 +5,8 @@ local UI = PTT.UI
 local REFRESH_INTERVAL = 0.5
 local TOP_CONTRIBUTORS = 5
 
-local function FormatAgo(seconds)
-	if seconds < PTT.Network.ACTIVE_WINDOW then
+local function FormatAgo(seconds, onlineWindow)
+	if seconds < (onlineWindow or PTT.Network.ACTIVE_WINDOW) then
 		return "|cff55dd55" .. L.rankOnline .. "|r"
 	end
 
@@ -77,6 +77,19 @@ local function CollectEntries(source)
 				seconds = GetTime() - player.lastSeen,
 			}
 		end
+	elseif source == "realm" then
+		for _, entry in pairs(Network.GetRealmRanking()) do
+			if entry.name ~= Network.GetPlayerName() then
+				entries[#entries + 1] = {
+					name = entry.name,
+					lifetimeGold = entry.lifetimeGold,
+					income = entry.income,
+					renown = entry.renown,
+					seconds = GetServerTime() - entry.seenAt,
+					onlineWindow = Network.REALM_ONLINE_WINDOW,
+				}
+			end
+		end
 	else
 		for name, entry in pairs(PTT.database.guildRanking) do
 			if name ~= Network.GetPlayerName() then
@@ -113,6 +126,7 @@ local function BuildLeaderboardView(parent)
 	end
 	CreateTab("group", L.sourceGroup, 0)
 	CreateTab("guild", L.sourceGuild, 100)
+	CreateTab("realm", L.sourceRealm, 200)
 
 	local headerTexts = { L.rankName, L.rankGold, L.rankIncome, L.rankRenown, L.rankSeen }
 	local headerKeys = { "name", "gold", "income", "renown", "seen" }
@@ -171,6 +185,8 @@ local function BuildLeaderboardView(parent)
 		end
 
 		local entries = CollectEntries(source)
+		local realmDisabled = source == "realm" and not PTT.database.settings.realmLeaderboard
+		emptyLabel:SetText(realmDisabled and L.rankRealmDisabled or L.rankNobody)
 		emptyLabel:SetShown(#entries <= 1)
 		content:SetHeight(math.max(1, #entries * ROW_HEIGHT))
 
@@ -183,7 +199,7 @@ local function BuildLeaderboardView(parent)
 			row.cells.gold:SetText(PTT.FormatNumber(entry.lifetimeGold))
 			row.cells.income:SetText(PTT.FormatNumber(entry.income))
 			row.cells.renown:SetText(entry.renown)
-			row.cells.seen:SetText(FormatAgo(entry.seconds))
+			row.cells.seen:SetText(FormatAgo(entry.seconds, entry.onlineWindow))
 		end
 
 		for index = #entries + 1, #rows do

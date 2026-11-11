@@ -30,6 +30,14 @@ local OPTIONS = {
 			PTT.database.settings.closeInCombat = checked
 		end,
 	},
+	{
+		label = "settingsRealmLeaderboard",
+		hint = "settingsRealmLeaderboardHint",
+		get = function() return PTT.database.settings.realmLeaderboard end,
+		set = function(checked)
+			PTT.Network.SetRealmLeaderboard(checked)
+		end,
+	},
 }
 
 -- Returns the lowest element and its indent, so callers can anchor content below the options.

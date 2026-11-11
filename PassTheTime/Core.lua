@@ -6,7 +6,7 @@ local DEFAULTS = {
 	setupDone = false,
 	window = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0, entry = "idle:monster", modelZoom = 1.4, bossZoom = 1 },
 	minimap = { angle = 200, hidden = false },
-	settings = { miniWidget = false, closeInCombat = true },
+	settings = { miniWidget = false, closeInCombat = true, realmLeaderboard = true },
 	miniWidget = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 250 },
 	game2048 = { score = 0, best = 0, wonShown = false, played = 0, highestTile = 0 },
 	hangman = { language = "auto", category = "all", difficulty = "medium", played = 0, won = 0, streak = 0, bestStreak = 0 },
@@ -25,6 +25,7 @@ local DEFAULTS = {
 	breakout = { played = 0, highScore = 0, bestLevel = 0, bossesKilled = 0, raidsCleared = 0, flawlessClears = 0 },
 	achievements = {},
 	guildRanking = {},
+	realmRanking = {},
 	guildBoss = { week = 0, damage = 0, health = 0, claimed = false, contributions = {} },
 }
 
